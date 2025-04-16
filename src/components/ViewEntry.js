@@ -358,19 +358,23 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
               <InfoItem>
                 <strong>First Meeting:</strong>{" "}
                 {entry.firstdate
-                  ? new Date(entry.firstdate).toLocaleDateString()
+                  ? new Date(entry.firstdate).toLocaleDateString("en-GB")
                   : "N/A"}
               </InfoItem>
+
               <InfoItem>
                 <strong>Follow Up:</strong>{" "}
                 {entry.followUpDate
-                  ? new Date(entry.followUpDate).toLocaleDateString()
+                  ? new Date(entry.followUpDate).toLocaleDateString("en-GB")
                   : "N/A"}
               </InfoItem>
+
               <InfoItem>
                 <strong>Expected Close:</strong>{" "}
                 {entry.expectedClosingDate
-                  ? new Date(entry.expectedClosingDate).toLocaleDateString()
+                  ? new Date(entry.expectedClosingDate).toLocaleDateString(
+                      "en-GB"
+                    )
                   : "N/A"}
               </InfoItem>
             </InfoRow>
