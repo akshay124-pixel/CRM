@@ -83,7 +83,7 @@ const Navbar = () => {
           alt="Logo"
           className="logo-image"
           style={{
-            width: "120px",
+            width: "140px",
             height: "auto",
             marginLeft: "20px",
           }}
