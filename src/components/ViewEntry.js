@@ -393,15 +393,17 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
               <InfoItem>
                 <strong>Created:</strong>{" "}
                 {entry.createdAt
-                  ? new Date(entry.createdAt).toLocaleDateString()
+                  ? new Date(entry.createdAt).toLocaleDateString("en-GB")
                   : "N/A"}
               </InfoItem>
+
               <InfoItem>
                 <strong>Updated:</strong>{" "}
                 {entry.updatedAt
-                  ? new Date(entry.updatedAt).toLocaleDateString()
+                  ? new Date(entry.updatedAt).toLocaleDateString("en-GB")
                   : "N/A"}
               </InfoItem>
+
               <InfoItem>
                 <strong>Created By:</strong>{" "}
                 {entry.createdBy?.username || "N/A"}
