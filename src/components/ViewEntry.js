@@ -327,9 +327,11 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                 <strong>Type:</strong> {entry.type || "N/A"}
               </InfoItem>
               <InfoItem>
-                <strong>Estimated Value:</strong>{" "}
+                <strong>Estimated Value (₹):</strong>{" "}
                 {entry.estimatedValue
-                  ? `$${entry.estimatedValue.toLocaleString()}`
+                  ? `₹${new Intl.NumberFormat("en-IN").format(
+                      entry.estimatedValue
+                    )}`
                   : "N/A"}
               </InfoItem>
             </InfoRow>

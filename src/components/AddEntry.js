@@ -3,6 +3,8 @@ import { Modal, Button, Form, ProgressBar, Table } from "react-bootstrap";
 import axios from "axios";
 import { toast } from "react-toastify";
 import styled from "styled-components";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 const StyledTable = styled(Table)`
   margin-top: 0.5rem;
@@ -1627,13 +1629,18 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
           <>
             <Form.Group controlId="formFirstDate" className="mb-3">
               <Form.Label>First Meeting Date</Form.Label>
-              <Form.Control
-                type="date"
-                name="firstdate"
-                value={formData.firstdate}
-                onChange={handleInput}
+              <DatePicker
+                selected={
+                  formData.firstdate ? new Date(formData.firstdate) : null
+                }
+                onChange={(date) =>
+                  handleInput({ target: { name: "firstdate", value: date } })
+                }
+                dateFormat="dd/MM/yy"
+                className="form-control"
+                maxDate={new Date()}
                 disabled={loading}
-                max={new Date().toISOString().split("T")[0]}
+                placeholderText="DD/MM/YY"
               />
             </Form.Group>
 
@@ -1766,7 +1773,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 disabled={loading}
               >
                 <option value="">-- Select Type --</option>
-                <option value="Customer">Customer</option>
+                <option value="Direct Client">Direct Client</option>
                 <option value="Partner">Partner</option>
               </Form.Select>
             </Form.Group>

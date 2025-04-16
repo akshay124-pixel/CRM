@@ -1367,7 +1367,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
             }
           >
             <option value="">-- Select Type --</option>
-            <option value="Customer">Customer</option>
+            <option value="Direct Client">Direct Client</option>
             <option value="Partner">Partner</option>
           </Form.Select>
           <Form.Control.Feedback type="invalid">
