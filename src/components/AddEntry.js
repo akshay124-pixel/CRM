@@ -34,15 +34,31 @@ const productOptions = [
     name: "OPS",
     sizes: ["N/A"],
     specifications: [
+      // i5 11th Gen
       "i5 11th Gen, 8GB RAM, 256GB ROM",
       "i5 11th Gen, 8GB RAM, 512GB ROM",
       "i5 11th Gen, 8GB RAM, 1TB ROM",
+      "i5 11th Gen, 16GB RAM, 256GB ROM",
+      "i5 11th Gen, 16GB RAM, 512GB ROM",
+      "i5 11th Gen, 16GB RAM, 1TB ROM",
+
+      // i5 12th Gen
       "i5 12th Gen, 8GB RAM, 256GB ROM",
       "i5 12th Gen, 8GB RAM, 512GB ROM",
       "i5 12th Gen, 8GB RAM, 1TB ROM",
+      "i5 12th Gen, 16GB RAM, 256GB ROM",
+      "i5 12th Gen, 16GB RAM, 512GB ROM",
+      "i5 12th Gen, 16GB RAM, 1TB ROM",
+
+      // i7 11th Gen
       "i7 11th Gen, 8GB RAM, 256GB ROM",
       "i7 11th Gen, 8GB RAM, 512GB ROM",
       "i7 11th Gen, 8GB RAM, 1TB ROM",
+      "i7 11th Gen, 16GB RAM, 256GB ROM",
+      "i7 11th Gen, 16GB RAM, 512GB ROM",
+      "i7 11th Gen, 16GB RAM, 1TB ROM",
+
+      // i7 12th Gen
       "i7 12th Gen, 8GB RAM, 256GB ROM",
       "i7 12th Gen, 8GB RAM, 512GB ROM",
       "i7 12th Gen, 8GB RAM, 1TB ROM",
