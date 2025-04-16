@@ -24,9 +24,12 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get("http://localhost:4000/api/users", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await axios.get(
+        "https://crm-server-amz7.onrender.com/api/users",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       setUsers(response.data);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -46,7 +49,7 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
     try {
       const token = localStorage.getItem("token");
       const response = await axios.post(
-        "http://localhost:4000/api/assign-user",
+        "https://crm-server-amz7.onrender.com/api/assign-user",
         { userId: userIdToAssign },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -62,7 +65,7 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
     try {
       const token = localStorage.getItem("token");
       const response = await axios.post(
-        "http://localhost:4000/api/unassign-user",
+        "https://crm-server-amz7.onrender.com/api/unassign-user",
         { userId: userIdToUnassign },
         { headers: { Authorization: `Bearer ${token}` } }
       );

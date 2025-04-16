@@ -711,7 +711,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
       };
 
       const response = await axios.post(
-        "http://localhost:4000/api/entry",
+        "https://crm-server-amz7.onrender.com/api/entry",
         submitData,
         {
           headers: {

@@ -34,7 +34,7 @@ function Login({ onAuthSuccess }) {
 
     try {
       const response = await axios.post(
-        "http://localhost:4000/auth/login",
+        "https://crm-server-amz7.onrender.com/auth/login",
         formData
       );
 

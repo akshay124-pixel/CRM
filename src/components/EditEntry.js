@@ -289,7 +289,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       }
 
       const response = await axios.put(
-        `http://localhost:4000/api/editentry/${entry._id}`,
+        `https://crm-server-amz7.onrender.com/api/editentry/${entry._id}`,
         payload,
         {
           headers: {

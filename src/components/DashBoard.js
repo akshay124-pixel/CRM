@@ -263,10 +263,13 @@ function DashBoard() {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("No token found");
       const decoded = jwtDecode(token);
-      const response = await axios.get("http://localhost:4000/api/user-role", {
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 5000,
-      });
+      const response = await axios.get(
+        "https://crm-server-amz7.onrender.com/api/user-role",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 5000,
+        }
+      );
       const { role, userId } = response.data;
       if (!role || !userId) throw new Error("Invalid user details");
       setRole(role);
@@ -289,7 +292,7 @@ function DashBoard() {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("No token found");
       const response = await axios.get(
-        "http://localhost:4000/api/fetch-entry",
+        "https://crm-server-amz7.onrender.com/api/fetch-entry",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -446,10 +449,13 @@ function DashBoard() {
   const handleExport = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get("http://localhost:4000/api/export", {
-        headers: { Authorization: `Bearer ${token}` },
-        responseType: "arraybuffer",
-      });
+      const response = await axios.get(
+        "https://crm-server-amz7.onrender.com/api/export",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: "arraybuffer",
+        }
+      );
       const blob = new Blob([response.data], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
@@ -551,7 +557,7 @@ function DashBoard() {
         }
         const token = localStorage.getItem("token");
         const response = await axios.post(
-          "http://localhost:4000/api/entries",
+          "https://crm-server-amz7.onrender.com/api/entries",
           validEntries,
           {
             headers: {

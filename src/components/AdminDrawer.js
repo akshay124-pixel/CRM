@@ -18,9 +18,12 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
 
         if (role === "superadmin") {
           // For superadmin, fetch all users (including admins and superadmin)
-          const response = await axios.get("http://localhost:4000/api/users", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const response = await axios.get(
+            "https://crm-server-amz7.onrender.com/api/users",
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
           relevantUserIds = response.data.map((user) => ({
             _id: user._id,
             username: user.username,
@@ -36,9 +39,12 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
           }
         } else if (role === "admin") {
           // For admin, only include users assigned to them
-          const response = await axios.get("http://localhost:4000/api/users", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const response = await axios.get(
+            "https://crm-server-amz7.onrender.com/api/users",
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
           relevantUserIds = response.data
             .filter((user) => user.assignedAdmin === userId)
             .map((user) => ({
