@@ -30,7 +30,14 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      setUsers(response.data);
+      let fetchedUsers = response.data;
+      // Filter users based on role and userId
+      if (userRole === "admin") {
+        fetchedUsers = fetchedUsers.filter(
+          (user) => !user.assignedAdmin || user.assignedAdmin === userId
+        );
+      }
+      setUsers(fetchedUsers);
     } catch (error) {
       console.error("Error fetching users:", error);
       toast.error("Failed to fetch users!");
@@ -166,6 +173,22 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
                 background: "rgba(255, 255, 255, 0.1)",
                 borderRadius: "10px",
                 boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
+                maxHeight: "60vh",
+                overflowY: "auto",
+                "&::-webkit-scrollbar": {
+                  width: "8px",
+                },
+                "&::-webkit-scrollbar-track": {
+                  background: "rgba(255, 255, 255, 0.1)",
+                  borderRadius: "4px",
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  background: "rgba(255, 255, 255, 0.3)",
+                  borderRadius: "4px",
+                },
+                "&::-webkit-scrollbar-thumb:hover": {
+                  background: "rgba(255, 255, 255, 0.5)",
+                },
               }}
             >
               <Table>
@@ -183,6 +206,9 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
                             borderBottom: "1px solid rgba(255, 255, 255, 0.2)",
                             textAlign: "center",
                             py: 2,
+                            position: "sticky",
+                            top: 0,
+                            zIndex: 1,
                           }}
                         >
                           {header}
