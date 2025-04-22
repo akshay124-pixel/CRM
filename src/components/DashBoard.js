@@ -1573,8 +1573,8 @@ function DashBoard() {
         onDoubleClick={() => handleDoubleClick(row._id)}
         style={{
           ...style, // For react-window virtualization
-          marginBottom: "12px",
-          padding: "0 10px",
+          padding: "0 10px 24px 10px", // 24px gap between cards
+          boxSizing: "border-box",
         }}
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -1583,6 +1583,7 @@ function DashBoard() {
         <Box
           sx={{
             p: 2,
+
             borderRadius: "12px",
             boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
             backgroundColor: isSelected ? "rgba(37, 117, 252, 0.1)" : "#fff",
@@ -1641,7 +1642,15 @@ function DashBoard() {
           {/* Card Content */}
           <Typography
             variant="h6"
-            sx={{ fontWeight: "bold", mb: 1, fontSize: "1.1rem" }}
+            sx={{
+              fontWeight: "bold",
+              mb: 1,
+              fontSize: "1.1rem",
+              whiteSpace: "nowrap", // Prevents text wrapping
+              overflow: "hidden", // Hides overflow content
+              textOverflow: "ellipsis", // Adds ellipsis for truncated text
+              maxWidth: "100%", // Ensures it respects parent container's width
+            }}
           >
             {row.customerName}
           </Typography>
@@ -2288,7 +2297,7 @@ function DashBoard() {
                 style={{
                   position: "sticky",
                   bottom: 0,
-                  background: "rgba(255, 255, 255, 0.9)",
+
                   backdropFilter: "blur(8px)",
                   padding: "10px",
                   boxShadow: "0 -2px 4px rgba(0, 0, 0, 0.1)",
