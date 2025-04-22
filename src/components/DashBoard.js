@@ -23,6 +23,7 @@ import {
   FaUpload,
   FaUsers,
   FaChartBar,
+  FaCheckCircle, // Added for selection feedback
 } from "react-icons/fa";
 import axios from "axios";
 import * as XLSX from "xlsx";
@@ -36,6 +37,22 @@ import DeleteModal from "./Delete";
 import ViewEntry from "./ViewEntry";
 import TeamBuilder from "./TeamBuilder";
 import AdminDrawer from "./AdminDrawer";
+import { FixedSizeList } from "react-window"; // Added for mobile virtualization
+
+// Custom hook for mobile detection
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return isMobile;
+};
 
 const CallTrackingDashboard = ({
   entries,
@@ -80,7 +97,7 @@ const CallTrackingDashboard = ({
     >
       <Box sx={{ mb: 4 }}>
         <Divider sx={{ mb: 3 }} />
-        <Grid container spacing={3}>
+        <Grid container spacing={2} justifyContent="center">
           {[
             {
               title: "Closed Won",
@@ -118,7 +135,7 @@ const CallTrackingDashboard = ({
               border: "Not Interested",
             },
           ].map((stat) => (
-            <Grid item xs={12} sm={2.4} key={stat.title}>
+            <Grid item xs={12} sm={6} md={2.4} key={stat.title}>
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 transition={{ duration: 0.3 }}
@@ -139,16 +156,26 @@ const CallTrackingDashboard = ({
                       selectedCategory === stat.border
                         ? `2px solid ${stat.color}`
                         : "none",
+                    cursor: "pointer",
+                    transition: "all 0.3s ease",
                   }}
                   onClick={() => onFilterChange(stat.border)}
                 >
                   <CardContent>
-                    <Typography variant="h6" color="textSecondary">
+                    <Typography
+                      variant="h6"
+                      color="textSecondary"
+                      sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                    >
                       {stat.title}
                     </Typography>
                     <Typography
                       variant="h4"
-                      sx={{ fontWeight: "bold", color: stat.color }}
+                      sx={{
+                        fontWeight: "bold",
+                        color: stat.color,
+                        fontSize: { xs: "1.5rem", sm: "2rem" },
+                      }}
                     >
                       {stat.value}
                     </Typography>
@@ -180,6 +207,7 @@ const CallTrackingDashboard = ({
 };
 
 function DashBoard() {
+  const isMobile = useIsMobile();
   const [entries, setEntries] = useState([]);
   const [role, setRole] = useState(localStorage.getItem("role") || "");
   const [userId, setUserId] = useState(localStorage.getItem("userId") || "");
@@ -1534,6 +1562,227 @@ function DashBoard() {
     );
   };
 
+  const renderMobileCard = ({ index, style }) => {
+    const row = filteredData[index];
+    const isSelected = selectedEntries.includes(row._id);
+    return (
+      <motion.div
+        key={row._id}
+        className={`mobile-card ${isSelected ? "selected" : ""}`}
+        onClick={() => handleSingleClick(row._id)}
+        onDoubleClick={() => handleDoubleClick(row._id)}
+        style={{
+          ...style, // For react-window virtualization
+          marginBottom: "12px",
+          padding: "0 10px",
+        }}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3, delay: index * 0.05 }}
+      >
+        <Box
+          sx={{
+            p: 2,
+            borderRadius: "12px",
+            boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
+            backgroundColor: isSelected ? "rgba(37, 117, 252, 0.1)" : "#fff",
+            border: isSelected ? "2px solid #2575fc" : "1px solid #ddd",
+            cursor: "pointer",
+            transition: "all 0.3s ease",
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          {/* Card Header with Entry Number and Date */}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              background: "linear-gradient(135deg, #f5f7fa, #e4e7eb)",
+              borderRadius: "8px 8px 0 0",
+              padding: "8px 12px",
+              margin: "-16px -16px 12px -16px",
+            }}
+          >
+            <Typography
+              variant="body2"
+              sx={{ fontWeight: "bold", fontSize: "0.85rem", color: "#333" }}
+            >
+              Entry #{index + 1}
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{ fontSize: "0.8rem", color: "#555" }}
+            >
+              {row.createdAt
+                ? new Date(row.createdAt).toLocaleDateString()
+                : "N/A"}
+            </Typography>
+          </Box>
+
+          {/* Selection Checkmark */}
+          {isSelected && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.2 }}
+              style={{
+                position: "absolute",
+                top: "12px",
+                right: "12px",
+                color: "#2575fc",
+              }}
+            >
+              <FaCheckCircle size={20} />
+            </motion.div>
+          )}
+
+          {/* Card Content */}
+          <Typography
+            variant="h6"
+            sx={{ fontWeight: "bold", mb: 1, fontSize: "1.1rem" }}
+          >
+            {row.customerName}
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{ mb: 0.5, fontSize: "0.9rem", color: "#555" }}
+          >
+            <strong>Mobile:</strong> {row.mobileNumber}
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{ mb: 0.5, fontSize: "0.9rem", color: "#555" }}
+          >
+            <strong>Address:</strong> {row.address}
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{ mb: 0.5, fontSize: "0.9rem", color: "#555" }}
+          >
+            <strong>City:</strong> {row.city}
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{ mb: 0.5, fontSize: "0.9rem", color: "#555" }}
+          >
+            <strong>State:</strong> {row.state}
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{ mb: 0.5, fontSize: "0.9rem", color: "#555" }}
+          >
+            <strong>Organization:</strong> {row.organization}
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{ mb: 1, fontSize: "0.9rem", color: "#555" }}
+          >
+            <strong>Category:</strong> {row.category}
+          </Typography>
+
+          {/* Action Buttons */}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 1,
+              marginTop: "12px",
+            }}
+          >
+            <Button
+              variant="primary"
+              className="viewBtn"
+              onClick={() => {
+                setEntryToView(row);
+                setIsViewModalOpen(true);
+              }}
+              style={{
+                width: "40px",
+                height: "40px",
+                borderRadius: "22px",
+                padding: "0",
+              }}
+              role="button"
+              tabIndex={0}
+              aria-label={`View entry for ${row.customerName}`}
+            >
+              <FaEye style={{ marginBottom: "3px" }} />
+            </Button>
+            <button
+              className="editBtn"
+              onClick={() => {
+                setEntryToEdit(row);
+                setIsEditModalOpen(true);
+              }}
+              style={{ width: "40px", height: "40px", padding: "0" }}
+              role="button"
+              tabIndex={0}
+              aria-label={`Edit entry for ${row.customerName}`}
+            >
+              <svg height="1em" viewBox="0 0 512 512">
+                <path d="M410.3 231l11.3-11.3-33.9-33.9-62.1-62.1L291.7 89.8l-11.3 11.3-22.6 22.6L58.6 322.9c-10.4 10.4-18 23.3-22.2 37.4L1 480.7c-2.5 8.4-.2 17.5 6.1 23.7s15.3 8.5 23.7 6.1l120.3-35.4c14.1-4.2 27-11.8 37.4-22.2L387.7 253.7 410.3 231zM160 399.4l-9.1 22.7c-4 3.1-8.5 5.4-13.3 6.9L59.4 452l23-78.1c1.4-4.9 3.8-9.4 6.9-13.3l22.7-9.1v32c0 8.8 7.2 16 16 16h32zM362.7 18.7L348.3 33.2 325.7 55.8 314.3 67.1l33.9 33.9 62.1 62.1 33.9 33.9 11.3-11.3 22.6-22.6 14.5-14.5c25-25 25-65.5 0-90.5L453.3 18.7c-25-25-65.5-25-90.5 0zm-47.4 168l-144 144c-6.2 6.2-16.4-6.2-22.6 0s-6.2 16.4 0 22.6l144-144c6.2-6.2 16.4-6.2 22.6 0s6.2 16.4 0 22.6z"></path>
+              </svg>
+            </button>
+            <button
+              className="bin-button"
+              onClick={() => {
+                setItemIdToDelete(row._id);
+                setIsDeleteModalOpen(true);
+              }}
+              style={{ width: "40px", height: "40px", padding: "0" }}
+              role="button"
+              tabIndex={0}
+              aria-label={`Delete entry for ${row.customerName}`}
+            >
+              <svg
+                className="bin-top"
+                viewBox="0 0 39 7"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <line
+                  y1="5"
+                  x2="39"
+                  y2="5"
+                  stroke="white"
+                  strokeWidth="4"
+                ></line>
+                <line
+                  x1="12"
+                  y1="1.5"
+                  x2="26.0357"
+                  y2="1.5"
+                  stroke="white"
+                  strokeWidth="3"
+                ></line>
+              </svg>
+              <svg
+                className="bin-bottom"
+                viewBox="0 0 33 39"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <mask id="path-1-inside-1_8_19" fill="white">
+                  <path d="M0 0H33V35C33 37.2091 31.2091 39 29 39H4C1.79086 39 0 37.2091 0 35V0Z"></path>
+                </mask>
+                <path
+                  d="M0 0H33H0ZM37 35C37 39.4183 33.4183 43 29 43H4C-0.418278 43 -4 39.4183 -4 35H4H29H37ZM4 43C-0.418278 43 -4 39.4183 -4 35V0H4V35V43ZM37 0V35C37 39.4183 33.4183 43 29 43V35V0H37Z"
+                  fill="white"
+                  mask="url(#path-1-inside-1_8_19)"
+                ></path>
+                <path d="M12 6L12 29" stroke="white" strokeWidth="4"></path>
+                <path d="M21 6V29" stroke="white" strokeWidth="4"></path>
+              </svg>
+            </button>
+          </Box>
+        </Box>
+      </motion.div>
+    );
+  };
+
   if (authLoading) {
     return (
       <div
@@ -1560,7 +1809,6 @@ function DashBoard() {
     <>
       <div className="enhanced-search-bar-container">
         <input
-          style={{ width: "30%" }}
           type="text"
           className="enhanced-search-bar"
           placeholder="🔍 Search..."
@@ -1609,7 +1857,7 @@ function DashBoard() {
               rangeColors={["#2575fc"]}
               editableDateInputs={true}
               months={1}
-              direction="horizontal"
+              direction={isMobile ? "vertical" : "horizontal"}
             />
           </Popover>
         </div>
@@ -1675,7 +1923,11 @@ function DashBoard() {
 
       <div
         className="dashboard-container"
-        style={{ width: "90%", margin: "auto", padding: "20px" }}
+        style={{
+          width: isMobile ? "100%" : "90%",
+          margin: "auto",
+          padding: isMobile ? "10px" : "20px",
+        }}
       >
         <CallTrackingDashboard
           entries={entries}
@@ -1685,18 +1937,19 @@ function DashBoard() {
           userId={userId}
         />
 
-        <div style={{ textAlign: "center" }}>
+        <div style={{ textAlign: "center", margin: isMobile ? "10px 0" : "0" }}>
           <label
+            className="action-button"
             style={{
-              padding: "12px 20px",
+              padding: isMobile ? "10px 15px" : "12px 20px",
               background: "linear-gradient(135deg, #2575fc, #6a11cb)",
               color: "white",
               borderRadius: "12px",
-              margin: "0 10px",
+              margin: isMobile ? "5px" : "0 10px",
               cursor: "pointer",
               fontWeight: "bold",
               border: "none",
-              fontSize: "1rem",
+              fontSize: isMobile ? "0.9rem" : "1rem",
               boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
               transition: "transform 0.2s ease, box-shadow 0.2s ease",
               display: "inline-block",
@@ -1720,20 +1973,20 @@ function DashBoard() {
             />
           </label>
           <button
-            className="button mx-3"
+            className="action-button"
             onClick={() => setIsAddModalOpen(true)}
             style={{
-              padding: "12px 20px",
+              padding: isMobile ? "10px 15px" : "12px 20px",
               background: "linear-gradient(135deg, #2575fc, #6a11cb)",
               color: "white",
               borderRadius: "12px",
               cursor: "pointer",
               fontWeight: "bold",
               border: "none",
-              fontSize: "1rem",
+              fontSize: isMobile ? "0.9rem" : "1rem",
               boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
               transition: "transform 0.2s ease, box-shadow 0.2s ease",
-              margin: "0 10px",
+              margin: isMobile ? "5px" : "0 10px",
               display: "inline-block",
             }}
             onMouseEnter={(e) => {
@@ -1751,20 +2004,20 @@ function DashBoard() {
           {(role === "superadmin" || role === "admin") && (
             <>
               <button
-                className="button mx-1"
+                className="action-button"
                 onClick={() => setIsTeamBuilderOpen(true)}
                 style={{
-                  padding: "12px 20px",
+                  padding: isMobile ? "10px 15px" : "12px 20px",
                   background: "linear-gradient(135deg, #2575fc, #6a11cb)",
                   color: "white",
                   borderRadius: "12px",
                   cursor: "pointer",
                   fontWeight: "bold",
                   border: "none",
-                  fontSize: "1rem",
+                  fontSize: isMobile ? "0.9rem" : "1rem",
                   boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
                   transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                  margin: "0 10px",
+                  margin: isMobile ? "5px" : "0 10px",
                   display: "inline-block",
                 }}
                 onMouseEnter={(e) => {
@@ -1780,20 +2033,20 @@ function DashBoard() {
                 Team Builder
               </button>
               <button
-                className="button mx-1"
+                className="action-button"
                 onClick={() => setIsAnalyticsOpen(true)}
                 style={{
-                  padding: "12px 20px",
+                  padding: isMobile ? "10px 15px" : "12px 20px",
                   background: "linear-gradient(135deg, #2575fc, #6a11cb)",
                   color: "white",
                   borderRadius: "12px",
                   cursor: "pointer",
                   fontWeight: "bold",
                   border: "none",
-                  fontSize: "1rem",
+                  fontSize: isMobile ? "0.9rem" : "1rem",
                   boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
                   transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                  margin: "0 10px",
+                  margin: isMobile ? "5px" : "0 10px",
                   display: "inline-block",
                 }}
                 onMouseEnter={(e) => {
@@ -1809,20 +2062,20 @@ function DashBoard() {
                 Team Analytics
               </button>
               <button
-                className="button mx-1"
+                className="action-button"
                 onClick={handleExport}
                 style={{
-                  padding: "12px 20px",
+                  padding: isMobile ? "10px 15px" : "12px 20px",
                   background: "linear-gradient(135deg, #2575fc, #6a11cb)",
                   color: "white",
                   borderRadius: "12px",
                   cursor: "pointer",
                   fontWeight: "bold",
                   border: "none",
-                  fontSize: "1rem",
+                  fontSize: isMobile ? "0.9rem" : "1rem",
                   boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
                   transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                  margin: "0 10px",
+                  margin: isMobile ? "5px" : "0 10px",
                   display: "inline-block",
                 }}
                 onMouseEnter={(e) => {
@@ -1843,18 +2096,26 @@ function DashBoard() {
           )}
           {(role === "superadmin" || role === "admin") &&
             filteredData.length > 0 && (
-              <div style={{ marginTop: "10px", marginLeft: "50px" }}>
+              <div
+                style={{
+                  marginTop: "10px",
+                  marginLeft: isMobile ? "0" : "50px",
+                  display: isMobile ? "flex" : "block",
+                  flexWrap: isMobile ? "wrap" : "none",
+                  justifyContent: isMobile ? "center" : "flex-start",
+                }}
+              >
                 {isSelectionMode && (
                   <Button
                     variant="info"
                     className="select mx-3"
                     onClick={handleSelectAll}
                     style={{
-                      marginRight: "10px",
+                      margin: isMobile ? "5px" : "0 10px 0 0",
                       background: "linear-gradient(135deg, #2575fc, #6a11cb)",
                       border: "none",
                       color: "white",
-                      padding: "10px 20px",
+                      padding: isMobile ? "8px 15px" : "10px 20px",
                       borderRadius: "12px",
                       fontWeight: "bold",
                       boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
@@ -1880,10 +2141,10 @@ function DashBoard() {
                       variant="primary"
                       onClick={handleCopySelected}
                       style={{
-                        marginRight: "10px",
+                        margin: isMobile ? "5px" : "0 10px 0 0",
                         background: "linear-gradient(135deg, #2575fc, #6a11cb)",
                         border: "none",
-                        padding: "10px 20px",
+                        padding: isMobile ? "8px 15px" : "10px 20px",
                         borderRadius: "12px",
                         fontWeight: "bold",
                         boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
@@ -1907,9 +2168,10 @@ function DashBoard() {
                       className="copy mx-2"
                       onClick={handleDeleteSelected}
                       style={{
+                        margin: isMobile ? "5px" : "0 10px 0 0",
                         background: "linear-gradient(90deg, #ff4444, #cc0000)",
                         border: "none",
-                        padding: "10px 20px",
+                        padding: isMobile ? "8px 15px" : "10px 20px",
                         borderRadius: "12px",
                         fontWeight: "bold",
                         boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
@@ -1933,7 +2195,12 @@ function DashBoard() {
               </div>
             )}
           <p
-            style={{ fontSize: "0.9rem", color: "#6c757d", marginTop: "10px" }}
+            style={{
+              fontSize: isMobile ? "0.8rem" : "0.9rem",
+              color: "#6c757d",
+              marginTop: "10px",
+              textAlign: isMobile ? "center" : "center",
+            }}
           >
             Upload a valid Excel file with columns:{" "}
             <strong>
@@ -1948,10 +2215,10 @@ function DashBoard() {
           style={{
             marginBottom: "10px",
             fontWeight: "600",
-            fontSize: "1rem",
+            fontSize: isMobile ? "0.9rem" : "1rem",
             color: "#fff",
             background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-            padding: "5px 15px",
+            padding: isMobile ? "5px 10px" : "5px 15px",
             borderRadius: "20px",
             boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
             display: "inline-block",
@@ -1966,184 +2233,296 @@ function DashBoard() {
           className="table-container"
           style={{
             width: "100%",
-            height: "75vh",
+            height: isMobile ? "auto" : "75vh",
             margin: "0 auto",
-            overflowX: "hidden",
-            boxShadow: "0 6px 18px rgba(0, 0, 0, 0.1)",
-            borderRadius: "15px",
+            overflowX: isMobile ? "visible" : "hidden",
+            boxShadow: isMobile ? "none" : "0 6px 18px rgba(0, 0, 0, 0.1)",
+            borderRadius: isMobile ? "0" : "15px",
             marginTop: "20px",
             backgroundColor: "#fff",
+            padding: isMobile ? "10px" : "0",
           }}
         >
-          <div
-            className="table-header"
-            style={{
-              background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-              color: "white",
-              fontSize: "1.1rem",
-              padding: "15px 20px",
-              textAlign: "center",
-              position: "sticky",
-              top: 0,
-              zIndex: 2,
-              display: "grid",
-              gridTemplateColumns: "115px repeat(8, 1fr) 150px",
-              fontWeight: "bold",
-              borderBottom: "2px solid #ddd",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <div>#</div>
-            <div style={{ alignItems: "center", justifyContent: "center" }}>
-              Date
-            </div>
+          {isMobile ? (
             <div
+              className="card-scroll-container"
               style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
+                maxHeight: "75vh",
+                overflowY: "auto",
+                overflowX: "hidden",
+                padding: "10px",
+                scrollBehavior: "smooth",
+                WebkitOverflowScrolling: "touch",
+                position: "relative",
               }}
             >
-              Customer
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              Mobile
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              Address
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              City
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              State
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              Organization
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              Category
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              Actions
-            </div>
-          </div>
-          {filteredData.length === 0 ? (
-            <div
-              style={{
-                height: "calc(100% - 60px)",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                fontSize: "1.5rem",
-                color: "#666",
-                fontWeight: "bold",
-                textAlign: "center",
-                padding: "20px",
-              }}
-            >
-              No Entries Available
+              {filteredData.length === 0 ? (
+                <div
+                  style={{
+                    height: "100%",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    fontSize: "1.2rem",
+                    color: "#666",
+                    fontWeight: "bold",
+                    textAlign: "center",
+                    padding: "20px",
+                  }}
+                >
+                  No Entries Available
+                </div>
+              ) : (
+                <FixedSizeList
+                  height={window.innerHeight * 0.75} // Match maxHeight: 75vh
+                  width="100%"
+                  itemCount={filteredData.length}
+                  itemSize={280} // Estimated card height (adjust if needed)
+                  overscanCount={5}
+                >
+                  {renderMobileCard}
+                </FixedSizeList>
+              )}
+              {/* Sticky Action Bar */}
+              <div
+                style={{
+                  position: "sticky",
+                  bottom: 0,
+                  background: "rgba(255, 255, 255, 0.9)",
+                  backdropFilter: "blur(8px)",
+                  padding: "10px",
+                  boxShadow: "0 -2px 4px rgba(0, 0, 0, 0.1)",
+                  display: "flex",
+                  justifyContent: "center",
+                  gap: "12px",
+                  zIndex: 10,
+                }}
+              >
+                <motion.button
+                  onClick={() => setIsAddModalOpen(true)}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  style={{
+                    padding: "10px 20px",
+                    background: "linear-gradient(135deg, #2575fc, #6a11cb)",
+                    color: "white",
+                    borderRadius: "12px",
+                    cursor: "pointer",
+                    fontWeight: "bold",
+                    border: "none",
+                    fontSize: "0.9rem",
+                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  <FaPlus size={16} />
+                  Add New
+                </motion.button>
+                <motion.label
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  style={{
+                    padding: "10px 20px",
+                    background: "linear-gradient(135deg, #2575fc, #6a11cb)",
+                    color: "white",
+                    borderRadius: "12px",
+                    cursor: "pointer",
+                    fontWeight: "bold",
+                    border: "none",
+                    fontSize: "0.9rem",
+                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  <FaUpload size={16} />
+                  Bulk Upload
+                  <input
+                    type="file"
+                    onChange={handleFileUpload}
+                    accept=".xlsx, .xls"
+                    style={{ display: "none" }}
+                  />
+                </motion.label>
+              </div>
             </div>
           ) : (
-            <AutoSizer>
-              {({ height, width }) => (
-                <List
-                  width={width}
-                  height={height - 60}
-                  rowCount={filteredData.length}
-                  rowHeight={60}
-                  rowRenderer={rowRenderer}
-                  overscanRowCount={10}
-                  style={{ outline: "none" }}
-                />
+            <>
+              <div
+                className="table-header"
+                style={{
+                  background: "linear-gradient(135deg, #2575fc, #6a11cb)",
+                  color: "white",
+                  fontSize: "1.1rem",
+                  padding: "15px 20px",
+                  textAlign: "center",
+                  position: "sticky",
+                  top: 0,
+                  zIndex: 2,
+                  display: "grid",
+                  gridTemplateColumns: "115px repeat(8, 1fr) 150px",
+                  fontWeight: "bold",
+                  borderBottom: "2px solid #ddd",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <div>#</div>
+                <div style={{ alignItems: "center", justifyContent: "center" }}>
+                  Date
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  Customer
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  Mobile
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  Address
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  City
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  State
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  Organization
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  Category
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  Actions
+                </div>
+              </div>
+              {filteredData.length === 0 ? (
+                <div
+                  style={{
+                    height: "calc(100% - 60px)",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    fontSize: "1.2rem",
+                    color: "#666",
+                    fontWeight: "bold",
+                  }}
+                >
+                  No Entries Available
+                </div>
+              ) : (
+                <AutoSizer>
+                  {({ height, width }) => (
+                    <List
+                      height={height - 60}
+                      rowCount={filteredData.length}
+                      rowHeight={60}
+                      rowRenderer={rowRenderer}
+                      width={width}
+                      overscanRowCount={10}
+                    />
+                  )}
+                </AutoSizer>
               )}
-            </AutoSizer>
+            </>
           )}
         </div>
-
-        <AddEntry
-          isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
-          onEntryAdded={handleEntryAdded}
-        />
-        <EditEntry
-          isOpen={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
-          entry={entryToEdit}
-          onEntryUpdated={handleEntryUpdated}
-        />
-        <DeleteModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          itemId={itemIdToDelete}
-          itemIds={itemIdsToDelete}
-          onDelete={handleDelete}
-        />
-        <ViewEntry
-          isOpen={isViewModalOpen}
-          onClose={() => setIsViewModalOpen(false)}
-          entry={entryToView}
-          role={role}
-        />
-        <TeamBuilder
-          isOpen={isTeamBuilderOpen}
-          onClose={() => setIsTeamBuilderOpen(false)}
-          userRole={role}
-          userId={userId}
-        />
-        <AdminDrawer
-          entries={entries}
-          isOpen={isAnalyticsOpen}
-          onClose={() => setIsAnalyticsOpen(false)}
-          role={role}
-          userId={userId}
-        />
       </div>
+
+      <AddEntry
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onEntryAdded={handleEntryAdded}
+      />
+      <EditEntry
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        entry={entryToEdit}
+        onEntryUpdated={handleEntryUpdated}
+      />
+      <DeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        itemId={itemIdToDelete}
+        itemIds={itemIdsToDelete}
+        onDelete={handleDelete}
+      />
+      <ViewEntry
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        entry={entryToView}
+        role={role}
+      />
+      {(role === "superadmin" || role === "admin") && (
+        <>
+          <TeamBuilder
+            isOpen={isTeamBuilderOpen}
+            onClose={() => setIsTeamBuilderOpen(false)}
+            userRole={role}
+            userId={userId}
+          />
+          <AdminDrawer
+            entries={entries}
+            isOpen={isAnalyticsOpen}
+            onClose={() => setIsAnalyticsOpen(false)}
+            role={role}
+            userId={userId}
+          />
+        </>
+      )}
       <footer className="footer-container">
-        <p style={{ marginTop: "15px", color: "white", height: "10px" }}>
+        <p style={{ marginTop: "10px", color: "white", height: "10px" }}>
           © 2025 DataManagement. All rights reserved.
         </p>
       </footer>

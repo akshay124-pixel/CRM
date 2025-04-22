@@ -335,7 +335,6 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       setShowConfirm(false);
     }
   };
-
   // Mock Data
   const states = [
     "Andhra Pradesh",
@@ -1179,19 +1178,25 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     }),
     []
   );
-
   const renderOptions = () => (
     <div
       style={{
         display: "flex",
-        justifyContent: "space-around",
+        flexDirection: "column",
+        alignItems: "center",
         padding: "1rem",
+        gap: "1rem",
+        "@media (min-width: 576px)": {
+          flexDirection: "row",
+          justifyContent: "space-around",
+        },
       }}
     >
       <StyledButton
         variant="primary"
         onClick={() => setView("edit")}
         disabled={loading}
+        style={{ width: "100%", maxWidth: "250px" }}
       >
         Edit Full Details
       </StyledButton>
@@ -1199,6 +1204,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         variant="info"
         onClick={() => setView("update")}
         disabled={loading}
+        style={{ width: "100%", maxWidth: "250px" }}
       >
         Update Follow-up
       </StyledButton>
