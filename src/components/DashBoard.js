@@ -1477,6 +1477,7 @@ function DashBoard() {
         <div className="virtual-cell">{row.city}</div>
         <div className="virtual-cell">{row.state}</div>
         <div className="virtual-cell">{row.organization}</div>
+        <div className="virtual-cell">{row.createdBy?.username}</div>
         <div className="virtual-cell">{row.category}</div>
         <div
           className="virtual-cell actions-cell"
@@ -2436,6 +2437,15 @@ function DashBoard() {
                   }}
                 >
                   Organization
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  Users
                 </div>
                 <div
                   style={{
