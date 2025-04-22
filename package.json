@@ -37,6 +37,7 @@
     "react-scripts": "5.0.1",
     "react-toastify": "^11.0.5",
     "react-virtualized": "^9.22.6",
+    "react-window": "^1.8.11",
     "reacticons": "^0.0.1",
     "styled-components": "^6.1.15",
     "toastify": "^2.0.1",
