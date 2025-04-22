@@ -24,14 +24,10 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get(
-        "https://crm-server-amz7.onrender.com/api/users",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const response = await axios.get("http://localhost:4000/api/users", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       let fetchedUsers = response.data;
-      // Filter users based on role and userId
       if (userRole === "admin") {
         fetchedUsers = fetchedUsers.filter(
           (user) => !user.assignedAdmin || user.assignedAdmin === userId
@@ -56,7 +52,7 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
     try {
       const token = localStorage.getItem("token");
       const response = await axios.post(
-        "https://crm-server-amz7.onrender.com/api/assign-user",
+        "http://localhost:4000/api/assign-user",
         { userId: userIdToAssign },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -72,7 +68,7 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
     try {
       const token = localStorage.getItem("token");
       const response = await axios.post(
-        "https://crm-server-amz7.onrender.com/api/unassign-user",
+        "http://localhost:4000/api/unassign-user",
         { userId: userIdToUnassign },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -92,31 +88,39 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
         position: "fixed",
         top: 0,
         left: 0,
-        width: "100%",
-        height: "100%",
+        width: "100vw",
+        height: "100vh",
         bgcolor: "rgba(0,0,0,0.7)",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
         zIndex: 1300,
+        p: 2,
       }}
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
+        initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
+        exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.3 }}
+        style={{
+          width: "100%",
+          display: "flex",
+          justifyContent: "center",
+        }}
       >
         <Paper
           sx={{
-            width: "90%",
-            maxWidth: 900,
-            p: 4,
+            width: { xs: "100%", sm: "95%", md: "85%", lg: "70%" },
+            maxWidth: "1000px",
+            p: { xs: 2, sm: 3, md: 4 },
             borderRadius: "15px",
             background: "linear-gradient(135deg, #2575fc, #6a11cb)",
             color: "white",
             position: "relative",
             boxShadow: "0 8px 24px rgba(0, 0, 0, 0.3)",
+            maxHeight: "90vh",
+            overflow: "auto",
           }}
         >
           <Box
@@ -148,6 +152,7 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
               <FaTimes size={24} />
             </IconButton>
           </Box>
+
           {loading ? (
             <Box
               sx={{
@@ -202,7 +207,7 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
                             color: "white",
                             fontWeight: "bold",
                             fontSize: "1.1rem",
-                            background: "#1a3c7a", // Solid dark blue background
+                            background: "#1a3c7a",
                             borderBottom: "1px solid rgba(255, 255, 255, 0.2)",
                             textAlign: "center",
                             py: 2,
