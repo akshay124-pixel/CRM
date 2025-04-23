@@ -937,30 +937,3 @@ background: linear-gradient(135deg, #2575fc, #6a11cb);
     }
 }
 
-/* Ensure Desktop View Remains Unchanged */
-@media (min-width: 769px) {
-    .mobile-card {
-        display: none !important;
-    }
-}
-
-@media (max-width: 768px) {
-    .modal-dialog {
-        width: 90vw !important;
-        max-width: 90vw !important;
-        margin: 10px auto !important;
-    }
-
-    .modal-content {
-        padding: 10px !important;
-    }
-
-    .modal-body {
-        font-size: 0.9rem !important;
-    }
-
-    .modal-footer button {
-        width: 100% !important;
-        margin: 5px 0 !important;
-    }
-}
