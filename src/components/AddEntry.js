@@ -548,6 +548,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedState, setSelectedState] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
+  const [locationFetched, setLocationFetched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [productInput, setProductInput] = useState({
     name: "",
@@ -628,30 +629,28 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
   };
 
   const fetchLocation = () => {
+    setLoading(true);
     if (navigator.geolocation) {
-      setLoading(true);
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const { latitude, longitude } = position.coords;
-          const locationString = `${latitude}, ${longitude}`;
+          const location = `${position.coords.latitude}, ${position.coords.longitude}`;
           setFormData((prev) => ({
             ...prev,
-            liveLocation: locationString,
+            liveLocation: location,
           }));
-          toast.success("Location fetched successfully!");
+          setLocationFetched(true);
           setLoading(false);
         },
         (error) => {
           console.error("Error fetching location:", error);
-          toast.error(
-            "Failed to fetch location. Please allow location access."
-          );
+          setLocationFetched(false);
           setLoading(false);
-        },
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        }
       );
     } else {
-      toast.error("Geolocation is not supported by your browser.");
+      console.error("Geolocation is not supported by this browser.");
+      setLocationFetched(false);
+      setLoading(false);
     }
   };
 
@@ -1919,13 +1918,15 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
               <div style={{ display: "flex", gap: "10px" }}>
                 <Form.Control
                   type="text"
-                  name="liveLocation"
-                  required
-                  value={formData.liveLocation}
-                  onChange={handleInput}
-                  placeholder="Enter coordinates (e.g., 34.0522, -118.2437)"
+                  name="liveLocationDisplay"
+                  value={
+                    locationFetched
+                      ? "Location Fetched"
+                      : "Location Not Fetched"
+                  }
+                  readOnly
                   disabled={loading}
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, backgroundColor: "#f8f9fa" }}
                 />
                 <Button
                   variant="outline-primary"
@@ -1935,6 +1936,13 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   {loading ? "Fetching..." : "Get Location"}
                 </Button>
               </div>
+
+              {/* Hidden input for backend submission */}
+              <Form.Control
+                type="hidden"
+                name="liveLocation"
+                value={formData.liveLocation}
+              />
             </Form.Group>
           </>
         );
