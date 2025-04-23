@@ -1954,9 +1954,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           <Form.Label>📅 Next Follow-up Date</Form.Label>
           <Form.Control
             type="date"
-            {...register("followUpDate", {
-              required: "Follow-up Date is required",
-            })}
+            {...register("followUpDate")}
             min={new Date().toISOString().split("T")[0]}
             isInvalid={!!errors.followUpDate}
             aria-label="Follow-up Date"
@@ -1970,9 +1968,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           <Form.Label>📅 Expected Closing Date</Form.Label>
           <Form.Control
             type="date"
-            {...register("expectedClosingDate", {
-              required: "Expected Closing Date is required",
-            })}
+            {...register("expectedClosingDate")}
             min={new Date().toISOString().split("T")[0]}
             isInvalid={!!errors.expectedClosingDate}
             aria-label="Expected Closing Date"
