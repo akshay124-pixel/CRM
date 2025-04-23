@@ -135,6 +135,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [manualLocation, setManualLocation] = useState(false);
+  const [locationFetched, setLocationFetched] = useState(false);
 
   const status = watch("status");
   const selectedState = watch("state");
@@ -189,29 +190,26 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     }
   }, [isOpen, entry, reset]);
 
-  // Fetch live location
   const fetchLiveLocation = useCallback(() => {
     setLocationLoading(true);
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const location = `${position.coords.latitude}, ${position.coords.longitude}`;
-          setValue("liveLocation", location, { shouldValidate: true });
-          setManualLocation(false);
+          setValue("liveLocation", location, { shouldValidate: true }); // backend ke liye hidden field
+          setLocationFetched(true);
           setLocationLoading(false);
         },
-        (err) => {
-          setError(
-            "Failed to fetch location. Please enable location services or enter manually."
-          );
-          setManualLocation(true);
+        (error) => {
+          console.error("Error fetching location:", error);
+          setLocationFetched(false);
           setLocationLoading(false);
         },
         { timeout: 10000, maximumAge: 0, enableHighAccuracy: true }
       );
     } else {
-      setError("Geolocation is not supported by your browser.");
-      setManualLocation(true);
+      console.error("Geolocation is not supported by your browser.");
+      setLocationFetched(false);
       setLocationLoading(false);
     }
   }, [setValue]);
