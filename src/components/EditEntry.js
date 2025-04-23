@@ -1855,32 +1855,19 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
             {errors.fourthPersonMeet?.message}
           </Form.Control.Feedback>
         </Form.Group>
-
         <Form.Group controlId="liveLocation">
           <Form.Label>📍 Live Location</Form.Label>
           <LocationContainer>
             <Form.Control
               type="text"
-              {...register("liveLocation", {
-                required:
-                  status !== entry?.status
-                    ? "Live location is required when updating status"
-                    : false,
-              })}
-              placeholder={
-                locationLoading
-                  ? "Fetching location..."
-                  : "Enter or fetch location"
+              value={
+                locationFetched
+                  ? "✅ Location Fetched"
+                  : "❌ Location Not Fetched"
               }
-              readOnly={!manualLocation && !locationLoading}
-              isInvalid={!!errors.liveLocation}
+              readOnly
+              disabled
               aria-label="Live Location"
-              onChange={(e) => {
-                setValue("liveLocation", e.target.value, {
-                  shouldValidate: true,
-                });
-                setManualLocation(true);
-              }}
             />
             <Button
               variant="outline-primary"
@@ -1891,21 +1878,13 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
               <FaMapMarkerAlt />
             </Button>
           </LocationContainer>
-          <Form.Control.Feedback type="invalid">
-            {errors.liveLocation?.message}
-          </Form.Control.Feedback>
         </Form.Group>
 
         <Form.Group controlId="nextAction">
           <Form.Label>🚀 Next Action</Form.Label>
           <Form.Control
             type="text"
-            {...register("nextAction", {
-              required:
-                status !== entry?.status
-                  ? "Next Action is required when updating status"
-                  : false,
-            })}
+            {...register("nextAction")}
             isInvalid={!!errors.nextAction}
             aria-label="Next Action"
             placeholder="Enter next action plan"
@@ -1919,13 +1898,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           <Form.Label>💰 Estimated Value</Form.Label>
           <Form.Control
             type="number"
-            {...register("estimatedValue", {
-              required:
-                status !== entry?.status
-                  ? "Estimated Value is required when updating status"
-                  : false,
-              min: { value: 0, message: "Value must be positive" },
-            })}
+            {...register("estimatedValue")}
             isInvalid={!!errors.estimatedValue}
             aria-label="Estimated Value"
           />
