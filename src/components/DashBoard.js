@@ -1474,8 +1474,11 @@ function DashBoard() {
       >
         <div className="virtual-cell">{index + 1}</div>
         <div className="virtual-cell">
-          {row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "N/A"}
+          {row.createdAt
+            ? new Date(row.createdAt).toLocaleDateString("en-GB")
+            : "N/A"}
         </div>
+
         <div className="virtual-cell">{row.customerName}</div>
         <div className="virtual-cell">{row.mobileNumber}</div>
         <div className="virtual-cell">{row.address}</div>
