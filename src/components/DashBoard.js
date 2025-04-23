@@ -2534,7 +2534,7 @@ function DashBoard() {
       )}
       <footer className="footer-container">
         <p style={{ marginTop: "10px", color: "white", height: "10px" }}>
-          © 2025 DataManagement. All rights reserved.
+          © 2025 CRM. All rights reserved.
         </p>
       </footer>
     </>
