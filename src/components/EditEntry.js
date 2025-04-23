@@ -1911,9 +1911,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           <Form.Label>📅 First Meeting Date</Form.Label>
           <Form.Control
             type="date"
-            {...register("firstMeetingDate", {
-              required: "First Meeting Date is required",
-            })}
+            {...register("firstMeetingDate")}
             max={new Date().toISOString().split("T")[0]}
             isInvalid={!!errors.firstMeetingDate}
             aria-label="First Meeting Date"
