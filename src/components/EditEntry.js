@@ -276,16 +276,8 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
 
       // Validation for status change
       if (payload.status !== entry?.status) {
-        if (!payload.remarks)
-          throw new Error("Remarks are required when updating status.");
         if (!payload.liveLocation)
           throw new Error("Live location is required when updating status.");
-        if (!payload.nextAction)
-          throw new Error("Next Action is required when updating status.");
-        if (!payload.estimatedValue)
-          throw new Error("Estimated Value is required when updating status.");
-        if (payload.status === "Closed" && !payload.closetype)
-          throw new Error("Close Type is required when status is 'Closed'.");
       }
 
       const response = await axios.put(
