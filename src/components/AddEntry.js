@@ -1921,8 +1921,8 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   name="liveLocationDisplay"
                   value={
                     locationFetched
-                      ? "Location Fetched"
-                      : "Location Not Fetched"
+                      ? "✅ Location Fetched"
+                      : "❌ Location Not Fetched"
                   }
                   readOnly
                   disabled={loading}
