@@ -658,7 +658,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
   const validateStep = (step) => {
     const stepFields = {
       1: ["customerName"],
-      2: ["products"],
+      2: [],
       3: [],
       4: ["status", "liveLocation"],
     };
