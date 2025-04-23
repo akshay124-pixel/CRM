@@ -1608,8 +1608,8 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
               type="text"
               value={
                 locationFetched
-                  ? "✅ Location Fetched"
-                  : "❌ Location Not Fetched"
+                  ? "Location Fetched ✅"
+                  : "Location Not Fetched ❌"
               }
               readOnly
               disabled
