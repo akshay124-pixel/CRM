@@ -877,16 +877,3 @@ background: linear-gradient(135deg, #2575fc, #6a11cb);
     }
 }
 /* End Here  */
-/* Mobile-Specific Styles */
-@media (max-width: 768px) {
-    .enhanced-search-bar-container {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .enhanced-search-bar,
-    .enhanced-filter-dropdown,
-    .enhanced-search-bar-container input {
-        max-width: 100%;
-        margin-bottom: 10px;
-    }}
