@@ -807,3 +807,86 @@ background: linear-gradient(135deg, #2575fc, #6a11cb);
     font-size: 16px;
 
 }
+/* Date range Media Query */
+@media (max-width: 600px) {
+    .rdrDateRangePickerWrapper {
+        width: 100% !important;
+        max-width: 360px;
+        margin: 0 auto;
+        overflow-x: visible;
+        touch-action: pan-y;
+    }
+
+    .rdrCalendarWrapper {
+        font-size: 14px;
+        width: 100%;
+        max-width: 340px;
+        margin: 0 auto;
+        background: #fff;
+        border-radius: 8px;
+    }
+
+    .rdrMonth {
+        width: 100%;
+        padding: 10px;
+        box-sizing: border-box;
+    }
+
+    .rdrMonthAndYearWrapper {
+        padding: 5px 10px;
+        height: 50px;
+    }
+
+    .rdrDays {
+        font-size: 14px;
+        color: #1f2937;
+    }
+
+    .rdrDay {
+        height: 40px;
+        touch-action: manipulation;
+    }
+
+    .rdrDayNumber {
+        font-size: 14px;
+        font-weight: 500;
+        color: #1f2937;
+    }
+
+    .rdrDayNumber span {
+        color: #1f2937 !important;
+    }
+
+    .rdrDayDisabled {
+        background: #f3f4f6;
+    }
+
+    .rdrDayPassive .rdrDayNumber span {
+        color: #d1d5db !important;
+    }
+
+    .rdrNextPrevButton,
+    .rdrMonthAndYearPickers {
+        touch-action: manipulation;
+        background: #e5e7eb;
+        border-radius: 4px;
+    }
+
+    .rdrNextPrevButton:hover {
+        background: #d1d5db;
+    }
+}
+/* End Here  */
+/* Mobile-Specific Styles */
+@media (max-width: 768px) {
+    .enhanced-search-bar-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .enhanced-search-bar,
+    .enhanced-filter-dropdown,
+    .enhanced-search-bar-container input {
+        max-width: 100%;
+        margin-bottom: 10px;
+    }}

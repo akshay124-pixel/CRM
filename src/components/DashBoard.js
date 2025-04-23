@@ -1122,33 +1122,38 @@ function DashBoard() {
     if (!authLoading && role && userId) fetchEntries();
   }, [authLoading, role, userId, fetchEntries]);
 
+  // Update filteredData useMemo
   const filteredData = useMemo(() => {
-    return entries.filter((row) => {
-      const createdAt = new Date(row.createdAt);
-      return (
-        (!searchTerm ||
-          row.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          row.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          row.mobileNumber?.includes(searchTerm)) &&
-        (!selectedUsername ||
-          row.createdBy?.username === selectedUsername ||
-          row.assignedTo?.username === selectedUsername) &&
-        (!selectedState || row.state === selectedState) &&
-        (!selectedCity || row.city === selectedCity) &&
-        (dashboardFilter === "total" ||
-          (dashboardFilter === "Closed Won" &&
-            row.status === "Closed" &&
-            row.closetype === "Closed Won") ||
-          (dashboardFilter === "Closed Lost" &&
-            row.status === "Closed" &&
-            row.closetype === "Closed Lost") ||
-          row.status === dashboardFilter) &&
-        (!dateRange[0].startDate ||
-          !dateRange[0].endDate ||
-          (createdAt >= new Date(dateRange[0].startDate) &&
-            createdAt <= new Date(dateRange[0].endDate)))
-      );
-    });
+    return entries
+      .filter((row) => {
+        const createdAt = new Date(row.createdAt);
+        return (
+          (!searchTerm ||
+            row.customerName
+              ?.toLowerCase()
+              .includes(searchTerm.toLowerCase()) ||
+            row.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            row.mobileNumber?.includes(searchTerm)) &&
+          (!selectedUsername ||
+            row.createdBy?.username === selectedUsername ||
+            row.assignedTo?.username === selectedUsername) &&
+          (!selectedState || row.state === selectedState) &&
+          (!selectedCity || row.city === selectedCity) &&
+          (dashboardFilter === "total" ||
+            (dashboardFilter === "Closed Won" &&
+              row.status === "Closed" &&
+              row.closetype === "Closed Won") ||
+            (dashboardFilter === "Closed Lost" &&
+              row.status === "Closed" &&
+              row.closetype === "Closed Lost") ||
+            row.status === dashboardFilter) &&
+          (!dateRange[0].startDate ||
+            !dateRange[0].endDate ||
+            (createdAt >= new Date(dateRange[0].startDate) &&
+              createdAt <= new Date(dateRange[0].endDate)))
+        );
+      })
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }, [
     entries,
     searchTerm,
@@ -1848,9 +1853,10 @@ function DashBoard() {
                 ? `${dateRange[0].startDate.toLocaleDateString()} - ${dateRange[0].endDate.toLocaleDateString()}`
                 : ""
             }
-            placeholder="-- Select date range -- "
+            placeholder="-- Select date range --"
             readOnly
             className="cursor-pointer border p-2"
+            aria-label="Select date range"
           />
           <Popover
             open={Boolean(anchorEl)}
@@ -1858,6 +1864,16 @@ function DashBoard() {
             onClose={() => setAnchorEl(null)}
             anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
             transformOrigin={{ vertical: "top", horizontal: "left" }}
+            PaperProps={{
+              sx: {
+                maxWidth: isMobile ? "95vw" : "600px",
+                maxHeight: isMobile ? "80vh" : "auto",
+                overflowY: isMobile ? "auto" : "visible",
+                overflowX: "visible",
+                padding: isMobile ? "10px" : "0",
+                boxSizing: "border-box",
+              },
+            }}
           >
             <DateRangePicker
               ranges={dateRange}
@@ -1867,7 +1883,9 @@ function DashBoard() {
               rangeColors={["#2575fc"]}
               editableDateInputs={true}
               months={1}
-              direction={isMobile ? "vertical" : "horizontal"}
+              direction="vertical"
+              className={isMobile ? "mobile-date-picker" : ""}
+              calendarFocus="forwards"
             />
           </Popover>
         </div>
