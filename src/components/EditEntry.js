@@ -347,6 +347,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     "Nagaland",
     "Odisha",
     "Punjab",
+    "Chandigarh",
     "Rajasthan",
     "Sikkim",
     "Tamil Nadu",
@@ -355,6 +356,14 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     "Uttar Pradesh",
     "Uttarakhand",
     "West Bengal",
+    "Andaman and Nicobar Islands",
+    "Chandigarh",
+    "Dadra and Nagar Haveli and Daman and Diu",
+    "Delhi",
+    "Jammu and Kashmir",
+    "Ladakh",
+    "Lakshadweep",
+    "Puducherry",
   ];
 
   const citiesByState = useMemo(
