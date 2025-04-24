@@ -667,6 +667,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       ],
       Maharashtra: [
         "Mumbai",
+        "Gadchiroli",
         "Pune",
         "Nagpur",
         "Nashik",
@@ -805,21 +806,21 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         "Jalandhar",
         "Patiala",
         "Bathinda",
-        "Mohali",
+        "Mohali", // Also known as Sahibzada Ajit Singh Nagar (SAS Nagar)
         "Hoshiarpur",
         "Gurdaspur",
         "Ferozepur",
         "Sangrur",
         "Moga",
-        "Rupnagar",
+        "Rupnagar", // Official name for Ropar
         "Kapurthala",
         "Faridkot",
-        "Muktsar",
+        "Muktsar", // Corrected from "Makatsar"
         "Fazilka",
         "Barnala",
         "Mansa",
         "Tarn Taran",
-        "Nawanshahr",
+        "Nawanshahr", // Also known as Shaheed Bhagat Singh Nagar
         "Pathankot",
         "Zirakpur",
         "Khanna",
@@ -834,7 +835,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         "Kharar",
         "Morinda",
         "Bassi Pathana",
-        "Khamanon",
+        "Khamanon", // Corrected from "Khamano"
         "Chunni Kalan",
         "Balachaur",
         "Dinanagar",
@@ -1041,7 +1042,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         "Sector 10",
         "Sector 11",
         "Sector 12",
-        "Sector 13",
+        "Sector 13", // Note: Sector 13 does not exist in Chandigarh.
         "Sector 14",
         "Sector 15",
         "Sector 16",
