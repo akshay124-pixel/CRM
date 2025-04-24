@@ -347,7 +347,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     "Nagaland",
     "Odisha",
     "Punjab",
-    "Chandigarh",
+
     "Rajasthan",
     "Sikkim",
     "Tamil Nadu",
