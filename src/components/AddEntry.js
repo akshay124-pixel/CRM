@@ -28,12 +28,43 @@ const productOptions = [
   {
     name: "IFPD",
     sizes: ["65 inch", "75 inch", "86 inch", "98 inch"],
-    specifications: ["Android 14, 8GB RAM, 128GB ROM"],
+    specifications: [
+      "Android 9, 4GB RAM, 32GB ROM",
+      "Android 8, 4GB RAM, 32GB ROM",
+      "Android 11, 4GB RAM, 32GB ROM",
+      "Android 11, 8GB RAM, 128GB ROM",
+      "Android 13, 4GB RAM, 32GB ROM",
+      "Android 13, 8GB RAM, 128GB ROM",
+      "Android 13, 8GB RAM, 128GB ROM Inbuilt Camera",
+      "Android 14, 8GB RAM, 128GB ROM",
+      "Android 14, 8GB RAM, 128GB ROM Inbuilt Camera",
+    ],
   },
   {
     name: "OPS",
     sizes: ["N/A"],
     specifications: [
+      // i5 6th Gen
+      "i5 6th Gen, 8GB RAM, 256GB ROM",
+      "i5 6th Gen, 8GB RAM, 512GB ROM",
+      "i5 6th Gen, 8GB RAM, 1TB ROM",
+      "i5 6th Gen, 16GB RAM, 256GB ROM",
+      "i5 6th Gen, 16GB RAM, 512GB ROM",
+      "i5 6th Gen, 16GB RAM, 1TB ROM",
+      // i5 7th Gen
+      "i5 7th Gen, 8GB RAM, 256GB ROM",
+      "i5 7th Gen, 8GB RAM, 512GB ROM",
+      "i5 7th Gen, 8GB RAM, 1TB ROM",
+      "i5 7th Gen, 16GB RAM, 256GB ROM",
+      "i5 7th Gen, 16GB RAM, 512GB ROM",
+      "i5 7th Gen, 16GB RAM, 1TB ROM",
+      // i5 8th Gen
+      "i5 8th Gen, 8GB RAM, 256GB ROM",
+      "i5 8th Gen, 8GB RAM, 512GB ROM",
+      "i5 8th Gen, 8GB RAM, 1TB ROM",
+      "i5 8th Gen, 16GB RAM, 256GB ROM",
+      "i5 8th Gen, 16GB RAM, 512GB ROM",
+      "i5 8th Gen, 16GB RAM, 1TB ROM",
       // i5 11th Gen
       "i5 11th Gen, 8GB RAM, 256GB ROM",
       "i5 11th Gen, 8GB RAM, 512GB ROM",
@@ -41,7 +72,6 @@ const productOptions = [
       "i5 11th Gen, 16GB RAM, 256GB ROM",
       "i5 11th Gen, 16GB RAM, 512GB ROM",
       "i5 11th Gen, 16GB RAM, 1TB ROM",
-
       // i5 12th Gen
       "i5 12th Gen, 8GB RAM, 256GB ROM",
       "i5 12th Gen, 8GB RAM, 512GB ROM",
@@ -49,7 +79,55 @@ const productOptions = [
       "i5 12th Gen, 16GB RAM, 256GB ROM",
       "i5 12th Gen, 16GB RAM, 512GB ROM",
       "i5 12th Gen, 16GB RAM, 1TB ROM",
-
+      // i7 4th Gen
+      "i7 4th Gen, 8GB RAM, 256GB ROM",
+      "i7 4th Gen, 8GB RAM, 512GB ROM",
+      "i7 4th Gen, 8GB RAM, 1TB ROM",
+      "i7 4th Gen, 16GB RAM, 256GB ROM",
+      "i7 4th Gen, 16GB RAM, 512GB ROM",
+      "i7 4th Gen, 16GB RAM, 1TB ROM",
+      // i7 5th Gen
+      "i7 5th Gen, 8GB RAM, 256GB ROM",
+      "i7 5th Gen, 8GB RAM, 512GB ROM",
+      "i7 5th Gen, 8GB RAM, 1TB ROM",
+      "i7 5th Gen, 16GB RAM, 256GB ROM",
+      "i7 5th Gen, 16GB RAM, 512GB ROM",
+      "i7 5th Gen, 16GB RAM, 1TB ROM",
+      // i7 6th Gen
+      "i7 6th Gen, 8GB RAM, 256GB ROM",
+      "i7 6th Gen, 8GB RAM, 512GB ROM",
+      "i7 6th Gen, 8GB RAM, 1TB ROM",
+      "i7 6th Gen, 16GB RAM, 256GB ROM",
+      "i7 6th Gen, 16GB RAM, 512GB ROM",
+      "i7 6th Gen, 16GB RAM, 1TB ROM",
+      // i7 7th Gen
+      "i7 7th Gen, 8GB RAM, 256GB ROM",
+      "i7 7th Gen, 8GB RAM, 512GB ROM",
+      "i7 7th Gen, 8GB RAM, 1TB ROM",
+      "i7 7th Gen, 16GB RAM, 256GB ROM",
+      "i7 7th Gen, 16GB RAM, 512GB ROM",
+      "i7 7th Gen, 16GB RAM, 1TB ROM",
+      // i7 8th Gen
+      "i7 8th Gen, 8GB RAM, 256GB ROM",
+      "i7 8th Gen, 8GB RAM, 512GB ROM",
+      "i7 8th Gen, 8GB RAM, 1TB ROM",
+      "i7 8th Gen, 16GB RAM, 256GB ROM",
+      "i7 8th Gen, 16GB RAM, 512GB ROM",
+      "i7 8th Gen, 16GB RAM, 1TB ROM",
+      // i7 9th Gen
+      "i7 9th Gen, 8GB RAM, 256GB ROM",
+      "i7 9th Gen, 8GB RAM, 512GB ROM",
+      "i7 9th Gen, 8GB RAM, 1TB ROM",
+      "i7 9th Gen, 16GB RAM, 256GB ROM",
+      "i7 9th Gen, 16GB RAM, 512GB ROM",
+      "i7 9th Gen, 16GB RAM, 1TB ROM",
+      // i7 10th Gen
+      "i7 10th Gen, 8GB RAM, 256GB ROM",
+      "i7 10th Gen, 8GB RAM, 512GB ROM",
+      "i7 10th Gen, 8GB RAM, 1TB ROM",
+      "i7 10th Gen, 16GB RAM, 256GB ROM",
+      "i7 10th Gen, 16GB RAM, 512GB ROM",
+      "i7 10th Gen, 16GB RAM, 1TB ROM",
       // i7 11th Gen
       "i7 11th Gen, 8GB RAM, 256GB ROM",
       "i7 11th Gen, 8GB RAM, 512GB ROM",
@@ -57,7 +135,6 @@ const productOptions = [
       "i7 11th Gen, 16GB RAM, 256GB ROM",
       "i7 11th Gen, 16GB RAM, 512GB ROM",
       "i7 11th Gen, 16GB RAM, 1TB ROM",
-
       // i7 12th Gen
       "i7 12th Gen, 8GB RAM, 256GB ROM",
       "i7 12th Gen, 8GB RAM, 512GB ROM",
@@ -69,8 +146,27 @@ const productOptions = [
   },
   {
     name: "Digital Podium",
-    sizes: ["Full"],
-    specifications: ["N/A"],
+    sizes: ["Standard"],
+    specifications: [
+      'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 1 GOOSENECK MIC',
+      'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 2 HANDHELD MIC, 1 GOOSENECK MIC',
+      'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 1 COOLER MIC, 1 GOOSENECK MIC',
+      'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 2 COOLER MIC, 1 GOOSENECK MIC',
+      'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 1 GOOSENECK MIC, VISUALIZER',
+      'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 2 HANDHELD MIC, 1 GOOSENECK MIC, VISUALIZER',
+    ],
+  },
+  {
+    name: "Advance Digital Podium",
+    sizes: ["Front Display 32inch"],
+    specifications: [
+      'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 1 COOLER MIC, 1 GOOSENECK MIC',
+      'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 2 COOLER MIC, 1 GOOSENECK MIC',
+      'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 1 GOOSENECK MIC',
+      'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 2 HANDHELD MIC, 1 GOOSENECK MIC',
+      'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 1 GOOSENECK MIC, VISUALIZER',
+      'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 2 HANDHELD MIC, 1 GOOSENECK MIC, VISUALIZER',
+    ],
   },
   {
     name: "Audio Podium",
@@ -79,28 +175,54 @@ const productOptions = [
   },
   {
     name: "Kiosk",
-    sizes: ["N/A"],
-    specifications: ["Touch", "Non-Touch"],
+    sizes: ["32 inch", "43 inch", "55 inch", "65 inch"],
+    specifications: ["Touch Andriod 13/4/32", "Non-Touch Andriod 13/4/32"],
   },
   {
     name: "PTZ Camera",
     sizes: ["N/A"],
-    specifications: ["4K 12x", "HD 20x"],
+    specifications: [
+      "Non-Voice Tracking-Full HD",
+      "UHD 20x",
+      "FHD Voice Tracking",
+      "4K Auto Tracking",
+      "4K 12x",
+      "HD 20x",
+    ],
   },
   {
     name: "Document Camera",
     sizes: ["N/A"],
-    specifications: ["Visualizer"],
+    specifications: [
+      "Hydraulic Wall Mount Visualizer",
+      "Non-Hydraulic Wall Mount Visualizer",
+      "Slim Portable Visualizer",
+      "Table Top Portable Visualizer",
+      "Visualizer",
+    ],
   },
   {
     name: "UPS",
-    sizes: ["N/A"],
-    specifications: ["N/A"],
+    sizes: ["Standard"],
+    specifications: [
+      "1 KVA",
+      "2 KVA",
+      "3 KVA",
+      "4 KVA",
+      "5 KVA",
+      "6 KVA",
+      "7 KVA",
+      "8 KVA",
+      "9 KVA",
+      "10 KVA",
+      "Offline UPS",
+      "Online UPS",
+    ],
   },
   {
     name: "Wallmount Kit",
-    sizes: ["N/A"],
-    specifications: ["N/A"],
+    sizes: ["55 inch", "65 inch", "75 inch", "86 inch", "98 inch"],
+    specifications: ["Standard"],
   },
   {
     name: "Stylus Pen",
@@ -109,8 +231,14 @@ const productOptions = [
   },
   {
     name: "Sliding Shutter",
-    sizes: ["N/A"],
-    specifications: ["N/A"],
+    sizes: ["65 inch", "75 inch", "86 inch", "98 inch"],
+    specifications: [
+      "Common",
+      "White & Red Dispaly Boards",
+      "White & Green Dispaly Boards",
+      "White & Blue Dispaly Boards",
+      "N/A",
+    ],
   },
   {
     name: "3 Cup Speaker",
@@ -118,19 +246,28 @@ const productOptions = [
     specifications: ["N/A"],
   },
   {
-    name: "Wireless Colleramic",
+    name: "Microphone",
     sizes: ["N/A"],
-    specifications: ["N/A"],
+    specifications: [
+      "Handheld Collar Mic",
+      "Goose Neck Mic",
+      "Collar/Lapel Mic",
+    ],
   },
   {
-    name: "Wireless Keyboard Mouse",
+    name: "Keyboard",
     sizes: ["N/A"],
-    specifications: ["N/A"],
+    specifications: ["Wireless", "Wired"],
+  },
+  {
+    name: "Mouse",
+    sizes: ["N/A"],
+    specifications: ["Wireless", "Wired"],
   },
   {
     name: "Interactive White Board",
-    sizes: ["N/A"],
-    specifications: ["N/A"],
+    sizes: ["82 inch"],
+    specifications: ["Ceramic", "Non-Ceramic"],
   },
   {
     name: "Floor Stand",
@@ -150,22 +287,21 @@ const productOptions = [
   {
     name: "PTZ Camera - Full HD Voice Tracking",
     sizes: ["N/A"],
-    specifications: ["N/A"],
+    specifications: ["FHD Voice Tracking"],
   },
   {
-    name: "PTZ Camera - 4K - Auto Tracking",
+    name: "PTZ Camera - 4K Auto Tracking",
     sizes: ["N/A"],
-    specifications: ["N/A"],
+    specifications: ["4K Auto Tracking"],
   },
   {
-    name: "Web Cam - 4K",
+    name: "Web Cam",
     sizes: ["N/A"],
-    specifications: ["N/A"],
-  },
-  {
-    name: "Web Cam - Full HD",
-    sizes: ["N/A"],
-    specifications: ["N/A"],
+    specifications: [
+      "Full HD Non-AI Featured",
+      "4K AI Featured",
+      "4K Auto Tracking",
+    ],
   },
   {
     name: "Bluetooth Microphone",
@@ -175,12 +311,12 @@ const productOptions = [
   {
     name: "UPS - Offline",
     sizes: ["N/A"],
-    specifications: ["N/A"],
+    specifications: ["Offline UPS"],
   },
   {
     name: "UPS - Online",
     sizes: ["N/A"],
-    specifications: ["N/A"],
+    specifications: ["Online UPS"],
   },
   {
     name: "UPS Cabinet",
@@ -190,7 +326,7 @@ const productOptions = [
   {
     name: "SD Card",
     sizes: ["N/A"],
-    specifications: ["N/A"],
+    specifications: ["8GB", "16GB", "32GB", "64GB", "128GB"],
   },
   {
     name: "Casing",
@@ -205,7 +341,7 @@ const productOptions = [
   {
     name: "HDMI Cable",
     sizes: ["N/A"],
-    specifications: ["N/A"],
+    specifications: ["Standard", "4K"],
   },
   {
     name: "White Board",
@@ -220,12 +356,19 @@ const productOptions = [
   {
     name: "Fujifilm-Printer",
     sizes: ["N/A"],
-    specifications: ["N/A"],
+    specifications: [
+      "Color Printer",
+      "Monochrome Printer",
+      "Black and White Printer",
+      "Multifunction Color Printer",
+      "Multifunction Monochrome Printer",
+      "Multifunction Black and White Printer",
+    ],
   },
   {
     name: "Google TV",
-    sizes: ["N/A"],
-    specifications: ["N/A"],
+    sizes: ["43 inch", "50 inch", "55 inch"],
+    specifications: ["4GB RAM / 32GB ROM 4K"],
   },
   {
     name: "Wriety Software",
@@ -234,13 +377,18 @@ const productOptions = [
   },
   {
     name: "Ceiling Mount Kit",
-    sizes: ["N/A"],
-    specifications: ["N/A"],
+    sizes: ["Standard"],
+    specifications: ["Projector Ceiling Mount", "PTZ Ceiling Mount"],
   },
   {
     name: "Almirah Type Shutter",
+    sizes: ["65 inch", "75 inch", "86 inch", "98 inch"],
+    specifications: ["Plain", "White Boards", "Green Boards"],
+  },
+  {
+    name: "Aicharya",
     sizes: ["N/A"],
-    specifications: ["N/A"],
+    specifications: ["Standard"],
   },
   {
     name: "Logo",
@@ -254,6 +402,21 @@ const productOptions = [
   },
   {
     name: "E-Share License",
+    sizes: ["N/A"],
+    specifications: ["N/A"],
+  },
+  {
+    name: "PRO Share Software",
+    sizes: ["N/A"],
+    specifications: ["N/A"],
+  },
+  {
+    name: "E Share Software",
+    sizes: ["N/A"],
+    specifications: ["N/A"],
+  },
+  {
+    name: "DMS Software",
     sizes: ["N/A"],
     specifications: ["N/A"],
   },
@@ -273,22 +436,12 @@ const productOptions = [
     specifications: ["N/A"],
   },
   {
-    name: "AI Charya Podium",
-    sizes: ["N/A"],
-    specifications: ["N/A"],
-  },
-  {
     name: "Wooden Podium",
     sizes: ["N/A"],
     specifications: ["N/A"],
   },
   {
     name: "Writing Board",
-    sizes: ["N/A"],
-    specifications: ["N/A"],
-  },
-  {
-    name: "IT Catalog",
     sizes: ["N/A"],
     specifications: ["N/A"],
   },
@@ -320,12 +473,12 @@ const productOptions = [
   {
     name: "SSD",
     sizes: ["N/A"],
-    specifications: ["N/A"],
+    specifications: ["256GB", "512GB", "1TB"],
   },
   {
     name: "RAM",
     sizes: ["N/A"],
-    specifications: ["N/A"],
+    specifications: ["8GB", "16GB"],
   },
   {
     name: "Video Conferencing Camera",
@@ -398,32 +551,12 @@ const productOptions = [
     specifications: ["N/A"],
   },
   {
-    name: "LED",
-    sizes: ["N/A"],
-    specifications: ["N/A"],
-  },
-  {
-    name: "Controller",
-    sizes: ["N/A"],
-    specifications: ["N/A"],
-  },
-  {
     name: "Hydraulic Bracket",
     sizes: ["N/A"],
     specifications: ["N/A"],
   },
   {
-    name: "4 Pole C Curve MCB",
-    sizes: ["N/A"],
-    specifications: ["N/A"],
-  },
-  {
     name: "Desktop PC Monitor",
-    sizes: ["N/A"],
-    specifications: ["N/A"],
-  },
-  {
-    name: "Extension Mic",
     sizes: ["N/A"],
     specifications: ["N/A"],
   },
@@ -440,20 +573,10 @@ const productOptions = [
   {
     name: "Projector",
     sizes: ["N/A"],
-    specifications: ["N/A"],
-  },
-  {
-    name: "Mike Wireless",
-    sizes: ["N/A"],
-    specifications: ["N/A"],
+    specifications: ["Long Throw", "Short Throw", "Ultra Long Throw"],
   },
   {
     name: "LED TV",
-    sizes: ["N/A"],
-    specifications: ["N/A"],
-  },
-  {
-    name: "Advance Podium",
     sizes: ["N/A"],
     specifications: ["N/A"],
   },
@@ -483,6 +606,36 @@ const productOptions = [
     specifications: ["N/A"],
   },
   {
+    name: "IT Catalog",
+    sizes: ["N/A"],
+    specifications: ["N/A"],
+  },
+  {
+    name: "AI Charya Podium",
+    sizes: ["N/A"],
+    specifications: ["Standard"],
+  },
+  {
+    name: "4 Pole C Curve MCB",
+    sizes: ["N/A"],
+    specifications: ["N/A"],
+  },
+  {
+    name: "Extension Mic",
+    sizes: ["N/A"],
+    specifications: ["N/A"],
+  },
+  {
+    name: "Mike Wireless",
+    sizes: ["N/A"],
+    specifications: ["N/A"],
+  },
+  {
+    name: "Advance Podium",
+    sizes: ["N/A"],
+    specifications: ["N/A"],
+  },
+  {
     name: "Speaker & Mic",
     sizes: ["N/A"],
     specifications: ["N/A"],
@@ -505,7 +658,10 @@ const productOptions = [
   {
     name: "Document Camera Wall Mounted",
     sizes: ["N/A"],
-    specifications: ["N/A"],
+    specifications: [
+      "Hydraulic Wall Mount Visualizer",
+      "Non-Hydraulic Wall Mount Visualizer",
+    ],
   },
   {
     name: "SLV Mic",
@@ -523,7 +679,6 @@ const productOptions = [
     specifications: ["N/A"],
   },
 ];
-
 function AddEntry({ isOpen, onClose, onEntryAdded }) {
   const initialFormData = {
     customerName: "",
