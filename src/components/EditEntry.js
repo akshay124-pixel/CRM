@@ -111,6 +111,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       liveLocation: "",
       nextAction: "",
       estimatedValue: "",
+      closeamount: "",
     }),
     []
   );
@@ -181,6 +182,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         liveLocation: entry.liveLocation || "",
         nextAction: entry.nextAction || "",
         estimatedValue: entry.estimatedValue || "",
+        closeamount: entry.closeamount || "",
       };
       reset(formData, { keepDirty: false });
       setError(null);
@@ -190,6 +192,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     }
   }, [isOpen, entry, reset]);
 
+  const selectedCloseType = watch("closetype");
   const fetchLiveLocation = useCallback(() => {
     setLocationLoading(true);
     if (navigator.geolocation) {
@@ -1559,6 +1562,27 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
             {errors.closetype?.message}
           </Form.Control.Feedback>
         </Form.Group>
+        {selectedCloseType === "Closed Won" && (
+          <Form.Group controlId="closeamount">
+            <Form.Label>💰 Close Amount</Form.Label>
+            <Controller
+              name="closeamount"
+              control={control}
+              rules={{ required: "Close Amount is required" }}
+              render={({ field }) => (
+                <Form.Control
+                  type="number"
+                  placeholder="Enter Close Amount"
+                  {...field}
+                  isInvalid={!!errors.closeamount}
+                />
+              )}
+            />
+            <Form.Control.Feedback type="invalid">
+              {errors.closeamount?.message}
+            </Form.Control.Feedback>
+          </Form.Group>
+        )}
 
         <Form.Group controlId="firstPersonMeet">
           <Form.Label>👤 First Person Meet</Form.Label>

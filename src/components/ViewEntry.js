@@ -158,6 +158,11 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
           ? `$${entry.estimatedValue.toLocaleString()}`
           : "N/A"
       }
+             Closeing Amount: ${
+               entry.closeamount
+                 ? `$${entry.closeamount.toLocaleString()}`
+                 : "N/A"
+             }
       Updated At: ${
         entry.updatedAt ? new Date(entry.updatedAt).toLocaleDateString() : "N/A"
       }
@@ -331,6 +336,14 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                 {entry.estimatedValue
                   ? `₹${new Intl.NumberFormat("en-IN").format(
                       entry.estimatedValue
+                    )}`
+                  : "N/A"}
+              </InfoItem>
+              <InfoItem>
+                <strong>Closeing Amount (₹):</strong>{" "}
+                {entry.closeamount
+                  ? `₹${new Intl.NumberFormat("en-IN").format(
+                      entry.closeamount
                     )}`
                   : "N/A"}
               </InfoItem>

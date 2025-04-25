@@ -37,6 +37,7 @@ import DeleteModal from "./Delete";
 import ViewEntry from "./ViewEntry";
 import TeamBuilder from "./TeamBuilder";
 import AdminDrawer from "./AdminDrawer";
+import ValueAnalyticsDrawer from "./ValueAnalyticsDrawer.js";
 import { FixedSizeList } from "react-window"; // Added for mobile virtualization
 
 // Custom hook for mobile detection
@@ -220,6 +221,7 @@ function DashBoard() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isTeamBuilderOpen, setIsTeamBuilderOpen] = useState(false);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
+  const [isValueAnalyticsOpen, setIsValueAnalyticsOpen] = useState(false);
   const [entryToEdit, setEntryToEdit] = useState(null);
   const [entryToView, setEntryToView] = useState(null);
   const [itemIdToDelete, setItemIdToDelete] = useState(null);
@@ -2094,6 +2096,35 @@ function DashBoard() {
               </button>
               <button
                 className="action-button"
+                onClick={() => setIsValueAnalyticsOpen(true)}
+                style={{
+                  padding: isMobile ? "10px 15px" : "12px 20px",
+                  background: "linear-gradient(135deg, #2575fc, #6a11cb)",
+                  color: "white",
+                  borderRadius: "12px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                  border: "none",
+                  fontSize: isMobile ? "0.9rem" : "1rem",
+                  boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
+                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                  margin: isMobile ? "5px" : "0 10px",
+                  display: "inline-block",
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.transform = "translateY(-2px)";
+                  e.target.style.boxShadow = "0px 6px 12px rgba(0, 0, 0, 0.2)";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = "translateY(0)";
+                  e.target.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.1)";
+                }}
+              >
+                <FaChartBar style={{ marginRight: "8px" }} />
+                Value Analytics
+              </button>
+              <button
+                className="action-button"
                 onClick={handleExport}
                 style={{
                   padding: isMobile ? "10px 15px" : "12px 20px",
@@ -2548,6 +2579,13 @@ function DashBoard() {
             entries={entries}
             isOpen={isAnalyticsOpen}
             onClose={() => setIsAnalyticsOpen(false)}
+            role={role}
+            userId={userId}
+          />
+          <ValueAnalyticsDrawer
+            entries={entries}
+            isOpen={isValueAnalyticsOpen}
+            onClose={() => setIsValueAnalyticsOpen(false)}
             role={role}
             userId={userId}
           />
