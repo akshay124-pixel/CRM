@@ -231,6 +231,7 @@ function DashBoard() {
   const [usernames, setUsernames] = useState([]);
   const [selectedState, setSelectedState] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
+  const [isAnalyticsModalOpen, setIsAnalyticsModalOpen] = useState(false);
   const [dashboardFilter, setDashboardFilter] = useState("total");
   const [dateRange, setDateRange] = useState([
     { startDate: null, endDate: null, key: "selection" },
@@ -2067,7 +2068,7 @@ function DashBoard() {
               </button>
               <button
                 className="action-button"
-                onClick={() => setIsAnalyticsOpen(true)}
+                onClick={() => setIsAnalyticsModalOpen(true)}
                 style={{
                   padding: isMobile ? "10px 15px" : "12px 20px",
                   background: "linear-gradient(135deg, #2575fc, #6a11cb)",
@@ -2092,36 +2093,7 @@ function DashBoard() {
                 }}
               >
                 <FaChartBar style={{ marginRight: "8px" }} />
-                Team Analytics
-              </button>
-              <button
-                className="action-button"
-                onClick={() => setIsValueAnalyticsOpen(true)}
-                style={{
-                  padding: isMobile ? "10px 15px" : "12px 20px",
-                  background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-                  color: "white",
-                  borderRadius: "12px",
-                  cursor: "pointer",
-                  fontWeight: "bold",
-                  border: "none",
-                  fontSize: isMobile ? "0.9rem" : "1rem",
-                  boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
-                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                  margin: isMobile ? "5px" : "0 10px",
-                  display: "inline-block",
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = "translateY(-2px)";
-                  e.target.style.boxShadow = "0px 6px 12px rgba(0, 0, 0, 0.2)";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = "translateY(0)";
-                  e.target.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.1)";
-                }}
-              >
-                <FaChartBar style={{ marginRight: "8px" }} />
-                Value Analytics
+                Analytics
               </button>
               <button
                 className="action-button"
@@ -2590,6 +2562,155 @@ function DashBoard() {
             userId={userId}
           />
         </>
+      )}
+      {isAnalyticsModalOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.6)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => setIsAnalyticsModalOpen(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.8, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            style={{
+              background: "white",
+              borderRadius: "16px",
+              width: isMobile ? "90%" : "400px",
+              maxWidth: "400px",
+              boxShadow: "0px 8px 24px rgba(0, 0, 0, 0.2)",
+              position: "relative",
+              overflow: "hidden",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                padding: isMobile ? "15px" : "20px",
+                borderBottom: "1px solid #e0e0e0",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: isMobile ? "1.2rem" : "1.5rem",
+                  fontWeight: "600",
+                  color: "#333",
+                }}
+              >
+                Analytics Options
+              </h3>
+              <button
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: "1.2rem",
+                  color: "#666",
+                  transition: "color 0.2s ease",
+                }}
+                onClick={() => setIsAnalyticsModalOpen(false)}
+                onMouseEnter={(e) => (e.target.style.color = "#2575fc")}
+                onMouseLeave={(e) => (e.target.style.color = "#666")}
+              >
+                ✕
+              </button>
+            </div>
+            <div
+              style={{
+                padding: isMobile ? "15px" : "20px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "15px",
+              }}
+            >
+              <button
+                className="action-button"
+                onClick={() => {
+                  setIsAnalyticsOpen(true);
+                  setIsAnalyticsModalOpen(false);
+                }}
+                style={{
+                  padding: isMobile ? "10px 15px" : "12px 20px",
+                  background: "linear-gradient(135deg, #2575fc, #6a11cb)",
+                  color: "white",
+                  borderRadius: "12px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                  border: "none",
+                  fontSize: isMobile ? "0.9rem" : "1rem",
+                  boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
+                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.transform = "translateY(-2px)";
+                  e.target.style.boxShadow = "0px 6px 12px rgba(0, 0, 0, 0.2)";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = "translateY(0)";
+                  e.target.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.1)";
+                }}
+              >
+                <FaChartBar style={{ marginRight: "8px" }} />
+                Team Analytics
+              </button>
+              <button
+                className="action-button"
+                onClick={() => {
+                  setIsValueAnalyticsOpen(true);
+                  setIsAnalyticsModalOpen(false);
+                }}
+                style={{
+                  padding: isMobile ? "10px 15px" : "12px 20px",
+                  background: "linear-gradient(135deg, #2575fc, #6a11cb)",
+                  color: "white",
+                  borderRadius: "12px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                  border: "none",
+                  fontSize: isMobile ? "0.9rem" : "1rem",
+                  boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
+                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.transform = "translateY(-2px)";
+                  e.target.style.boxShadow = "0px 6px 12px rgba(0, 0, 0, 0.2)";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = "translateY(0)";
+                  e.target.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.1)";
+                }}
+              >
+                <FaChartBar style={{ marginRight: "8px" }} />
+                Value Analytics
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
       )}
       <footer className="footer-container">
         <p style={{ marginTop: "10px", color: "white", height: "10px" }}>
