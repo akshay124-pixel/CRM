@@ -3,6 +3,7 @@ import { Modal, Button, Badge } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { toast } from "react-toastify";
 import { FaHistory, FaMapMarkerAlt } from "react-icons/fa";
+import { Box, Typography } from "@mui/material";
 import styled from "styled-components";
 import DisableCopy from "./DisableCopy"; // Adjust the path based on your project structure
 
@@ -155,14 +156,12 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
       Next Action: ${entry.nextAction || "N/A"}
       Estimated Value: ${
         entry.estimatedValue
-          ? `$${entry.estimatedValue.toLocaleString()}`
+          ? `₹${entry.estimatedValue.toLocaleString()}`
           : "N/A"
       }
-             Closeing Amount: ${
-               entry.closeamount
-                 ? `$${entry.closeamount.toLocaleString()}`
-                 : "N/A"
-             }
+      Closing Amount: ${
+        entry.closeamount ? `₹${entry.closeamount.toLocaleString()}` : "N/A"
+      }
       Updated At: ${
         entry.updatedAt ? new Date(entry.updatedAt).toLocaleDateString() : "N/A"
       }
@@ -215,25 +214,68 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
             borderBottom: "none",
             boxShadow: "0 4px 15px rgba(0, 0, 0, 0.2)",
             display: "flex",
-            justifyContent: "center",
             alignItems: "center",
           }}
         >
-          <Modal.Title
-            id="view-entry-modal-title"
-            style={{
-              fontWeight: "700",
-              fontSize: "1.8rem",
-              letterSpacing: "1px",
-              textTransform: "uppercase",
-              textShadow: "1px 1px 3px rgba(0, 0, 0, 0.2)",
+          <Box
+            sx={{
               display: "flex",
+              justifyContent: "space-between",
               alignItems: "center",
+              width: "100%",
             }}
           >
-            <span style={{ marginRight: "10px", fontSize: "1.5rem" }}>📋</span>{" "}
-            Client Profile
-          </Modal.Title>
+            <Modal.Title
+              id="view-entry-modal-title"
+              style={{
+                fontWeight: "700",
+                fontSize: "1.8rem",
+                letterSpacing: "1px",
+                textTransform: "uppercase",
+                textShadow: "1px 1px 3px rgba(0, 0, 0, 0.2)",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              <span style={{ marginRight: "10px", fontSize: "1.5rem" }}>
+                📋
+              </span>
+              Client Profile
+            </Modal.Title>
+            <Box
+              sx={{
+                marginLeft: "auto",
+                mr: 2,
+              }}
+            >
+              <Box
+                component="div"
+                sx={{
+                  borderRadius: "10px",
+                  px: 2.5,
+                  py: 1,
+
+                  display: "flex",
+                  alignItems: "center",
+                  transition: "all 0.3s ease",
+                }}
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: "1.2rem",
+                    fontWeight: "700",
+                    color: "white",
+                    textShadow: "0 1px 3px rgba(0, 0, 0, 0.4)",
+                  }}
+                >
+                  Visits: {entry.history?.length || 0}
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
         </Modal.Header>
 
         <Modal.Body
@@ -340,7 +382,7 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                   : "N/A"}
               </InfoItem>
               <InfoItem>
-                <strong>Closeing Amount (₹):</strong>{" "}
+                <strong>Closing Amount (₹):</strong>{" "}
                 {entry.closeamount
                   ? `₹${new Intl.NumberFormat("en-IN").format(
                       entry.closeamount
@@ -374,14 +416,12 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                   ? new Date(entry.firstdate).toLocaleDateString("en-GB")
                   : "N/A"}
               </InfoItem>
-
               <InfoItem>
                 <strong>Follow Up:</strong>{" "}
                 {entry.followUpDate
                   ? new Date(entry.followUpDate).toLocaleDateString("en-GB")
                   : "N/A"}
               </InfoItem>
-
               <InfoItem>
                 <strong>Expected Close:</strong>{" "}
                 {entry.expectedClosingDate
@@ -409,14 +449,12 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                   ? new Date(entry.createdAt).toLocaleDateString("en-GB")
                   : "N/A"}
               </InfoItem>
-
               <InfoItem>
                 <strong>Updated:</strong>{" "}
                 {entry.updatedAt
                   ? new Date(entry.updatedAt).toLocaleDateString("en-GB")
                   : "N/A"}
               </InfoItem>
-
               <InfoItem>
                 <strong>Created By:</strong>{" "}
                 {entry.createdBy?.username || "N/A"}

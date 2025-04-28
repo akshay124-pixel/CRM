@@ -140,12 +140,13 @@ const ValueAnalyticsDrawer = ({ entries, isOpen, onClose, role, userId }) => {
       {/* Header */}
       <Box
         sx={{
-          padding: "20px",
-          background: "rgba(255, 255, 255, 0.05)",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+          padding: "24px",
+          background: "rgba(255, 255, 255, 0.1)",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.2)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
         }}
       >
         <Typography
@@ -250,7 +251,7 @@ const ValueAnalyticsDrawer = ({ entries, isOpen, onClose, role, userId }) => {
                     sx={{
                       fontSize: "1rem",
                       fontWeight: "700",
-                      color: "#2196f3",
+                      color: "lightgreen",
                       textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
                     }}
                   >
@@ -279,7 +280,7 @@ const ValueAnalyticsDrawer = ({ entries, isOpen, onClose, role, userId }) => {
                     sx={{
                       fontSize: "1rem",
                       fontWeight: "700",
-                      color: "#e91e63",
+                      color: "orange",
                       textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
                     }}
                   >
@@ -351,7 +352,7 @@ const ValueAnalyticsDrawer = ({ entries, isOpen, onClose, role, userId }) => {
                         sx={{
                           fontSize: "1rem",
                           fontWeight: "700",
-                          color: "#2196f3",
+                          color: "lightgreen",
                           textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
                         }}
                       >
@@ -380,7 +381,7 @@ const ValueAnalyticsDrawer = ({ entries, isOpen, onClose, role, userId }) => {
                         sx={{
                           fontSize: "1rem",
                           fontWeight: "700",
-                          color: "#e91e63",
+                          color: "yellow",
                           textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
                         }}
                       >

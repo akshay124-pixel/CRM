@@ -17,7 +17,6 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
         let relevantUserIds = [];
 
         if (role === "superadmin") {
-          // For superadmin, fetch all users (including admins and superadmin)
           const response = await axios.get(
             "https://crm-server-amz7.onrender.com/api/users",
             {
@@ -27,9 +26,8 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
           relevantUserIds = response.data.map((user) => ({
             _id: user._id,
             username: user.username,
-            role: user.role, // Include role to identify admins and superadmin
+            role: user.role,
           }));
-          // Ensure superadmin's own userId is included
           if (!relevantUserIds.some((user) => user._id === userId)) {
             relevantUserIds.push({
               _id: userId,
@@ -38,7 +36,6 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
             });
           }
         } else if (role === "admin") {
-          // For admin, only include users assigned to them
           const response = await axios.get(
             "https://crm-server-amz7.onrender.com/api/users",
             {
@@ -54,11 +51,10 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
             }));
         }
 
-        // Calculate stats for relevant users
         const statsMap = {};
         const filteredEntries =
           role === "superadmin"
-            ? entries // Superadmin sees all entries
+            ? entries
             : entries.filter(
                 (entry) =>
                   relevantUserIds.some(
@@ -68,6 +64,10 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
                   ) || entry.createdBy?._id === userId
               );
 
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
         filteredEntries.forEach((entry) => {
           const user = entry.assignedTo || entry.createdBy;
           const uId = user?._id || "unknown";
@@ -75,7 +75,6 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
           const userRole =
             relevantUserIds.find((u) => u._id === uId)?.role || "user";
 
-          // Include all users for superadmin, or only assigned users for admin
           if (
             (role === "superadmin" && uId !== "unknown") ||
             (role === "admin" &&
@@ -95,8 +94,20 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
                 hot: 0,
                 closedWon: 0,
                 closedLost: 0,
+                allTimeEntries: 0,
+                monthEntries: 0,
               };
             }
+            statsMap[uId].allTimeEntries += 1;
+
+            const entryDate = new Date(entry.createdAt);
+            if (
+              entryDate.getMonth() === currentMonth &&
+              entryDate.getFullYear() === currentYear
+            ) {
+              statsMap[uId].monthEntries += 1;
+            }
+
             switch (entry.status) {
               case "Not Interested":
                 statsMap[uId].cold += 1;
@@ -141,8 +152,8 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
           width: "350px",
           background: "linear-gradient(135deg, #2575fc, #6a11cb)",
           color: "white",
-          borderRadius: "0 15px 15px 0",
-          boxShadow: "2px 0 20px rgba(0, 0, 0, 0.3)",
+          borderRadius: "0 20px 20px 0",
+          boxShadow: "4px 0 30px rgba(0, 0, 0, 0.4)",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
@@ -152,103 +163,160 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
       {/* Header */}
       <Box
         sx={{
-          padding: "20px",
-          background: "rgba(255, 255, 255, 0.05)",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+          padding: "24px",
+          background: "rgba(255, 255, 255, 0.1)",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.2)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
         }}
       >
         <Typography
-          variant="h6"
+          variant="h5"
           sx={{
             fontWeight: "700",
-            fontSize: "1.5rem",
-            letterSpacing: "1px",
+            fontSize: "1.6rem",
+            letterSpacing: "1.2px",
             textTransform: "uppercase",
-            textShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
+            textShadow: "0 2px 4px rgba(0, 0, 0, 0.3)",
           }}
         >
           Team Analytics
         </Typography>
         <IconButton
           onClick={onClose}
-          sx={{ color: "white", "&:hover": { color: "#ff8e53" } }}
+          sx={{
+            color: "white",
+            "&:hover": { background: "rgba(255, 255, 255, 0.2)" },
+          }}
         >
-          <FaTimes size={20} />
+          <FaTimes size={22} />
         </IconButton>
       </Box>
 
       {/* Content */}
-      <Box sx={{ flex: 1, overflowY: "auto", px: 2, py: 3 }}>
+      <Box sx={{ flex: 1, overflowY: "auto", px: 3, py: 4 }}>
         {loading ? (
-          <Typography
+          <Box
             sx={{
-              textAlign: "center",
-              color: "rgba(255, 255, 255, 0.8)",
-              fontSize: "1.1rem",
-              fontWeight: "400",
-              fontStyle: "italic",
-              py: 4,
-              letterSpacing: "0.5px",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "100%",
             }}
           >
-            Loading...
-          </Typography>
+            <Typography
+              sx={{
+                color: "rgba(255, 255, 255, 0.7)",
+                fontSize: "1.2rem",
+                fontWeight: "400",
+                fontStyle: "italic",
+                textAlign: "center",
+                background: "rgba(255, 255, 255, 0.05)",
+                borderRadius: "8px",
+                padding: "16px",
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+              }}
+            >
+              Loading Analytics...
+            </Typography>
+          </Box>
         ) : userStats.length === 0 ? (
-          <Typography
+          <Box
             sx={{
-              textAlign: "center",
-              color: "rgba(255, 255, 255, 0.8)",
-              fontSize: "1.1rem",
-              fontWeight: "400",
-              fontStyle: "italic",
-              py: 4,
-              letterSpacing: "0.5px",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "100%",
             }}
           >
-            No Team Data Available
-          </Typography>
+            <Typography
+              sx={{
+                color: "rgba(255, 255, 255, 0.7)",
+                fontSize: "1.2rem",
+                fontWeight: "400",
+                fontStyle: "italic",
+                textAlign: "center",
+                background: "rgba(255, 255, 255, 0.05)",
+                borderRadius: "8px",
+                padding: "16px",
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+              }}
+            >
+              No Team Data Available
+            </Typography>
+          </Box>
         ) : (
           userStats.map((user, index) => (
-            <Box key={user.username + index}>
+            <Box key={user.username + index} sx={{ mb: 3 }}>
               <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.15 }}
                 sx={{
-                  background: "rgba(255, 255, 255, 0.08)",
-                  borderRadius: "10px",
-                  p: 2,
-                  mb: 2,
-                  "&:hover": { background: "rgba(255, 255, 255, 0.12)" },
+                  background: "rgba(255, 255, 255, 0.1)",
+                  borderRadius: "12px",
+                  p: 3,
+                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                  "&:hover": {
+                    background: "rgba(255, 255, 255, 0.15)",
+                    transform: "translateY(-2px)",
+                    transition: "all 0.2s ease",
+                  },
                 }}
               >
-                <Typography
-                  sx={{
-                    fontSize: "1.2rem",
-                    fontWeight: "600",
-                    mb: 1.5,
-                    letterSpacing: "0.3px",
-                    textTransform: "capitalize",
-                    textShadow: "0 1px 2px rgba(0, 0, 0, 0.15)",
-                  }}
-                >
-                  {user.username}
-                </Typography>
+                {/* User Header */}
+                <Box sx={{ mb: 2 }}>
+                  <Typography
+                    sx={{
+                      fontSize: "1.4rem",
+                      fontWeight: "600",
+                      letterSpacing: "0.4px",
+                      textTransform: "capitalize",
+                      textShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
+                      mb: 1,
+                    }}
+                  >
+                    {user.username}
+                  </Typography>
+                  <Box sx={{ display: "flex", gap: 3 }}>
+                    <Typography
+                      sx={{
+                        fontSize: "1rem",
+                        fontWeight: "600",
+                        color: "lightgreen",
+                        textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+                      }}
+                    >
+                      Total: {user.allTimeEntries}
+                    </Typography>
+                    <Typography
+                      sx={{
+                        fontSize: "1rem",
+                        fontWeight: "600",
+                        color: "yellow",
+                        textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+                      }}
+                    >
+                      This Month: {user.monthEntries}
+                    </Typography>
+                  </Box>
+                </Box>
+
+                {/* Status Metrics */}
                 <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 1.5,
-                  }}
+                  sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}
                 >
                   {[
-                    { label: "Cold", value: user.cold, color: "#4caf50" },
-                    { label: "Warm", value: user.warm, color: "#ff9800" },
-                    { label: "Hot", value: user.hot, color: "#f44336" },
-                    { label: "Won", value: user.closedWon, color: "#2196f3" },
+                    { label: "Cold", value: user.cold, color: "orange" },
+                    { label: "Warm", value: user.warm, color: "lightgreen" },
+                    { label: "Hot", value: user.hot, color: "yellow" },
+                    {
+                      label: "Won",
+                      value: user.closedWon,
+                      color: "lightgrey",
+                    },
                     { label: "Lost", value: user.closedLost, color: "#e91e63" },
                   ].map((stat) => (
                     <Box
@@ -257,23 +325,27 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "center",
+                        background: "rgba(255, 255, 255, 0.05)",
+                        borderRadius: "6px",
+                        px: 2,
+                        py: 1,
                       }}
                     >
                       <Typography
                         sx={{
-                          fontSize: "0.95rem",
+                          fontSize: "0.9rem",
                           fontWeight: "500",
-                          opacity: 0.9,
-                          letterSpacing: "0.2px",
+                          color: "rgba(255, 255, 255, 0.9)",
                           textTransform: "uppercase",
+                          letterSpacing: "0.5px",
                         }}
                       >
-                        {stat.label}:
+                        {stat.label}
                       </Typography>
                       <Typography
                         sx={{
                           fontSize: "1rem",
-                          fontWeight: "700",
+                          fontWeight: "600",
                           color: stat.color,
                           textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
                         }}
@@ -284,22 +356,19 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
                   ))}
                 </Box>
               </motion.div>
-              {index < userStats.length - 1 && (
-                <Box
-                  sx={{
-                    height: "1px",
-                    background: "rgba(255, 255, 255, 0.2)",
-                    my: 1,
-                  }}
-                />
-              )}
             </Box>
           ))
         )}
       </Box>
 
       {/* Footer */}
-      <Box sx={{ p: 2, borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}>
+      <Box
+        sx={{
+          p: 3,
+          borderTop: "1px solid rgba(255, 255, 255, 0.2)",
+          background: "rgba(255, 255, 255, 0.05)",
+        }}
+      >
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}

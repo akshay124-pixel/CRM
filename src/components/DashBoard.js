@@ -61,13 +61,22 @@ const CallTrackingDashboard = ({
   onFilterChange,
   selectedCategory,
   userId,
+  selectedUsername,
 }) => {
   const callStats = useMemo(() => {
     const stats = { cold: 0, warm: 0, hot: 0, closedWon: 0, closedLost: 0 };
-    const filteredEntries =
-      role === "superadmin" || role === "admin"
-        ? entries
-        : entries.filter((entry) => entry.createdBy?._id === userId);
+
+    // Apply role/userId and selectedUsername filters in one step
+    const filteredEntries = entries.filter(
+      (entry) =>
+        (role === "superadmin" ||
+          role === "admin" ||
+          entry.createdBy?._id === userId) &&
+        (!selectedUsername ||
+          entry.createdBy?.username === selectedUsername ||
+          entry.assignedTo?.username === selectedUsername)
+    );
+
     filteredEntries.forEach((entry) => {
       switch (entry.status) {
         case "Not Interested":
@@ -88,8 +97,7 @@ const CallTrackingDashboard = ({
       }
     });
     return stats;
-  }, [entries, role, userId]);
-
+  }, [entries, role, userId, selectedUsername]);
   return (
     <motion.div
       initial={{ opacity: 0, y: -20 }}
@@ -1969,6 +1977,7 @@ function DashBoard() {
           onFilterChange={setDashboardFilter}
           selectedCategory={dashboardFilter}
           userId={userId}
+          selectedUsername={selectedUsername}
         />
 
         <div style={{ textAlign: "center", margin: isMobile ? "10px 0" : "0" }}>
