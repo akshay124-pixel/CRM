@@ -231,6 +231,8 @@ function DashBoard() {
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [isValueAnalyticsOpen, setIsValueAnalyticsOpen] = useState(false);
   const [entryToEdit, setEntryToEdit] = useState(null);
+  const [totalVisits, setTotalVisits] = useState(0);
+  const [monthlyVisits, setMonthlyVisits] = useState(0);
   const [entryToView, setEntryToView] = useState(null);
   const [itemIdToDelete, setItemIdToDelete] = useState(null);
   const [itemIdsToDelete, setItemIdsToDelete] = useState([]);
@@ -1427,7 +1429,75 @@ function DashBoard() {
       setSelectedEntries(allFilteredIds);
     }
   };
+  // Memoize visits calculation to prevent unnecessary recalculations
+  const { total, monthly } = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
 
+    const total = entries.reduce((sum, entry) => {
+      return sum + (entry.history?.length || 0) + 1; // +1 for the entry itself
+    }, 0);
+
+    const monthly = entries.reduce((sum, entry) => {
+      const entryDate = new Date(entry.createdAt);
+      const entryMonth = entryDate.getMonth();
+      const entryYear = entryDate.getFullYear();
+
+      // Only include entries from the current month
+      if (entryMonth === currentMonth && entryYear === currentYear) {
+        // Count the entry itself (+1) and all its history items
+        return sum + 1 + (entry.history?.length || 0);
+      }
+      return sum;
+    }, 0);
+
+    return { total, monthly };
+  }, [entries]);
+
+  // Update visits state when memoized values change
+  useEffect(() => {
+    console.log("Total Visits:", total, "Monthly Visits:", monthly); // Debug log
+    setTotalVisits(total);
+    setMonthlyVisits(monthly);
+  }, [total, monthly]);
+
+  // Fetch entries without entries in dependencies
+  useEffect(() => {
+    if (!authLoading && role && userId) {
+      fetchEntries();
+    }
+  }, [authLoading, role, userId, fetchEntries]);
+
+  // Reset monthly visits at the start of a new month
+  useEffect(() => {
+    const checkMonthChange = () => {
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      const monthly = entries.reduce((sum, entry) => {
+        const entryDate = new Date(entry.createdAt);
+        const entryMonth = entryDate.getMonth();
+        const entryYear = entryDate.getFullYear();
+
+        // Only include entries from the current month
+        if (entryMonth === currentMonth && entryYear === currentYear) {
+          // Count the entry itself (+1) and all its history items
+          return sum + 1 + (entry.history?.length || 0);
+        }
+        return sum;
+      }, 0);
+
+      console.log("Monthly Visits (reset check):", monthly); // Debug log
+      setMonthlyVisits(monthly);
+    };
+
+    // Check every minute for a month change
+    const interval = setInterval(checkMonthChange, 60000);
+    return () => clearInterval(interval);
+  }, [entries]);
+  // Ends here
   const handleCopySelected = () => {
     const selectedData = entries.filter((entry) =>
       selectedEntries.includes(entry._id)
@@ -1979,7 +2049,6 @@ function DashBoard() {
           userId={userId}
           selectedUsername={selectedUsername}
         />
-
         <div style={{ textAlign: "center", margin: isMobile ? "10px 0" : "0" }}>
           <label
             className="action-button"
@@ -2254,23 +2323,58 @@ function DashBoard() {
           </p>
         </div>
 
-        <div
-          style={{
-            marginBottom: "10px",
-            fontWeight: "600",
-            fontSize: isMobile ? "0.9rem" : "1rem",
-            color: "#fff",
-            background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-            padding: isMobile ? "5px 10px" : "5px 15px",
-            borderRadius: "20px",
-            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
-            display: "inline-block",
-            textAlign: "center",
-            width: "auto",
-            textTransform: "capitalize",
-          }}
-        >
-          Total Results: {filteredData.length}
+        <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
+          <div
+            style={{
+              fontWeight: "600",
+              fontSize: isMobile ? "0.9rem" : "1rem",
+              color: "#fff",
+              background: "linear-gradient(135deg, #2575fc, #6a11cb)",
+              padding: isMobile ? "5px 10px" : "5px 15px",
+              borderRadius: "20px",
+              boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
+              display: "inline-block",
+              textAlign: "center",
+              width: "auto",
+              textTransform: "capitalize",
+            }}
+          >
+            Total Results: {filteredData.length}
+          </div>
+          <div
+            style={{
+              fontWeight: "600",
+              fontSize: isMobile ? "0.9rem" : "1rem",
+              color: "#fff",
+              background: "linear-gradient(135deg, #2575fc, #6a11cb)",
+              padding: isMobile ? "5px 10px" : "5px 15px",
+              borderRadius: "20px",
+              boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
+              display: "inline-block",
+              textAlign: "center",
+              width: "auto",
+              textTransform: "capitalize",
+            }}
+          >
+            Total Visits: {totalVisits}
+          </div>
+          <div
+            style={{
+              fontWeight: "600",
+              fontSize: isMobile ? "0.9rem" : "1rem",
+              color: "#fff",
+              background: "linear-gradient(135deg, #2575fc, #6a11cb)",
+              padding: isMobile ? "5px 10px" : "5px 15px",
+              borderRadius: "20px",
+              boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
+              display: "inline-block",
+              textAlign: "center",
+              width: "auto",
+              textTransform: "capitalize",
+            }}
+          >
+            Monthly Visits: {monthlyVisits}
+          </div>
         </div>
         <div
           className="table-container"

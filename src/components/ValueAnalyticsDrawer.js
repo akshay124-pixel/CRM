@@ -8,7 +8,8 @@ import { toast } from "react-toastify";
 const ValueAnalyticsDrawer = ({ entries, isOpen, onClose, role, userId }) => {
   const [valueStats, setValueStats] = useState([]);
   const [totalClosingAmount, setTotalClosingAmount] = useState(0);
-  const [totalEstimatedValue, setTotalEstimatedValue] = useState(0);
+  const [totalHotValue, setTotalHotValue] = useState(0);
+  const [totalWarmValue, setTotalWarmValue] = useState(0);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -55,7 +56,8 @@ const ValueAnalyticsDrawer = ({ entries, isOpen, onClose, role, userId }) => {
 
         const statsMap = {};
         let totalClose = 0;
-        let totalEst = 0;
+        let totalHot = 0;
+        let totalWarm = 0;
 
         const filteredEntries =
           role === "superadmin"
@@ -91,23 +93,37 @@ const ValueAnalyticsDrawer = ({ entries, isOpen, onClose, role, userId }) => {
               statsMap[uId] = {
                 username: displayName,
                 totalClosingAmount: 0,
-                totalEstimatedValue: 0,
+                hotValue: 0,
+                warmValue: 0,
               };
             }
-            if (entry.closeamount && entry.closetype === "Closed Won") {
+            if (
+              entry.closeamount &&
+              entry.closetype === "Closed Won" &&
+              typeof entry.closeamount === "number"
+            ) {
               statsMap[uId].totalClosingAmount += entry.closeamount;
               totalClose += entry.closeamount;
             }
-            if (entry.estimatedValue) {
-              statsMap[uId].totalEstimatedValue += entry.estimatedValue;
-              totalEst += entry.estimatedValue;
+            if (
+              entry.estimatedValue &&
+              typeof entry.estimatedValue === "number"
+            ) {
+              if (entry.status === "Interested") {
+                statsMap[uId].hotValue += entry.estimatedValue;
+                totalHot += entry.estimatedValue;
+              } else if (entry.status === "Maybe") {
+                statsMap[uId].warmValue += entry.estimatedValue;
+                totalWarm += entry.estimatedValue;
+              }
             }
           }
         });
 
         setValueStats(Object.values(statsMap));
         setTotalClosingAmount(totalClose);
-        setTotalEstimatedValue(totalEst);
+        setTotalHotValue(totalHot);
+        setTotalWarmValue(totalWarm);
       } catch (error) {
         console.error("Error fetching value analytics:", error);
         toast.error("Failed to load value analytics!");
@@ -274,7 +290,36 @@ const ValueAnalyticsDrawer = ({ entries, isOpen, onClose, role, userId }) => {
                       textTransform: "uppercase",
                     }}
                   >
-                    Total Estimated Value:
+                    Hot Value:
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: "1rem",
+                      fontWeight: "700",
+                      color: "yellow",
+                      textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+                    }}
+                  >
+                    ₹{totalHotValue.toLocaleString("en-IN")}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: "0.95rem",
+                      fontWeight: "500",
+                      opacity: 0.9,
+                      letterSpacing: "0.2px",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Warm Value:
                   </Typography>
                   <Typography
                     sx={{
@@ -284,7 +329,7 @@ const ValueAnalyticsDrawer = ({ entries, isOpen, onClose, role, userId }) => {
                       textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
                     }}
                   >
-                    ₹{totalEstimatedValue.toLocaleString("en-IN")}
+                    ₹{totalWarmValue.toLocaleString("en-IN")}
                   </Typography>
                 </Box>
               </Box>
@@ -375,7 +420,7 @@ const ValueAnalyticsDrawer = ({ entries, isOpen, onClose, role, userId }) => {
                           textTransform: "uppercase",
                         }}
                       >
-                        Total Estimated Value:
+                        Hot Value:
                       </Typography>
                       <Typography
                         sx={{
@@ -385,7 +430,36 @@ const ValueAnalyticsDrawer = ({ entries, isOpen, onClose, role, userId }) => {
                           textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
                         }}
                       >
-                        ₹{user.totalEstimatedValue.toLocaleString("en-IN")}
+                        ₹{user.hotValue.toLocaleString("en-IN")}
+                      </Typography>
+                    </Box>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          fontSize: "0.95rem",
+                          fontWeight: "500",
+                          opacity: 0.9,
+                          letterSpacing: "0.2px",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        Warm Value:
+                      </Typography>
+                      <Typography
+                        sx={{
+                          fontSize: "1rem",
+                          fontWeight: "700",
+                          color: "orange",
+                          textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+                        }}
+                      >
+                        ₹{user.warmValue.toLocaleString("en-IN")}
                       </Typography>
                     </Box>
                   </Box>
@@ -406,6 +480,7 @@ const ValueAnalyticsDrawer = ({ entries, isOpen, onClose, role, userId }) => {
       </Box>
 
       {/* Footer */}
+
       <Box sx={{ p: 2, borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}>
         <motion.button
           whileHover={{ scale: 1.02 }}

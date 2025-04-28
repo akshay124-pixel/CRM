@@ -142,6 +142,28 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
     if (isOpen) fetchAssignedUsersAndCalculateStats();
   }, [entries, isOpen, role, userId]);
 
+  // Calculate overall statistics
+  const overallStats = userStats.reduce(
+    (acc, user) => ({
+      total: acc.total + user.allTimeEntries,
+      monthTotal: acc.monthTotal + user.monthEntries,
+      hot: acc.hot + user.hot,
+      cold: acc.cold + user.cold,
+      warm: acc.warm + user.warm,
+      closedWon: acc.closedWon + user.closedWon,
+      closedLost: acc.closedLost + user.closedLost,
+    }),
+    {
+      total: 0,
+      monthTotal: 0,
+      hot: 0,
+      cold: 0,
+      warm: 0,
+      closedWon: 0,
+      closedLost: 0,
+    }
+  );
+
   return (
     <Drawer
       anchor="left"
@@ -212,7 +234,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
                 fontWeight: "400",
                 fontStyle: "italic",
                 textAlign: "center",
-                background: "rgba(255, 255, 255, 0.05)",
+
                 borderRadius: "8px",
                 padding: "16px",
               }}
@@ -246,116 +268,296 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
             </Typography>
           </Box>
         ) : (
-          userStats.map((user, index) => (
-            <Box key={user.username + index} sx={{ mb: 3 }}>
+          <>
+            {/* Overall Statistics Section */}
+            <Box sx={{ mb: 4 }}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.15 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
                 sx={{
-                  background: "rgba(255, 255, 255, 0.1)",
-                  borderRadius: "12px",
+                  background:
+                    "linear-gradient(135deg, rgba(37, 117, 252, 0.9), rgba(106, 17, 203, 0.9))",
+                  borderRadius: "16px",
                   p: 3,
-                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-                  "&:hover": {
-                    background: "rgba(255, 255, 255, 0.15)",
-                    transform: "translateY(-2px)",
-                    transition: "all 0.2s ease",
-                  },
+                  boxShadow: "0 8px 24px rgba(0, 0, 0, 0.3)",
+                  backdropFilter: "blur(8px)",
                 }}
               >
-                {/* User Header */}
-                <Box sx={{ mb: 2 }}>
-                  <Typography
-                    sx={{
-                      fontSize: "1.4rem",
-                      fontWeight: "600",
-                      letterSpacing: "0.4px",
-                      textTransform: "capitalize",
-                      textShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
-                      mb: 1,
-                    }}
-                  >
-                    {user.username}
-                  </Typography>
-                  <Box sx={{ display: "flex", gap: 3 }}>
-                    <Typography
-                      sx={{
-                        fontSize: "1rem",
-                        fontWeight: "600",
-                        color: "lightgreen",
-                        textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
-                      }}
-                    >
-                      Total: {user.allTimeEntries}
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: "1rem",
-                        fontWeight: "600",
-                        color: "yellow",
-                        textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
-                      }}
-                    >
-                      This Month: {user.monthEntries}
-                    </Typography>
-                  </Box>
-                </Box>
-
-                {/* Status Metrics */}
+                <Typography
+                  sx={{
+                    fontSize: "1.6rem",
+                    fontWeight: "700",
+                    background: "linear-gradient(135deg, #ffffff, #e0e7ff)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    letterSpacing: "0.5px",
+                    textShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
+                    mb: 2.5,
+                    textAlign: "center",
+                  }}
+                >
+                  📊 Overall Statistics
+                </Typography>
+                {/* Top Row: Total Entries and This Month */}
                 <Box
-                  sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}
+                  sx={{
+                    display: "flex",
+                    gap: 4,
+                    mb: 2,
+                    justifyContent: "center",
+                  }}
                 >
                   {[
-                    { label: "Cold", value: user.cold, color: "orange" },
-                    { label: "Warm", value: user.warm, color: "lightgreen" },
-                    { label: "Hot", value: user.hot, color: "yellow" },
                     {
-                      label: "Won",
-                      value: user.closedWon,
-                      color: "lightgrey",
+                      label: "Total Entries",
+                      value: overallStats.total,
+                      color: "lightgreen",
                     },
-                    { label: "Lost", value: user.closedLost, color: "#e91e63" },
-                  ].map((stat) => (
-                    <Box
+                    {
+                      label: "This Month",
+                      value: overallStats.monthTotal,
+                      color: "yellow",
+                    },
+                  ].map((stat, index) => (
+                    <motion.div
                       key={stat.label}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: index * 0.1, duration: 0.3 }}
                       sx={{
+                        flex: 1,
+                        background: "rgba(255, 255, 255, 0.1)",
+                        borderRadius: "8px",
+                        p: 1.5,
+                        textAlign: "center",
+                        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
+                        minHeight: "80px",
                         display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        background: "rgba(255, 255, 255, 0.05)",
-                        borderRadius: "6px",
-                        px: 2,
-                        py: 1,
+                        flexDirection: "column",
+                        justifyContent: "center",
                       }}
                     >
                       <Typography
                         sx={{
                           fontSize: "0.9rem",
-                          fontWeight: "500",
+                          fontWeight: "600",
                           color: "rgba(255, 255, 255, 0.9)",
                           textTransform: "uppercase",
-                          letterSpacing: "0.5px",
+                          letterSpacing: "0.6px",
+                          mb: 0.5,
                         }}
                       >
                         {stat.label}
                       </Typography>
                       <Typography
                         sx={{
-                          fontSize: "1rem",
-                          fontWeight: "600",
+                          fontSize: "1.3rem",
+                          fontWeight: "700",
                           color: stat.color,
-                          textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+                          textShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
                         }}
                       >
                         {stat.value}
                       </Typography>
-                    </Box>
+                    </motion.div>
+                  ))}
+                </Box>
+                {/* Bottom Grid: Hot, Cold, Warm, Won, Lost */}
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gap: "12px",
+                    justifyItems: "center",
+                    alignItems: "stretch",
+                  }}
+                >
+                  {[
+                    { label: "Hot", value: overallStats.hot, color: "yellow" },
+                    {
+                      label: "Cold",
+                      value: overallStats.cold,
+                      color: "orange",
+                    },
+                    {
+                      label: "Warm",
+                      value: overallStats.warm,
+                      color: "lightgreen",
+                    },
+                    {
+                      label: "Won",
+                      value: overallStats.closedWon,
+                      color: "lightgrey",
+                    },
+                    {
+                      label: "Lost",
+                      value: overallStats.closedLost,
+                      color: "#e91e63",
+                    },
+                  ].map((stat, index) => (
+                    <motion.div
+                      key={stat.label}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: (index + 2) * 0.1, duration: 0.3 }}
+                      sx={{
+                        width: "100%",
+                        background: "rgba(255, 255, 255, 0.1)",
+                        borderRadius: "8px",
+                        p: 1.5,
+                        textAlign: "center",
+                        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
+                        minHeight: "80px",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          fontSize: "0.9rem",
+                          fontWeight: "600",
+                          color: "rgba(255, 255, 255, 0.9)",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.6px",
+                          mb: 0.5,
+                        }}
+                      >
+                        {stat.label}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          fontSize: "1.3rem",
+                          fontWeight: "700",
+                          color: stat.color,
+                          textShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
+                        }}
+                      >
+                        {stat.value}
+                      </Typography>
+                    </motion.div>
                   ))}
                 </Box>
               </motion.div>
             </Box>
-          ))
+
+            {/* Individual User Statistics */}
+            {userStats.map((user, index) => (
+              <Box key={user.username + index} sx={{ mb: 3 }}>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.15 }}
+                  sx={{
+                    background: "rgba(255, 255, 255, 0.1)",
+                    borderRadius: "12px",
+                    p: 3,
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                    "&:hover": {
+                      background: "rgba(255, 255, 255, 0.15)",
+                      transform: "translateY(-2px)",
+                      transition: "all 0.2s ease",
+                    },
+                  }}
+                >
+                  {/* User Header */}
+                  <Box sx={{ mb: 2 }}>
+                    <Typography
+                      sx={{
+                        fontSize: "1.4rem",
+                        fontWeight: "600",
+                        letterSpacing: "0.4px",
+                        textTransform: "capitalize",
+                        textShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
+                        mb: 1,
+                      }}
+                    >
+                      {user.username}
+                    </Typography>
+                    <Box sx={{ display: "flex", gap: 3 }}>
+                      <Typography
+                        sx={{
+                          fontSize: "1rem",
+                          fontWeight: "600",
+                          color: "lightgreen",
+                          textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+                        }}
+                      >
+                        Total: {user.allTimeEntries}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          fontSize: "1rem",
+                          fontWeight: "600",
+                          color: "yellow",
+                          textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+                        }}
+                      >
+                        This Month: {user.monthEntries}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  {/* Status Metrics */}
+                  <Box
+                    sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}
+                  >
+                    {[
+                      { label: "Cold", value: user.cold, color: "orange" },
+                      { label: "Warm", value: user.warm, color: "lightgreen" },
+                      { label: "Hot", value: user.hot, color: "yellow" },
+                      {
+                        label: "Won",
+                        value: user.closedWon,
+                        color: "lightgrey",
+                      },
+                      {
+                        label: "Lost",
+                        value: user.closedLost,
+                        color: "#e91e63",
+                      },
+                    ].map((stat) => (
+                      <Box
+                        key={stat.label}
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          background: "rgba(255, 255, 255, 0.05)",
+                          borderRadius: "6px",
+                          px: 2,
+                          py: 1,
+                        }}
+                      >
+                        <Typography
+                          sx={{
+                            fontSize: "0.9rem",
+                            fontWeight: "500",
+                            color: "rgba(255, 255, 255, 0.9)",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px",
+                          }}
+                        >
+                          {stat.label}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            fontSize: "1rem",
+                            fontWeight: "600",
+                            color: stat.color,
+                            textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+                          }}
+                        >
+                          {stat.value}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </motion.div>
+              </Box>
+            ))}
+          </>
         )}
       </Box>
 
