@@ -5,7 +5,7 @@ import { FaTimes } from "react-icons/fa";
 import axios from "axios";
 import { toast } from "react-toastify";
 
-const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
+const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
   const [userStats, setUserStats] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -52,17 +52,23 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
         }
 
         const statsMap = {};
-        const filteredEntries =
-          role === "superadmin"
-            ? entries
-            : entries.filter(
-                (entry) =>
-                  relevantUserIds.some(
-                    (user) =>
-                      user._id === entry.createdBy?._id ||
-                      user._id === entry.assignedTo?._id
-                  ) || entry.createdBy?._id === userId
-              );
+        // Filter entries by date range
+        const filteredEntries = entries.filter((entry) => {
+          const createdAt = new Date(entry.createdAt);
+          return (
+            (!dateRange[0].startDate ||
+              !dateRange[0].endDate ||
+              (createdAt >= new Date(dateRange[0].startDate) &&
+                createdAt <= new Date(dateRange[0].endDate))) &&
+            (role === "superadmin" ||
+              relevantUserIds.some(
+                (user) =>
+                  user._id === entry.createdBy?._id ||
+                  user._id === entry.assignedTo?._id
+              ) ||
+              entry.createdBy?._id === userId)
+          );
+        });
 
         const now = new Date();
         const currentMonth = now.getMonth();
@@ -140,7 +146,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
     };
 
     if (isOpen) fetchAssignedUsersAndCalculateStats();
-  }, [entries, isOpen, role, userId]);
+  }, [entries, isOpen, role, userId, dateRange]);
 
   // Calculate overall statistics
   const overallStats = userStats.reduce(
@@ -234,7 +240,6 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
                 fontWeight: "400",
                 fontStyle: "italic",
                 textAlign: "center",
-
                 borderRadius: "8px",
                 padding: "16px",
               }}

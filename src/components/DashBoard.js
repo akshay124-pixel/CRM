@@ -2666,6 +2666,7 @@ function DashBoard() {
             onClose={() => setIsAnalyticsOpen(false)}
             role={role}
             userId={userId}
+            dateRange={dateRange} // Pass dateRange prop
           />
           <ValueAnalyticsDrawer
             entries={entries}
@@ -2673,6 +2674,7 @@ function DashBoard() {
             onClose={() => setIsValueAnalyticsOpen(false)}
             role={role}
             userId={userId}
+            dateRange={dateRange} // Pass dateRange prop
           />
         </>
       )}

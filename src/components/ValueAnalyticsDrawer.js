@@ -5,7 +5,14 @@ import { FaTimes } from "react-icons/fa";
 import axios from "axios";
 import { toast } from "react-toastify";
 
-const ValueAnalyticsDrawer = ({ entries, isOpen, onClose, role, userId }) => {
+const ValueAnalyticsDrawer = ({
+  entries,
+  isOpen,
+  onClose,
+  role,
+  userId,
+  dateRange,
+}) => {
   const [valueStats, setValueStats] = useState([]);
   const [totalClosingAmount, setTotalClosingAmount] = useState(0);
   const [totalHotValue, setTotalHotValue] = useState(0);
@@ -59,17 +66,23 @@ const ValueAnalyticsDrawer = ({ entries, isOpen, onClose, role, userId }) => {
         let totalHot = 0;
         let totalWarm = 0;
 
-        const filteredEntries =
-          role === "superadmin"
-            ? entries
-            : entries.filter(
-                (entry) =>
-                  relevantUserIds.some(
-                    (user) =>
-                      user._id === entry.createdBy?._id ||
-                      user._id === entry.assignedTo?._id
-                  ) || entry.createdBy?._id === userId
-              );
+        // Filter entries by date range and role
+        const filteredEntries = entries.filter((entry) => {
+          const createdAt = new Date(entry.createdAt);
+          return (
+            (!dateRange[0].startDate ||
+              !dateRange[0].endDate ||
+              (createdAt >= new Date(dateRange[0].startDate) &&
+                createdAt <= new Date(dateRange[0].endDate))) &&
+            (role === "superadmin" ||
+              relevantUserIds.some(
+                (user) =>
+                  user._id === entry.createdBy?._id ||
+                  user._id === entry.assignedTo?._id
+              ) ||
+              entry.createdBy?._id === userId)
+          );
+        });
 
         filteredEntries.forEach((entry) => {
           const user = entry.assignedTo || entry.createdBy;
@@ -133,7 +146,7 @@ const ValueAnalyticsDrawer = ({ entries, isOpen, onClose, role, userId }) => {
     };
 
     if (isOpen) fetchAssignedUsersAndCalculateValueStats();
-  }, [entries, isOpen, role, userId]);
+  }, [entries, isOpen, role, userId, dateRange]);
 
   return (
     <Drawer
@@ -480,7 +493,6 @@ const ValueAnalyticsDrawer = ({ entries, isOpen, onClose, role, userId }) => {
       </Box>
 
       {/* Footer */}
-
       <Box sx={{ p: 2, borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}>
         <motion.button
           whileHover={{ scale: 1.02 }}
