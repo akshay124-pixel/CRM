@@ -208,7 +208,6 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
           >
             <Typography
               sx={{
-                color: "rgba(255, 255, 255, 0.7)",
                 fontSize: "1.2rem",
                 fontWeight: "400",
                 fontStyle: "italic",
@@ -216,7 +215,6 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId }) => {
                 background: "rgba(255, 255, 255, 0.05)",
                 borderRadius: "8px",
                 padding: "16px",
-                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
               }}
             >
               Loading Analytics...
