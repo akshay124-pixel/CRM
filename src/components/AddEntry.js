@@ -1061,6 +1061,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
       "Bahadurgarh",
       "Gurugram",
       "Faridabad",
+      "Panchkula"
       "Panipat",
       "Ambala",
       "Hisar",
