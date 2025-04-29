@@ -5,22 +5,129 @@ import { toast } from "react-toastify";
 import styled from "styled-components";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+const theme = {
+  colors: {
+    border: "#dee2e6",
+    tableHeaderText: "#333",
+    tableHoverBg: "#dee2e6",
+    tableHeaderBg: "#f1f3f5",
+  },
+  breakpoints: {
+    sm: "576px",
+    md: "768px",
+  },
+};
+
+// Styled Components
+const StyledFormGroup = styled(Form.Group)`
+  .form-control,
+  .form-select {
+    min-height: 42px;
+    font-size: 1rem;
+    transition: border-color 0.2s ease-in-out;
+
+    &:focus {
+      border-color: #007bff;
+      box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+  }
+
+  .flex-container {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+
+    @media (max-width: ${theme.breakpoints.sm}) {
+      flex-direction: column;
+      gap: 10px;
+    }
+  }
+
+  .add-button {
+    min-height: 42px;
+    font-size: 1rem;
+
+    @media (max-width: ${theme.breakpoints.sm}) {
+      width: 100%;
+    }
+  }
+`;
 
 const StyledTable = styled(Table)`
-  margin-top: 0.5rem;
-  font-size: 0.95rem;
+  margin-top: 1rem;
+  font-size: 1rem;
+
   & th,
   & td {
-    padding: 0.5rem;
+    padding: 0.75rem;
     vertical-align: middle;
+    border: 1px solid ${theme.colors.border};
   }
+
   & th {
-    background: #f1f3f5;
-    color: #333;
+    background: ${theme.colors.tableHeaderBg};
+    color: ${theme.colors.tableHeaderText};
     font-weight: 600;
   }
+
   & tbody tr:hover {
-    background: #e9ecef;
+    background: ${theme.colors.tableHoverBg};
+  }
+
+  @media (max-width: ${theme.breakpoints.sm}) {
+    font-size: 0.9rem;
+    & th,
+    & td {
+      padding: 0.5rem;
+    }
+  }
+`;
+
+const ResponsiveTableWrapper = styled.div`
+  @media (max-width: ${theme.breakpoints.sm}) {
+    .table {
+      display: block;
+      overflow-x: auto;
+      width: 100%;
+      max-width: 100%; /* Prevent overflow */
+    }
+
+    thead {
+      display: none; /* Hide header for card layout */
+    }
+
+    tbody tr {
+      display: block;
+      margin-bottom: 12px;
+      border: 1px solid ${theme.colors.border};
+      border-radius: 6px;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    tbody td {
+      display: flex;
+      align-items: center;
+      text-align: left;
+      border: none;
+      padding: 10px 12px;
+      font-size: 0.9rem;
+
+      &::before {
+        content: attr(data-label);
+        font-weight: 600;
+        width: 40%;
+        min-width: 110px;
+        margin-right: 10px;
+        color: ${theme.colors.tableHeaderText};
+      }
+    }
+
+    tbody td:last-child {
+      justify-content: center;
+      padding: 12px;
+      border-top: 1px solid ${theme.colors.border};
+    }
   }
 `;
 
@@ -795,6 +902,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
           }));
           setLocationFetched(true);
           setLoading(false);
+          toast.success("Location fetched successfully!");
         },
         (error) => {
           console.error("Error fetching location:", error);
@@ -1815,15 +1923,14 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
               />
             </Form.Group>
 
-            <Form.Group controlId="formProductSelection" className="mb-3">
+            <StyledFormGroup controlId="formProductSelection" className="mb-3">
               <Form.Label>Add Product</Form.Label>
-              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+              <div className="flex-container">
                 <Form.Select
                   name="name"
                   value={productInput.name}
                   onChange={handleProductInput}
                   disabled={loading}
-                  style={{ flex: "1" }}
                 >
                   <option value="">Select Product</option>
                   {productOptions.map((product) => (
@@ -1838,7 +1945,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   value={productInput.specification}
                   onChange={handleProductInput}
                   disabled={!productInput.name || loading}
-                  style={{ flex: "1" }}
                 >
                   <option value="">Select Specification</option>
                   {productInput.name &&
@@ -1856,7 +1962,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   value={productInput.size}
                   onChange={handleProductInput}
                   disabled={!productInput.name || loading}
-                  style={{ flex: "1" }}
                 >
                   <option value="">Select Size</option>
                   {productInput.name &&
@@ -1876,53 +1981,56 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   onChange={handleProductInput}
                   placeholder="Quantity"
                   disabled={loading || !productInput.name}
-                  style={{ flex: "1" }}
                 />
 
                 <Button
                   variant="outline-primary"
                   onClick={addProduct}
                   disabled={loading}
+                  className="add-button"
                 >
                   Add
                 </Button>
               </div>
-            </Form.Group>
+            </StyledFormGroup>
 
             {formData.products.length > 0 && (
-              <StyledTable striped bordered hover>
-                <thead>
-                  <tr>
-                    <th>Product</th>
-                    <th>Specification</th>
-                    <th>Size</th>
-                    <th>Quantity</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {formData.products.map((product, index) => (
-                    <tr key={index}>
-                      <td>{product.name}</td>
-                      <td>{product.specification}</td>
-                      <td>{product.size}</td>
-                      <td>{product.quantity}</td>
-                      <td>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => removeProduct(index)}
-                          disabled={loading}
-                        >
-                          Remove
-                        </Button>
-                      </td>
+              <ResponsiveTableWrapper>
+                <StyledTable className="table table-striped table-bordered table-hover">
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Specification</th>
+                      <th>Size</th>
+                      <th>Quantity</th>
+                      <th>Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </StyledTable>
+                  </thead>
+                  <tbody>
+                    {formData.products.map((product, index) => (
+                      <tr key={index}>
+                        <td data-label="Product">{product.name}</td>
+                        <td data-label="Specification">
+                          {product.specification}
+                        </td>
+                        <td data-label="Size">{product.size}</td>
+                        <td data-label="Quantity">{product.quantity}</td>
+                        <td data-label="Action">
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => removeProduct(index)}
+                            disabled={loading}
+                          >
+                            Remove
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </StyledTable>
+              </ResponsiveTableWrapper>
             )}
-
             <Form.Group controlId="formEstimatedValue" className="mb-3">
               <Form.Label>Estimated Value (₹)</Form.Label>
               <Form.Control

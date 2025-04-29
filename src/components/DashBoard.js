@@ -1214,7 +1214,7 @@ function DashBoard() {
         history: newEntry.history || [],
       };
       setEntries((prev) => [completeEntry, ...prev]);
-      toast.success("Entry added successfully!");
+
       if (
         (role === "superadmin" || role === "admin") &&
         newEntry.createdBy?.username &&
@@ -1257,7 +1257,6 @@ function DashBoard() {
     );
     setSelectedEntries((prev) => prev.filter((id) => !deletedIds.includes(id)));
     setIsDeleteModalOpen(false);
-    toast.success("Entry deleted successfully!");
   }, []);
 
   const handleExport = async () => {
@@ -1436,7 +1435,7 @@ function DashBoard() {
     const currentYear = now.getFullYear();
 
     const total = entries.reduce((sum, entry) => {
-      return sum + (entry.history?.length || 0) + 1; // +1 for the entry itself
+      return sum + (entry.history?.length || 0); // Only count history items
     }, 0);
 
     const monthly = entries.reduce((sum, entry) => {
@@ -1446,8 +1445,7 @@ function DashBoard() {
 
       // Only include entries from the current month
       if (entryMonth === currentMonth && entryYear === currentYear) {
-        // Count the entry itself (+1) and all its history items
-        return sum + 1 + (entry.history?.length || 0);
+        return sum + (entry.history?.length || 0); // Only count history items
       }
       return sum;
     }, 0);
@@ -1483,8 +1481,7 @@ function DashBoard() {
 
         // Only include entries from the current month
         if (entryMonth === currentMonth && entryYear === currentYear) {
-          // Count the entry itself (+1) and all its history items
-          return sum + 1 + (entry.history?.length || 0);
+          return sum + (entry.history?.length || 0); // Only count history items
         }
         return sum;
       }, 0);
@@ -1497,7 +1494,7 @@ function DashBoard() {
     const interval = setInterval(checkMonthChange, 60000);
     return () => clearInterval(interval);
   }, [entries]);
-  // Ends here
+  //Ends Here
   const handleCopySelected = () => {
     const selectedData = entries.filter((entry) =>
       selectedEntries.includes(entry._id)

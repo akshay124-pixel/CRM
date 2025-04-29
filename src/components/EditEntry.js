@@ -202,6 +202,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           setValue("liveLocation", location, { shouldValidate: true }); // backend ke liye hidden field
           setLocationFetched(true);
           setLocationLoading(false);
+          toast.success("Location fetched successfully!");
         },
         (error) => {
           console.error("Error fetching location:", error);
