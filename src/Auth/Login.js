@@ -11,6 +11,7 @@ function Login({ onAuthSuccess }) {
     password: "",
   });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleInput = (e) => {
@@ -81,10 +82,11 @@ function Login({ onAuthSuccess }) {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
+
         height: "100vh",
       }}
     >
-      <div className="form-box">
+      <div className="form-box" style={{ width: "500px" }}>
         <form className="form" onSubmit={handleSubmit}>
           <h2 className="title">Login</h2>
           <p className="subtitle">Access your account.</p>
@@ -102,17 +104,39 @@ function Login({ onAuthSuccess }) {
               required
               aria-label="Email Address"
             />
-            <input
-              className="input"
-              style={{ backgroundColor: "white" }}
-              type="password"
-              name="password"
-              placeholder="Password"
-              value={formData.password}
-              onChange={handleInput}
-              required
-              aria-label="Password"
-            />
+            <div style={{ position: "relative" }}>
+              <input
+                className="input"
+                style={{ backgroundColor: "white" }}
+                type={showPassword ? "text" : "password"}
+                name="password"
+                placeholder="Password"
+                value={formData.password}
+                onChange={handleInput}
+                required
+                aria-label="Password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: "absolute",
+                  right: "10px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "transparent",
+                  border: "none",
+                  color: "#333",
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  padding: "0",
+                  zIndex: 1,
+                }}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
           </div>
 
           <button
