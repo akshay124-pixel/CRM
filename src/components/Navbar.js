@@ -112,7 +112,6 @@ const Navbar = () => {
             }
             .navbar-logo {
               display: flex;
-             
               justify-content: center;
               align-items: center;
               margin-bottom: 0.25rem;
@@ -149,10 +148,8 @@ const Navbar = () => {
             .user-profile {
               animation: slideInLeft 0.3s ease-out;
               order: 1;
-            
             }
             .user-avatar {
-           
               width: 28px !important;
               height: 28px !important;
               border-width: 1px !important;
@@ -166,7 +163,6 @@ const Navbar = () => {
               margin: 0 !important;
               gap: 0.25rem;
               min-width: 45px;
-              
               height: 45px !important;
               line-height: 1;
             }
@@ -277,6 +273,7 @@ const Navbar = () => {
                   display: "flex",
                   alignItems: "center",
                   position: "relative",
+                  gap: "0.5rem",
                 }}
                 role="button"
                 aria-label={`User profile for ${userName}`}
@@ -305,6 +302,15 @@ const Navbar = () => {
                     e.currentTarget.style.borderColor = "#90cdf4";
                   }}
                 />
+                <span
+                  style={{
+                    color: "white",
+                    fontSize: "1rem",
+                    fontWeight: "500",
+                  }}
+                >
+                  Hello, {userName}
+                </span>
               </div>
               <button className="Btn mx-3 logout-btn" onClick={handleLogout}>
                 <div className="sign">

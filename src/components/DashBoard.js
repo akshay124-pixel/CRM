@@ -2514,7 +2514,7 @@ function DashBoard() {
                   justifyContent: "center",
                 }}
               >
-                <div>#</div>
+                <div>SNo.</div>
                 <div style={{ alignItems: "center", justifyContent: "center" }}>
                   Date
                 </div>
