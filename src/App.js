@@ -12,19 +12,16 @@ import DashBoard from "./components/DashBoard";
 import Login from "./Auth/Login";
 import SignUp from "./Auth/SignUp";
 import Navbar from "./components/Navbar";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import "bootstrap/dist/css/bootstrap.min.css";
 
-const ConditionalNavbar = ({ isAuthenticated, onLogout, userRole }) => {
+const ConditionalNavbar = ({ isAuthenticated }) => {
   const location = useLocation();
   const isAuthPage =
     location.pathname === "/login" || location.pathname === "/signup";
 
-  return !isAuthPage && isAuthenticated ? (
-    <Navbar
-      isAuthenticated={isAuthenticated}
-      onLogout={onLogout}
-      userRole={userRole}
-    />
-  ) : null;
+  return !isAuthPage && isAuthenticated ? <Navbar /> : null;
 };
 
 const PrivateRoute = ({ element, isAuthenticated }) => {
@@ -37,11 +34,27 @@ const AppContent = () => {
   );
   const navigate = useNavigate();
 
-  const handleAuthSuccess = ({ token, userId, role }) => {
+  const handleAuthSuccess = ({ token, userId, role, user }) => {
     localStorage.setItem("token", token);
     localStorage.setItem("userId", userId);
     localStorage.setItem("role", role);
+
+    // Store user object if provided
+    if (user) {
+      localStorage.setItem(
+        "user",
+        JSON.stringify({
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          assignedAdmin: user.assignedAdmin || null,
+        })
+      );
+    }
+
     setIsAuthenticated(true);
+    window.dispatchEvent(new Event("authChange"));
     navigate("/dashboard");
   };
 
@@ -49,6 +62,7 @@ const AppContent = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("userId");
     localStorage.removeItem("role");
+    localStorage.removeItem("user");
     setIsAuthenticated(false);
     navigate("/login");
   };
@@ -75,11 +89,8 @@ const AppContent = () => {
 
   return (
     <>
-      <ConditionalNavbar
-        isAuthenticated={isAuthenticated}
-        onLogout={handleLogout}
-        userRole={localStorage.getItem("role")}
-      />
+      <ToastContainer />
+      <ConditionalNavbar isAuthenticated={isAuthenticated} />
       <Routes>
         <Route
           path="/login"

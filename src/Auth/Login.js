@@ -39,12 +39,29 @@ function Login({ onAuthSuccess }) {
         formData
       );
 
+      // Debug: Log the full response
+      console.log("Login: API response:", response.data);
+
       if (response.status === 200) {
         const { token, user } = response.data;
 
+        // Validate user object
+        if (!user || !user.id || !user.username || !user.role) {
+          throw new Error("Invalid user data in API response");
+        }
+
+        // Store user object in localStorage
         localStorage.setItem("token", token);
-        localStorage.setItem("userId", user.id);
-        localStorage.setItem("role", user.role);
+        localStorage.setItem(
+          "user",
+          JSON.stringify({
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            assignedAdmin: user.assignedAdmin,
+          })
+        );
 
         toast.success("Login successful! Redirecting...", {
           position: "top-right",
@@ -52,7 +69,13 @@ function Login({ onAuthSuccess }) {
           theme: "colored",
         });
 
-        onAuthSuccess({ token, userId: user.id, role: user.role });
+        // Trigger auth change event
+        window.dispatchEvent(new Event("authChange"));
+
+        // Call onAuthSuccess with user object
+        onAuthSuccess({ token, userId: user.id, role: user.role, user });
+
+        navigate("/dashboard");
       } else {
         toast.error("Unexpected response. Please try again.", {
           position: "top-right",
@@ -63,7 +86,9 @@ function Login({ onAuthSuccess }) {
     } catch (error) {
       console.error("Error while logging in:", error);
       toast.error(
-        error.response?.data?.message || "Login failed. Please try again.",
+        error.message ||
+          error.response?.data?.message ||
+          "Login failed. Please try again.",
         {
           position: "top-right",
           autoClose: 3000,
@@ -82,7 +107,6 @@ function Login({ onAuthSuccess }) {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-
         height: "100vh",
       }}
     >

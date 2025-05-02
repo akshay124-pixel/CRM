@@ -38,12 +38,34 @@ function Signup({ onAuthSuccess }) {
 
     try {
       const response = await axios.post(
-        "https://crm-server-amz7.onrender.com/user/signup",
+        "http://localhost:4000/auth/signup", // Fixed endpoint
         form
       );
 
+      console.log("Signup: API response:", response.data);
+
       if (response.status === 201) {
-        toast.success("Signup successful! Redirecting to login...", {
+        const { token, user } = response.data;
+
+        // Validate user object
+        if (!user || !user.id || !user.username || !user.role) {
+          throw new Error("Invalid user data in API response");
+        }
+
+        // Store user object in localStorage
+        localStorage.setItem("token", token);
+        localStorage.setItem(
+          "user",
+          JSON.stringify({
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            assignedAdmin: user.assignedAdmin,
+          })
+        );
+
+        toast.success("Signup successful! Redirecting...", {
           position: "top-right",
           autoClose: 3000,
           hideProgressBar: false,
@@ -52,12 +74,19 @@ function Signup({ onAuthSuccess }) {
           draggable: true,
           theme: "colored",
         });
-        const { token, user } = response.data;
+
+        // Trigger auth change event
+        window.dispatchEvent(new Event("authChange"));
+
+        // Call onAuthSuccess with user object
         onAuthSuccess({
           token,
           userId: user.id,
           role: user.role,
+          user,
         });
+
+        navigate("/dashboard");
       } else {
         toast.error("Unexpected response. Please try again.", {
           position: "top-right",
@@ -71,33 +100,20 @@ function Signup({ onAuthSuccess }) {
       }
     } catch (error) {
       console.error("Error during signup", error);
-      if (
-        error.response &&
-        error.response.data &&
-        error.response.data.message
-      ) {
-        setError(error.response.data.message);
-        toast.error(error.response.data.message, {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          theme: "colored",
-        });
-      } else {
-        setError("Something went wrong. Please try again.");
-        toast.error("Something went wrong. Please try again.", {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-          theme: "colored",
-        });
-      }
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Something went wrong. Please try again.";
+      setError(errorMessage);
+      toast.error(errorMessage, {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        theme: "colored",
+      });
     }
   };
 

@@ -3,28 +3,61 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "react-bootstrap";
 
 const Navbar = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userName, setUserName] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    !!localStorage.getItem("token")
+  );
+  const [userName, setUserName] = useState("User");
   const [userRole, setUserRole] = useState("");
   const [isDropdownOpen, setDropdownOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
+  // Function to update auth state from localStorage
+  const updateAuthState = useCallback(() => {
     const token = localStorage.getItem("token");
     const user = JSON.parse(localStorage.getItem("user") || "{}");
 
+    // Debugging: Log user data
+    console.log("Navbar: Retrieved user from localStorage:", user);
+
     setIsAuthenticated(!!token);
-    setUserName(user?.username || "User");
-    setUserRole(user?.role || "");
+    setUserName(user.username || "User");
+    setUserRole(user.role || "");
   }, []);
+
+  // Run on mount and listen for storage/auth changes
+  useEffect(() => {
+    updateAuthState(); // Initial state
+
+    // Listen for storage changes (e.g., login in another tab)
+    const handleStorageChange = () => {
+      console.log("Navbar: Storage event triggered");
+      updateAuthState();
+    };
+    window.addEventListener("storage", handleStorageChange);
+
+    // Listen for same-tab auth changes (triggered by login/signup)
+    const handleAuthChange = () => {
+      console.log("Navbar: Auth change event triggered");
+      updateAuthState();
+    };
+    window.addEventListener("authChange", handleAuthChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("authChange", handleAuthChange);
+    };
+  }, [updateAuthState]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("role");
     setIsAuthenticated(false);
     setUserName("User");
     setUserRole("");
+    window.dispatchEvent(new Event("authChange"));
     navigate("/login");
   };
 
@@ -45,8 +78,9 @@ const Navbar = () => {
   const renderNavLinks = () => {
     if (!isAuthenticated) return null;
 
-    switch (userRole) {
-      case "Admin":
+    switch (userRole.toLowerCase()) {
+      case "admin":
+      case "superadmin":
         return (
           <div
             style={{
@@ -54,11 +88,9 @@ const Navbar = () => {
               gap: "1rem",
               transition: "all 0.3s ease",
             }}
-          >
-            {/* Placeholder for nav links */}
-          </div>
+          ></div>
         );
-      case "Others":
+      case "others":
         return (
           <div
             style={{
@@ -67,7 +99,9 @@ const Navbar = () => {
               transition: "all 0.3s ease",
             }}
           >
-            {/* Placeholder for nav links */}
+            <Link to="/profile" style={{ color: "white" }}>
+              Profile
+            </Link>
           </div>
         );
       default:
@@ -93,6 +127,7 @@ const Navbar = () => {
           }
           .navbar {
             animation: fadeIn 0.5s ease-out;
+              background: linear-gradient(135deg, #2575fc, #6a11cb);
           }
           .menu-toggle {
             display: none;
@@ -420,4 +455,3 @@ const Navbar = () => {
 };
 
 export default Navbar;
-I;
