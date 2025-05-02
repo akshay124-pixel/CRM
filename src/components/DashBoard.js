@@ -1094,7 +1094,38 @@ function DashBoard() {
       setAuthLoading(false);
     }
   }, []);
-
+  const [filters, setFilters] = useState({
+    customerName: "",
+    mobileNumber: "",
+    status: "",
+    category: "",
+    state: "",
+    city: "",
+    type: "",
+    fromDate: null,
+    toDate: null,
+  });
+  // Update filters when searchTerm, selectedState, selectedCity, selectedUsername, dashboardFilter, or dateRange change
+  useEffect(() => {
+    setFilters({
+      customerName: searchTerm,
+      mobileNumber: searchTerm,
+      status: dashboardFilter === "total" ? "" : dashboardFilter,
+      category: "",
+      state: selectedState,
+      city: selectedCity,
+      type: "",
+      fromDate: dateRange[0].startDate,
+      toDate: dateRange[0].endDate,
+    });
+  }, [
+    searchTerm,
+    selectedState,
+    selectedCity,
+    selectedUsername,
+    dashboardFilter,
+    dateRange,
+  ]);
   const fetchEntries = useCallback(async () => {
     setLoading(true);
     try {
@@ -1259,139 +1290,6 @@ function DashBoard() {
     setIsDeleteModalOpen(false);
   }, []);
 
-  const handleExport = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.get(
-        "https://crm-server-amz7.onrender.com/api/export",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          responseType: "arraybuffer",
-        }
-      );
-      const blob = new Blob([response.data], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "entries.xlsx";
-      link.click();
-      URL.revokeObjectURL(link.href);
-      toast.success("Entries exported successfully!");
-    } catch (error) {
-      console.error("Export error:", error.message);
-      toast.error("Failed to export entries!");
-    }
-  };
-
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const parsedData = XLSX.utils.sheet_to_json(worksheet);
-        const newEntries = parsedData.map((item) => ({
-          customerName: item.customerName?.trim() || "",
-          mobileNumber: item.mobileNumber?.trim() || "",
-          contactperson: item.contactperson?.trim() || "",
-          firstdate: item.firstdate ? new Date(item.firstdate) : undefined,
-          address: item.address?.trim() || "",
-          state: item.state?.trim() || "",
-          city: item.city?.trim() || "",
-          products: item.products
-            ? item.products.split("; ").map((p) => {
-                const [name, rest] = p.split(" (");
-                const [spec, sizeQty] = rest?.split(", ") || ["", ""];
-                const size = sizeQty?.split(", Qty: ")[0] || "";
-                const quantity = parseInt(sizeQty?.split(", Qty: ")[1]) || 1;
-                return { name, specification: spec, size, quantity };
-              })
-            : [],
-          type: item.type?.trim() || "Customer",
-          organization: item.organization?.trim() || "",
-          category: item.category?.trim() || "",
-          remarks: item.remarks?.trim() || "",
-          createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
-          status: item.status?.trim() || "Not Found",
-          expectedClosingDate: item.expectedClosingDate
-            ? new Date(item.expectedClosingDate)
-            : undefined,
-          followUpDate: item.followUpDate
-            ? new Date(item.followUpDate)
-            : undefined,
-          estimatedValue: item.estimatedValue
-            ? Number(item.estimatedValue)
-            : undefined,
-          closetype:
-            item.status === "Closed" &&
-            ["Closed Won", "Closed Lost"].includes(item.closetype?.trim())
-              ? item.closetype.trim()
-              : "",
-          nextAction: item.nextAction?.trim() || "",
-          createdBy: { username: item.createdBy?.trim() || "" },
-          assignedTo: item.assignedTo
-            ? { username: item.assignedTo?.trim() || "" }
-            : null,
-        }));
-        const validEntries = newEntries.filter((entry) => {
-          const requiredFields = [
-            "customerName",
-            "mobileNumber",
-            "contactperson",
-            "address",
-            "products",
-            "organization",
-            "category",
-            "state",
-            "city",
-          ];
-          return (
-            requiredFields.every(
-              (field) =>
-                entry[field] &&
-                entry[field] !== "" &&
-                (field !== "mobileNumber" || /^\d{10}$/.test(entry[field]))
-            ) &&
-            ["Partner", "Customer"].includes(entry.type) &&
-            ["Private", "Government"].includes(entry.category) &&
-            (!entry.estimatedValue || entry.estimatedValue >= 0) &&
-            (entry.status !== "Closed" ||
-              ["Closed Won", "Closed Lost"].includes(entry.closetype))
-          );
-        });
-        if (validEntries.length === 0) {
-          toast.error("All records are invalid or incomplete.");
-          return;
-        }
-        const token = localStorage.getItem("token");
-        const response = await axios.post(
-          "https://crm-server-amz7.onrender.com/api/entries",
-          validEntries,
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        if (response.status === 200 || response.status === 201) {
-          setEntries((prev) => [...validEntries, ...prev]);
-          toast.success("Entries uploaded successfully!");
-          fetchEntries();
-        }
-      } catch (error) {
-        console.error("Upload error:", error.message);
-        toast.error("Failed to upload entries!");
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  };
-
   const handleReset = () => {
     setSearchTerm("");
     setSelectedUsername("");
@@ -1404,6 +1302,195 @@ function DashBoard() {
     setDateRange([{ startDate: null, endDate: null, key: "selection" }]);
   };
 
+  // Modified handleExport to export filtered data using filteredData instead of server fetch
+  const handleExport = async () => {
+    try {
+      // Prepare data for export using filteredData
+      const exportData = filteredData.map((entry) => ({
+        Customer_Name: entry.customerName || "",
+        Mobile_Number: entry.mobileNumber || "",
+        Contact_Person: entry.contactperson || "",
+        Address: entry.address || "",
+        State: entry.state || "",
+        City: entry.city || "",
+        Organization: entry.organization || "",
+        Category: entry.category || "",
+        Created_At: entry.createdAt
+          ? new Date(entry.createdAt).toLocaleDateString()
+          : "",
+        Expected_Closing_Date: entry.expectedClosingDate
+          ? new Date(entry.expectedClosingDate).toLocaleDateString()
+          : "",
+        Follow_Up_Date: entry.followUpDate
+          ? new Date(entry.followUpDate).toLocaleDateString()
+          : "",
+        Remarks: entry.remarks || "",
+        Products:
+          entry.products
+            ?.map(
+              (p) =>
+                `${p.name} (${p.specification}, ${p.size}, Qty: ${p.quantity})`
+            )
+            .join("; ") || "",
+        Type: entry.type || "",
+        Status: entry.status || "",
+        Close_Type: entry.closetype || "",
+        Assigned_To: entry.assignedTo?.username || "",
+        Estimated_Value: entry.estimatedValue || "",
+        Close_Amount: entry.closeamount || "",
+        Next_Action: entry.nextAction || "",
+        Live_Location: entry.liveLocation || "",
+        First_Person_Met: entry.firstPersonMeet || "",
+        Second_Person_Met: entry.secondPersonMeet || "",
+        Third_Person_Met: entry.thirdPersonMeet || "",
+        Fourth_Person_Met: entry.fourthPersonMeet || "",
+      }));
+
+      // Create worksheet from filtered data
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Filtered Entries");
+
+      // Generate Excel file as a buffer
+      const excelBuffer = XLSX.write(workbook, {
+        bookType: "xlsx",
+        type: "array",
+      });
+
+      // Create Blob and trigger download
+      const blob = new Blob([excelBuffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "DataSet.xlsx"; // Updated filename to reflect filtered data
+      link.click();
+      URL.revokeObjectURL(link.href);
+      toast.success("Filtered entries exported successfully!");
+    } catch (error) {
+      console.error("Export error:", error.message);
+      toast.error("Failed to export filtered entries!");
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) {
+      toast.error("No file selected!");
+      return;
+    }
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      console.error("No authentication token found in localStorage");
+      toast.error("Please log in to upload entries!");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const parsedData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+        const newEntries = parsedData.map((item) => ({
+          customerName: item.Customer_Name?.trim() || "",
+          mobileNumber: item.Mobile_Number?.trim() || "",
+          contactperson: item.Contact_Person?.trim() || "",
+          firstdate:
+            item.First_Date && item.First_Date !== "Not Set"
+              ? new Date(item.First_Date)
+              : undefined,
+          address: item.Address?.trim() || "",
+          state: item.State?.trim() || "",
+          city: item.City?.trim() || "",
+          products:
+            item.Products && item.Products !== "N/A"
+              ? item.Products.split("; ").map((p) => {
+                  const [name, rest] = p.split(" (");
+                  const [spec, sizeQty] = rest?.split(", ") || ["", ""];
+                  const size = sizeQty?.split(", Qty: ")[0] || "";
+                  const quantity = parseInt(sizeQty?.split(", Qty: ")[1]) || 1;
+                  return { name, specification: spec, size, quantity };
+                })
+              : [],
+          type: item.Type?.trim() || "Customer",
+          organization: item.Organization?.trim() || "",
+          category: item.Category?.trim() || "",
+          remarks: item.Remarks?.trim() || "",
+          createdAt: item.Created_At ? new Date(item.Created_At) : new Date(),
+          status: item.Status?.trim() || "Not Found",
+          expectedClosingDate:
+            item.Expected_Closing_Date &&
+            item.Expected_Closing_Date !== "Not Set"
+              ? new Date(item.Expected_Closing_Date)
+              : undefined,
+          followUpDate:
+            item.Follow_Up_Date && item.Follow_Up_Date !== "Not Set"
+              ? new Date(item.Follow_Up_Date)
+              : undefined,
+          estimatedValue: item.Estimated_Value
+            ? Number(item.Estimated_Value)
+            : undefined,
+          closeamount: item.Close_Amount
+            ? Number(item.Close_Amount)
+            : undefined,
+          closetype: item.Close_Type?.trim() || "",
+          nextAction: item.Next_Action?.trim() || "",
+          liveLocation: item.Live_Location?.trim() || "",
+          firstPersonMeet: item.First_Person_Met?.trim() || "",
+          secondPersonMeet: item.Second_Person_Met?.trim() || "",
+          thirdPersonMeet: item.Third_Person_Met?.trim() || "",
+          fourthPersonMeet: item.Fourth_Person_Met?.trim() || "",
+        }));
+
+        console.log(
+          "Uploading entries with token:",
+          token.substring(0, 10) + "..."
+        );
+        console.log("Entries to upload:", newEntries);
+
+        try {
+          const response = await axios.post(
+            "https://crm-server-amz7.onrender.com/api/entries",
+            newEntries,
+            {
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+
+          if (response.status === 200 || response.status === 201) {
+            setEntries((prev) => [...newEntries, ...prev]);
+            toast.success("Entries uploaded successfully!");
+            fetchEntries();
+          }
+        } catch (apiError) {
+          console.error(
+            "API error:",
+            apiError.response?.data || apiError.message
+          );
+          const errorMessage =
+            apiError.response?.data?.message ||
+            "Failed to upload entries. Please check your login status.";
+          toast.error(errorMessage);
+        }
+      } catch (error) {
+        console.error("File parsing error:", error.message);
+        toast.error("Error parsing the Excel file!");
+      }
+    };
+    reader.onerror = () => {
+      console.error("File reader error");
+      toast.error("Error reading the file!");
+    };
+    reader.readAsArrayBuffer(file);
+  };
   const handleDoubleClick = (id) => {
     if (!doubleClickInitiated && (role === "superadmin" || role === "admin")) {
       setIsSelectionMode(true);
