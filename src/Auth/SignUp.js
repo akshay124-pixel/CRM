@@ -38,7 +38,7 @@ function Signup({ onAuthSuccess }) {
 
     try {
       const response = await axios.post(
-        "http://localhost:4000/auth/signup", // Fixed endpoint
+        "http://localhost:4000/user/signup", // Fixed endpoint
         form
       );
 

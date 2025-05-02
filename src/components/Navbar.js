@@ -98,11 +98,7 @@ const Navbar = () => {
               gap: "1rem",
               transition: "all 0.3s ease",
             }}
-          >
-            <Link to="/profile" style={{ color: "white" }}>
-              Profile
-            </Link>
-          </div>
+          ></div>
         );
       default:
         return null;
