@@ -332,6 +332,11 @@ const productOptions = [
     specifications: ["Standard"],
   },
   {
+    name: "Furniture",
+    sizes: ["N/A"],
+    specifications: ["N/A"],
+  },
+  {
     name: "Stylus Pen",
     sizes: ["N/A"],
     specifications: ["N/A"],
