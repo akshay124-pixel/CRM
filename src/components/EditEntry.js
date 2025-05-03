@@ -329,6 +329,666 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       setShowConfirm(false);
     }
   };
+  const productOptions = [
+    {
+      name: "IFPD",
+      sizes: ["65 inch", "75 inch", "86 inch", "98 inch"],
+      specifications: [
+        "Android 9, 4GB RAM, 32GB ROM",
+        "Android 8, 4GB RAM, 32GB ROM",
+        "Android 11, 4GB RAM, 32GB ROM",
+        "Android 11, 8GB RAM, 128GB ROM",
+        "Android 13, 4GB RAM, 32GB ROM",
+        "Android 13, 8GB RAM, 128GB ROM",
+        "Android 13, 8GB RAM, 128GB ROM Inbuilt Camera",
+        "Android 14, 8GB RAM, 128GB ROM",
+        "Android 14, 8GB RAM, 128GB ROM Inbuilt Camera",
+      ],
+    },
+    {
+      name: "OPS",
+      sizes: ["N/A"],
+      specifications: [
+        // i5 6th Gen
+        "i5 6th Gen, 8GB RAM, 256GB ROM",
+        "i5 6th Gen, 8GB RAM, 512GB ROM",
+        "i5 6th Gen, 8GB RAM, 1TB ROM",
+        "i5 6th Gen, 16GB RAM, 256GB ROM",
+        "i5 6th Gen, 16GB RAM, 512GB ROM",
+        "i5 6th Gen, 16GB RAM, 1TB ROM",
+        // i5 7th Gen
+        "i5 7th Gen, 8GB RAM, 256GB ROM",
+        "i5 7th Gen, 8GB RAM, 512GB ROM",
+        "i5 7th Gen, 8GB RAM, 1TB ROM",
+        "i5 7th Gen, 16GB RAM, 256GB ROM",
+        "i5 7th Gen, 16GB RAM, 512GB ROM",
+        "i5 7th Gen, 16GB RAM, 1TB ROM",
+        // i5 8th Gen
+        "i5 8th Gen, 8GB RAM, 256GB ROM",
+        "i5 8th Gen, 8GB RAM, 512GB ROM",
+        "i5 8th Gen, 8GB RAM, 1TB ROM",
+        "i5 8th Gen, 16GB RAM, 256GB ROM",
+        "i5 8th Gen, 16GB RAM, 512GB ROM",
+        "i5 8th Gen, 16GB RAM, 1TB ROM",
+        // i5 11th Gen
+        "i5 11th Gen, 8GB RAM, 256GB ROM",
+        "i5 11th Gen, 8GB RAM, 512GB ROM",
+        "i5 11th Gen, 8GB RAM, 1TB ROM",
+        "i5 11th Gen, 16GB RAM, 256GB ROM",
+        "i5 11th Gen, 16GB RAM, 512GB ROM",
+        "i5 11th Gen, 16GB RAM, 1TB ROM",
+        // i5 12th Gen
+        "i5 12th Gen, 8GB RAM, 256GB ROM",
+        "i5 12th Gen, 8GB RAM, 512GB ROM",
+        "i5 12th Gen, 8GB RAM, 1TB ROM",
+        "i5 12th Gen, 16GB RAM, 256GB ROM",
+        "i5 12th Gen, 16GB RAM, 512GB ROM",
+        "i5 12th Gen, 16GB RAM, 1TB ROM",
+        // i7 4th Gen
+        "i7 4th Gen, 8GB RAM, 256GB ROM",
+        "i7 4th Gen, 8GB RAM, 512GB ROM",
+        "i7 4th Gen, 8GB RAM, 1TB ROM",
+        "i7 4th Gen, 16GB RAM, 256GB ROM",
+        "i7 4th Gen, 16GB RAM, 512GB ROM",
+        "i7 4th Gen, 16GB RAM, 1TB ROM",
+        // i7 5th Gen
+        "i7 5th Gen, 8GB RAM, 256GB ROM",
+        "i7 5th Gen, 8GB RAM, 512GB ROM",
+        "i7 5th Gen, 8GB RAM, 1TB ROM",
+        "i7 5th Gen, 16GB RAM, 256GB ROM",
+        "i7 5th Gen, 16GB RAM, 512GB ROM",
+        "i7 5th Gen, 16GB RAM, 1TB ROM",
+        // i7 6th Gen
+        "i7 6th Gen, 8GB RAM, 256GB ROM",
+        "i7 6th Gen, 8GB RAM, 512GB ROM",
+        "i7 6th Gen, 8GB RAM, 1TB ROM",
+        "i7 6th Gen, 16GB RAM, 256GB ROM",
+        "i7 6th Gen, 16GB RAM, 512GB ROM",
+        "i7 6th Gen, 16GB RAM, 1TB ROM",
+        // i7 7th Gen
+        "i7 7th Gen, 8GB RAM, 256GB ROM",
+        "i7 7th Gen, 8GB RAM, 512GB ROM",
+        "i7 7th Gen, 8GB RAM, 1TB ROM",
+        "i7 7th Gen, 16GB RAM, 256GB ROM",
+        "i7 7th Gen, 16GB RAM, 512GB ROM",
+        "i7 7th Gen, 16GB RAM, 1TB ROM",
+        // i7 8th Gen
+        "i7 8th Gen, 8GB RAM, 256GB ROM",
+        "i7 8th Gen, 8GB RAM, 512GB ROM",
+        "i7 8th Gen, 8GB RAM, 1TB ROM",
+        "i7 8th Gen, 16GB RAM, 256GB ROM",
+        "i7 8th Gen, 16GB RAM, 512GB ROM",
+        "i7 8th Gen, 16GB RAM, 1TB ROM",
+        // i7 9th Gen
+        "i7 9th Gen, 8GB RAM, 256GB ROM",
+        "i7 9th Gen, 8GB RAM, 512GB ROM",
+        "i7 9th Gen, 8GB RAM, 1TB ROM",
+        "i7 9th Gen, 16GB RAM, 256GB ROM",
+        "i7 9th Gen, 16GB RAM, 512GB ROM",
+        "i7 9th Gen, 16GB RAM, 1TB ROM",
+        // i7 10th Gen
+        "i7 10th Gen, 8GB RAM, 256GB ROM",
+        "i7 10th Gen, 8GB RAM, 512GB ROM",
+        "i7 10th Gen, 8GB RAM, 1TB ROM",
+        "i7 10th Gen, 16GB RAM, 256GB ROM",
+        "i7 10th Gen, 16GB RAM, 512GB ROM",
+        "i7 10th Gen, 16GB RAM, 1TB ROM",
+        // i7 11th Gen
+        "i7 11th Gen, 8GB RAM, 256GB ROM",
+        "i7 11th Gen, 8GB RAM, 512GB ROM",
+        "i7 11th Gen, 8GB RAM, 1TB ROM",
+        "i7 11th Gen, 16GB RAM, 256GB ROM",
+        "i7 11th Gen, 16GB RAM, 512GB ROM",
+        "i7 11th Gen, 16GB RAM, 1TB ROM",
+        // i7 12th Gen
+        "i7 12th Gen, 8GB RAM, 256GB ROM",
+        "i7 12th Gen, 8GB RAM, 512GB ROM",
+        "i7 12th Gen, 8GB RAM, 1TB ROM",
+        "i7 12th Gen, 16GB RAM, 256GB ROM",
+        "i7 12th Gen, 16GB RAM, 512GB ROM",
+        "i7 12th Gen, 16GB RAM, 1TB ROM",
+      ],
+    },
+    {
+      name: "Digital Podium",
+      sizes: ["Standard"],
+      specifications: [
+        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 1 GOOSENECK MIC',
+        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 2 HANDHELD MIC, 1 GOOSENECK MIC',
+        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 1 COOLER MIC, 1 GOOSENECK MIC',
+        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 2 COOLER MIC, 1 GOOSENECK MIC',
+        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 1 GOOSENECK MIC, VISUALIZER',
+        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 2 HANDHELD MIC, 1 GOOSENECK MIC, VISUALIZER',
+      ],
+    },
+    {
+      name: "Advance Digital Podium",
+      sizes: ["Front Display 32inch"],
+      specifications: [
+        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 1 COOLER MIC, 1 GOOSENECK MIC',
+        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 2 COOLER MIC, 1 GOOSENECK MIC',
+        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 1 GOOSENECK MIC',
+        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 2 HANDHELD MIC, 1 GOOSENECK MIC',
+        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 1 GOOSENECK MIC, VISUALIZER',
+        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 2 HANDHELD MIC, 1 GOOSENECK MIC, VISUALIZER',
+      ],
+    },
+    {
+      name: "Audio Podium",
+      sizes: ["Full"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Kiosk",
+      sizes: ["32 inch", "43 inch", "55 inch", "65 inch"],
+      specifications: ["Touch Andriod 13/4/32", "Non-Touch Andriod 13/4/32"],
+    },
+    {
+      name: "PTZ Camera",
+      sizes: ["N/A"],
+      specifications: [
+        "Non-Voice Tracking-Full HD",
+        "UHD 20x",
+        "FHD Voice Tracking",
+        "4K Auto Tracking",
+        "4K 12x",
+        "HD 20x",
+      ],
+    },
+    {
+      name: "Document Camera",
+      sizes: ["N/A"],
+      specifications: [
+        "Hydraulic Wall Mount Visualizer",
+        "Non-Hydraulic Wall Mount Visualizer",
+        "Slim Portable Visualizer",
+        "Table Top Portable Visualizer",
+        "Visualizer",
+      ],
+    },
+    {
+      name: "UPS",
+      sizes: ["Standard"],
+      specifications: [
+        "1 KVA",
+        "2 KVA",
+        "3 KVA",
+        "4 KVA",
+        "5 KVA",
+        "6 KVA",
+        "7 KVA",
+        "8 KVA",
+        "9 KVA",
+        "10 KVA",
+        "Offline UPS",
+        "Online UPS",
+      ],
+    },
+    {
+      name: "Wallmount Kit",
+      sizes: ["55 inch", "65 inch", "75 inch", "86 inch", "98 inch"],
+      specifications: ["Standard"],
+    },
+    {
+      name: "Furniture",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Stylus Pen",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Sliding Shutter",
+      sizes: ["65 inch", "75 inch", "86 inch", "98 inch"],
+      specifications: [
+        "Common",
+        "White & Red Dispaly Boards",
+        "White & Green Dispaly Boards",
+        "White & Blue Dispaly Boards",
+        "N/A",
+      ],
+    },
+    {
+      name: "3 Cup Speaker",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Microphone",
+      sizes: ["N/A"],
+      specifications: [
+        "Handheld Collar Mic",
+        "Goose Neck Mic",
+        "Collar/Lapel Mic",
+      ],
+    },
+    {
+      name: "Keyboard",
+      sizes: ["N/A"],
+      specifications: ["Wireless", "Wired"],
+    },
+    {
+      name: "Mouse",
+      sizes: ["N/A"],
+      specifications: ["Wireless", "Wired"],
+    },
+    {
+      name: "Interactive White Board",
+      sizes: ["82 inch"],
+      specifications: ["Ceramic", "Non-Ceramic"],
+    },
+    {
+      name: "Floor Stand",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Notice Board",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Visualizer",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "PTZ Camera - Full HD Voice Tracking",
+      sizes: ["N/A"],
+      specifications: ["FHD Voice Tracking"],
+    },
+    {
+      name: "PTZ Camera - 4K Auto Tracking",
+      sizes: ["N/A"],
+      specifications: ["4K Auto Tracking"],
+    },
+    {
+      name: "Web Cam",
+      sizes: ["N/A"],
+      specifications: [
+        "Full HD Non-AI Featured",
+        "4K AI Featured",
+        "4K Auto Tracking",
+      ],
+    },
+    {
+      name: "Bluetooth Microphone",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "UPS - Offline",
+      sizes: ["N/A"],
+      specifications: ["Offline UPS"],
+    },
+    {
+      name: "UPS - Online",
+      sizes: ["N/A"],
+      specifications: ["Online UPS"],
+    },
+    {
+      name: "UPS Cabinet",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "SD Card",
+      sizes: ["N/A"],
+      specifications: ["8GB", "16GB", "32GB", "64GB", "128GB"],
+    },
+    {
+      name: "Casing",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Fitting Accessories",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "HDMI Cable",
+      sizes: ["N/A"],
+      specifications: ["Standard", "4K"],
+    },
+    {
+      name: "White Board",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "C-type Cable",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Fujifilm-Printer",
+      sizes: ["N/A"],
+      specifications: [
+        "Color Printer",
+        "Monochrome Printer",
+        "Black and White Printer",
+        "Multifunction Color Printer",
+        "Multifunction Monochrome Printer",
+        "Multifunction Black and White Printer",
+      ],
+    },
+    {
+      name: "Google TV",
+      sizes: ["43 inch", "50 inch", "55 inch"],
+      specifications: ["4GB RAM / 32GB ROM 4K"],
+    },
+    {
+      name: "Wriety Software",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Ceiling Mount Kit",
+      sizes: ["Standard"],
+      specifications: ["Projector Ceiling Mount", "PTZ Ceiling Mount"],
+    },
+    {
+      name: "Almirah Type Shutter",
+      sizes: ["65 inch", "75 inch", "86 inch", "98 inch"],
+      specifications: ["Plain", "White Boards", "Green Boards"],
+    },
+    {
+      name: "Aicharya",
+      sizes: ["N/A"],
+      specifications: ["Standard"],
+    },
+    {
+      name: "Logo",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Microphones",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "E-Share License",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "PRO Share Software",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "E Share Software",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "DMS Software",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Battery Bank",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Rack & Interlink",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Green Board",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Wooden Podium",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Writing Board",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "LED Video Wall",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "4K Video Bar",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Microsoft Office 2016 Licensed",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Windows 11 Licensed",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Embibe Content",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "SSD",
+      sizes: ["N/A"],
+      specifications: ["256GB", "512GB", "1TB"],
+    },
+    {
+      name: "RAM",
+      sizes: ["N/A"],
+      specifications: ["8GB", "16GB"],
+    },
+    {
+      name: "Video Conferencing Camera",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "CBSE Content",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "ICSE Content",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "PA System Speakers",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Red Board",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Promark Stickers",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Bluetooth Speaker",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "3 Cup Conference Speaker",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Conference Setup-Delegate Room",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Content",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Flex",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Wireless Speakerphone - Two Pair",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Remote",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Educational Software",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Hydraulic Bracket",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Desktop PC Monitor",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Home Theatre",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Digital Audio Processor",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Projector",
+      sizes: ["N/A"],
+      specifications: ["Long Throw", "Short Throw", "Ultra Long Throw"],
+    },
+    {
+      name: "LED TV",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Digital Podium Controller",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Amplifier Mic Receiver",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Wireless Mic Receiver",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Projector Screen",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Speakerphone",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "IT Catalog",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "AI Charya Podium",
+      sizes: ["N/A"],
+      specifications: ["Standard"],
+    },
+    {
+      name: "4 Pole C Curve MCB",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Extension Mic",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Mike Wireless",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Advance Podium",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Speaker & Mic",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Document Visualizer",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Black Metal Body Electronic Lectern",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "LED Monitor",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Document Camera Wall Mounted",
+      sizes: ["N/A"],
+      specifications: [
+        "Hydraulic Wall Mount Visualizer",
+        "Non-Hydraulic Wall Mount Visualizer",
+      ],
+    },
+    {
+      name: "SLV Mic",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Bubble Roll",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+    {
+      name: "Wrapping Roll",
+      sizes: ["N/A"],
+      specifications: ["N/A"],
+    },
+  ];
   // Mock Data
   const states = [
     "Andhra Pradesh",
@@ -1278,7 +1938,6 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
             {errors.contactperson?.message}
           </Form.Control.Feedback>
         </Form.Group>
-
         <Form.Group controlId="products">
           <Form.Label>📦 Products</Form.Label>
           {watch("products").map((product, index) => (
@@ -1298,13 +1957,35 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
               </ProductActions>
               <Form.Group controlId={`products.${index}.name`}>
                 <Form.Label>Name</Form.Label>
-                <Form.Control
-                  {...register(`products.${index}.name`, {
-                    required: "Product name is required",
-                    maxLength: { value: 100, message: "Max 100 characters" },
-                  })}
-                  isInvalid={!!errors.products?.[index]?.name}
-                  aria-label={`Product ${index + 1} Name`}
+                <Controller
+                  name={`products.${index}.name`}
+                  control={control}
+                  rules={{ required: "Product name is required" }}
+                  render={({ field }) => (
+                    <Form.Control
+                      as="select"
+                      {...field}
+                      isInvalid={!!errors.products?.[index]?.name}
+                      aria-label={`Product ${index + 1} Name`}
+                      onChange={(e) => {
+                        field.onChange(e);
+                        // Reset specification and size when product changes
+                        setValue(`products.${index}.specification`, "", {
+                          shouldValidate: true,
+                        });
+                        setValue(`products.${index}.size`, "", {
+                          shouldValidate: true,
+                        });
+                      }}
+                    >
+                      <option value="">-- Select Product --</option>
+                      {productOptions.map((option) => (
+                        <option key={option.name} value={option.name}>
+                          {option.name}
+                        </option>
+                      ))}
+                    </Form.Control>
+                  )}
                 />
                 <Form.Control.Feedback type="invalid">
                   {errors.products?.[index]?.name?.message}
@@ -1312,13 +1993,29 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
               </Form.Group>
               <Form.Group controlId={`products.${index}.specification`}>
                 <Form.Label>Specification</Form.Label>
-                <Form.Control
-                  {...register(`products.${index}.specification`, {
-                    required: "Specification is required",
-                    maxLength: { value: 100, message: "Max 100 characters" },
-                  })}
-                  isInvalid={!!errors.products?.[index]?.specification}
-                  aria-label={`Product ${index + 1} Specification`}
+                <Controller
+                  name={`products.${index}.specification`}
+                  control={control}
+                  rules={{ required: "Specification is required" }}
+                  render={({ field }) => (
+                    <Form.Control
+                      as="select"
+                      {...field}
+                      isInvalid={!!errors.products?.[index]?.specification}
+                      aria-label={`Product ${index + 1} Specification`}
+                      disabled={!product.name}
+                    >
+                      <option value="">-- Select Specification --</option>
+                      {product.name &&
+                        productOptions
+                          .find((option) => option.name === product.name)
+                          ?.specifications.map((spec) => (
+                            <option key={spec} value={spec}>
+                              {spec}
+                            </option>
+                          ))}
+                    </Form.Control>
+                  )}
                 />
                 <Form.Control.Feedback type="invalid">
                   {errors.products?.[index]?.specification?.message}
@@ -1326,13 +2023,29 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
               </Form.Group>
               <Form.Group controlId={`products.${index}.size`}>
                 <Form.Label>Size</Form.Label>
-                <Form.Control
-                  {...register(`products.${index}.size`, {
-                    required: "Size is required",
-                    maxLength: { value: 50, message: "Max 50 characters" },
-                  })}
-                  isInvalid={!!errors.products?.[index]?.size}
-                  aria-label={`Product ${index + 1} Size`}
+                <Controller
+                  name={`products.${index}.size`}
+                  control={control}
+                  rules={{ required: "Size is required" }}
+                  render={({ field }) => (
+                    <Form.Control
+                      as="select"
+                      {...field}
+                      isInvalid={!!errors.products?.[index]?.size}
+                      aria-label={`Product ${index + 1} Size`}
+                      disabled={!product.name}
+                    >
+                      <option value="">-- Select Size --</option>
+                      {product.name &&
+                        productOptions
+                          .find((option) => option.name === product.name)
+                          ?.sizes.map((size) => (
+                            <option key={size} value={size}>
+                              {size}
+                            </option>
+                          ))}
+                    </Form.Control>
+                  )}
                 />
                 <Form.Control.Feedback type="invalid">
                   {errors.products?.[index]?.size?.message}
