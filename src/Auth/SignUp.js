@@ -38,7 +38,7 @@ function Signup({ onAuthSuccess }) {
 
     try {
       const response = await axios.post(
-        "http://localhost:4000/user/signup", // Fixed endpoint
+        "https://crm-server-amz7.onrender.com/user/signup", // Fixed endpoint
         form
       );
 
