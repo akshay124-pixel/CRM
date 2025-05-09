@@ -2245,8 +2245,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
   return (
     <Modal
       show={isOpen}
-      on
-      COPHide={onClose}
+      onHide={onClose}
       centered
       backdrop="static"
       keyboard={false}
