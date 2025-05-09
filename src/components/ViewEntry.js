@@ -141,7 +141,7 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
       Organization: ${entry.organization || "N/A"}
       Category: ${entry.category || "N/A"}
       Status: ${entry.status || "Not Interested"}
-      Expected Closing Date: ${
+      Expected Closure Date: ${
         entry.expectedClosingDate
           ? new Date(entry.expectedClosingDate).toLocaleDateString()
           : "N/A"
@@ -423,7 +423,7 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                   : "N/A"}
               </InfoItem>
               <InfoItem>
-                <strong>Expected Close:</strong>{" "}
+                <strong>Expected Closure:</strong>{" "}
                 {entry.expectedClosingDate
                   ? new Date(entry.expectedClosingDate).toLocaleDateString(
                       "en-GB"
