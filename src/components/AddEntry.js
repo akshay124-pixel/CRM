@@ -1864,6 +1864,56 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
       case 1:
         return (
           <>
+            <Form.Group controlId="formCustomerName" className="mb-3">
+              <Form.Label>Customer Name</Form.Label>
+              <Form.Control
+                type="text"
+                name="customerName"
+                value={formData.customerName}
+                onChange={handleInput}
+                placeholder="Enter customer name"
+                disabled={loading}
+                required
+              />
+            </Form.Group>
+
+            <Form.Group controlId="mobileNumber" className="mb-3">
+              <Form.Label>Mobile Number</Form.Label>
+              <Form.Control
+                type="text"
+                name="mobileNumber"
+                value={formData.mobileNumber}
+                onChange={handleInput}
+                placeholder="Enter mobile number"
+                maxLength={10}
+                pattern="[0-9]{10}"
+                disabled={loading}
+                required
+              />
+              {formData.mobileNumber && formData.mobileNumber.length < 10 && (
+                <Form.Text style={{ color: "red" }}>
+                  Mobile number must be exactly 10 digits
+                </Form.Text>
+              )}
+            </Form.Group>
+
+            <Form.Group controlId="contactperson" className="mb-3">
+              <Form.Label>Contact Person Name</Form.Label>
+              <Form.Control
+                type="text"
+                name="contactperson"
+                value={formData.contactperson}
+                onChange={handleInput}
+                placeholder="Enter contact person name"
+                disabled={loading}
+                required
+              />
+            </Form.Group>
+          </>
+        );
+      case 2:
+        return (
+          <>
             <Form.Group controlId="formFirstDate" className="mb-3">
               <Form.Label>First Meeting Date</Form.Label>
               <DatePicker
@@ -1880,7 +1930,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 placeholderText="DD/MM/YY"
                 required
               />
-              {/* Hidden input to enforce required validation for DatePicker */}
               <Form.Control
                 type="hidden"
                 value={formData.firstdate || ""}
@@ -1911,7 +1960,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   value={productInput.specification}
                   onChange={handleProductInput}
                   disabled={!productInput.name || loading}
-                  required={!!productInput.name} // Required only if product is selected
+                  required={!!productInput.name}
                 >
                   <option value="">Select Specification</option>
                   {productInput.name &&
@@ -1929,7 +1978,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   value={productInput.size}
                   onChange={handleProductInput}
                   disabled={!productInput.name || loading}
-                  required={!!productInput.name} // Required only if product is selected
+                  required={!!productInput.name}
                 >
                   <option value="">Select Size</option>
                   {productInput.name &&
@@ -1949,7 +1998,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   onChange={handleProductInput}
                   placeholder="Quantity"
                   disabled={loading || !productInput.name}
-                  required={!!productInput.name} // Required only if product is selected
+                  required={!!productInput.name}
                 />
 
                 <Button
@@ -2000,6 +2049,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 </StyledTable>
               </ResponsiveTableWrapper>
             )}
+
             <Form.Group controlId="formEstimatedValue" className="mb-3">
               <Form.Label>Estimated Value (₹)</Form.Label>
               <Form.Control
@@ -2179,7 +2229,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 </Button>
               </div>
 
-              {/* Hidden input for backend submission, not required */}
               <Form.Control
                 type="hidden"
                 name="liveLocation"
@@ -2196,7 +2245,8 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
   return (
     <Modal
       show={isOpen}
-      onHide={onClose}
+      on
+      COPHide={onClose}
       centered
       backdrop="static"
       keyboard={false}
@@ -2300,7 +2350,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   borderRadius: "8px",
                   padding: "10px 20px",
                   background: "linear-gradient(to right, #6a11cb, #2575fc)",
-                  border: "none",
+                  border人に: "none",
                   fontWeight: "bold",
                   transition: "all 0.3s ease",
                 }}
