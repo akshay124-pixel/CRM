@@ -4,6 +4,7 @@ import { Drawer, Box, Typography, IconButton } from "@mui/material";
 import { FaTimes } from "react-icons/fa";
 import axios from "axios";
 import { toast } from "react-toastify";
+import * as XLSX from "xlsx";
 
 const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
   const [userStats, setUserStats] = useState([]);
@@ -169,6 +170,76 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
       closedLost: 0,
     }
   );
+
+  // Handle export to Excel
+  const handleExport = () => {
+    try {
+      // Prepare data for export
+      const exportData = [
+        // Overall Statistics
+        {
+          Section: "Overall Statistics",
+          Username: "",
+          "Total Entries": overallStats.total,
+          "This Month": overallStats.monthTotal,
+          Hot: overallStats.hot,
+          Cold: overallStats.cold,
+          Warm: overallStats.warm,
+          Won: overallStats.closedWon,
+          Lost: overallStats.closedLost,
+        },
+        // Separator row
+        {
+          Section: "",
+          Username: "",
+          "Total Entries": "",
+          "This Month": "",
+          Hot: "",
+          Cold: "",
+          Warm: "",
+          Won: "",
+          Lost: "",
+        },
+        // User Statistics
+        ...userStats.map((user) => ({
+          Section: "User Statistics",
+          Username: user.username,
+          "Total Entries": user.allTimeEntries,
+          "This Month": user.monthEntries,
+          Hot: user.hot,
+          Cold: user.cold,
+          Warm: user.warm,
+          Won: user.closedWon,
+          Lost: user.closedLost,
+        })),
+      ];
+
+      // Create worksheet
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Team Analytics");
+
+      // Auto-size columns
+      const colWidths = Object.keys(exportData[0]).map((key) => {
+        const maxLength = Math.max(
+          key.length,
+          ...exportData.map((row) => String(row[key] || "").length)
+        );
+        return { wch: Math.min(maxLength + 2, 50) };
+      });
+      worksheet["!cols"] = colWidths;
+
+      // Generate and download Excel file
+      XLSX.writeFile(
+        workbook,
+        `team_analytics_${new Date().toISOString().slice(0, 10)}.xlsx`
+      );
+      toast.success("Analytics exported successfully!");
+    } catch (error) {
+      console.error("Error exporting analytics:", error);
+      toast.error("Failed to export analytics!");
+    }
+  };
 
   return (
     <Drawer
@@ -574,6 +645,32 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
           background: "rgba(255, 255, 255, 0.05)",
         }}
       >
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={handleExport}
+          style={{
+            width: "100%",
+            padding: "12px",
+            background: "linear-gradient(90deg, #34d399, #10b981)",
+            color: "white",
+            borderRadius: "8px",
+            border: "none",
+            fontSize: "1.1rem",
+            fontWeight: "600",
+            cursor: "pointer",
+            transition: "all 0.3s ease",
+            letterSpacing: "0.5px",
+            textTransform: "uppercase",
+            marginBottom: "12px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+          }}
+        >
+          <span style={{ fontSize: "1.2rem" }}>⬇</span> Export Analytics
+        </motion.button>
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
