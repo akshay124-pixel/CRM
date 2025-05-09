@@ -2430,7 +2430,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         </Form.Group>
 
         <Form.Group controlId="expectedClosingDate">
-          <Form.Label>📅 Expected Closing Date</Form.Label>
+          <Form.Label>📅 Expected Closure Date</Form.Label>
           <Form.Control
             type="date"
             {...register("expectedClosingDate")}

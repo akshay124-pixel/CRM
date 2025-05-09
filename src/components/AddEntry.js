@@ -1864,53 +1864,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
       case 1:
         return (
           <>
-            <Form.Group controlId="formCustomerName" className="mb-3">
-              <Form.Label>Customer Name</Form.Label>
-              <Form.Control
-                type="text"
-                name="customerName"
-                required
-                value={formData.customerName}
-                onChange={handleInput}
-                placeholder="Enter customer name"
-                disabled={loading}
-              />
-            </Form.Group>
-
-            <Form.Group controlId="mobileNumber" className="mb-3">
-              <Form.Label>Mobile Number</Form.Label>
-              <Form.Control
-                type="text"
-                name="mobileNumber"
-                value={formData.mobileNumber}
-                onChange={handleInput}
-                placeholder="Enter mobile number"
-                maxLength={10}
-                disabled={loading}
-              />
-              {formData.mobileNumber && formData.mobileNumber.length < 10 && (
-                <Form.Text style={{ color: "red" }}>
-                  Mobile number must be 10 digits
-                </Form.Text>
-              )}
-            </Form.Group>
-
-            <Form.Group controlId="contactperson" className="mb-3">
-              <Form.Label>Contact Person Name</Form.Label>
-              <Form.Control
-                type="text"
-                name="contactperson"
-                value={formData.contactperson}
-                onChange={handleInput}
-                placeholder="Enter contact person name"
-                disabled={loading}
-              />
-            </Form.Group>
-          </>
-        );
-      case 2:
-        return (
-          <>
             <Form.Group controlId="formFirstDate" className="mb-3">
               <Form.Label>First Meeting Date</Form.Label>
               <DatePicker
@@ -1925,6 +1878,13 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 maxDate={new Date()}
                 disabled={loading}
                 placeholderText="DD/MM/YY"
+                required
+              />
+              {/* Hidden input to enforce required validation for DatePicker */}
+              <Form.Control
+                type="hidden"
+                value={formData.firstdate || ""}
+                required
               />
             </Form.Group>
 
@@ -1936,6 +1896,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   value={productInput.name}
                   onChange={handleProductInput}
                   disabled={loading}
+                  required
                 >
                   <option value="">Select Product</option>
                   {productOptions.map((product) => (
@@ -1950,6 +1911,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   value={productInput.specification}
                   onChange={handleProductInput}
                   disabled={!productInput.name || loading}
+                  required={!!productInput.name} // Required only if product is selected
                 >
                   <option value="">Select Specification</option>
                   {productInput.name &&
@@ -1967,6 +1929,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   value={productInput.size}
                   onChange={handleProductInput}
                   disabled={!productInput.name || loading}
+                  required={!!productInput.name} // Required only if product is selected
                 >
                   <option value="">Select Size</option>
                   {productInput.name &&
@@ -1986,6 +1949,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   onChange={handleProductInput}
                   placeholder="Quantity"
                   disabled={loading || !productInput.name}
+                  required={!!productInput.name} // Required only if product is selected
                 />
 
                 <Button
@@ -2045,6 +2009,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 onChange={handleInput}
                 placeholder="Enter estimated value (numeric)"
                 disabled={loading}
+                required
               />
             </Form.Group>
 
@@ -2055,6 +2020,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 value={formData.type}
                 onChange={handleInput}
                 disabled={loading}
+                required
               >
                 <option value="">-- Select Type --</option>
                 <option value="Direct Client">Direct Client</option>
@@ -2075,6 +2041,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 onChange={handleInput}
                 placeholder="Enter address"
                 disabled={loading}
+                required
               />
             </Form.Group>
 
@@ -2086,6 +2053,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 value={selectedState}
                 onChange={handleStateChange}
                 disabled={loading}
+                required
               >
                 <option value="">-- Select State --</option>
                 {Object.keys(statesAndCities).map((state) => (
@@ -2104,6 +2072,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 value={selectedCity}
                 onChange={handleCityChange}
                 disabled={!selectedState || loading}
+                required
               >
                 <option value="">-- Select City --</option>
                 {selectedState &&
@@ -2122,6 +2091,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 value={formData.organization}
                 onChange={handleInput}
                 disabled={loading}
+                required
               >
                 <option value="">Select organization type</option>
                 <option value="School/Society">School/Society</option>
@@ -2142,6 +2112,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 value={formData.category}
                 onChange={handleInput}
                 disabled={loading}
+                required
               >
                 <option value="">Select category</option>
                 <option value="Private">Private</option>
@@ -2161,6 +2132,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 onChange={handleInput}
                 name="status"
                 disabled={loading}
+                required
               >
                 <option value="">-- Select Status --</option>
                 <option value="Maybe">Maybe</option>
@@ -2179,6 +2151,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 disabled={loading}
                 placeholder="Enter remarks"
                 rows={3}
+                required
               />
             </Form.Group>
 
@@ -2206,7 +2179,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 </Button>
               </div>
 
-              {/* Hidden input for backend submission */}
+              {/* Hidden input for backend submission, not required */}
               <Form.Control
                 type="hidden"
                 name="liveLocation"
