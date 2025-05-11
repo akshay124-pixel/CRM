@@ -20,16 +20,29 @@ const TeamAnalyticsDrawer = ({
 
   useEffect(() => {
     const fetchTeamStats = async () => {
-      if (role !== "superadmin") return;
+      if (role !== "superadmin") {
+        console.log("Access denied: User is not superadmin, role:", role);
+        toast.error("Access restricted to superadmins only");
+        return;
+      }
       setLoading(true);
       try {
         const token = localStorage.getItem("token");
+        if (!token) {
+          throw new Error("No authentication token found");
+        }
+
         const [usersResponse] = await Promise.all([
           axios.get("https://crm-server-amz7.onrender.com/api/users", {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
         const users = usersResponse.data;
+        console.log("Fetched users:", users.length, users);
+
+        if (!users || users.length === 0) {
+          throw new Error("No users returned from API");
+        }
 
         // Build admin list with team members
         const admins = users
@@ -44,6 +57,11 @@ const TeamAnalyticsDrawer = ({
               )
               .map((u) => ({ _id: u._id, username: u.username })),
           }));
+        console.log("Admins:", admins);
+
+        if (admins.length === 0) {
+          console.warn("No admins found in user data");
+        }
 
         const statsMap = {};
         const filteredEntries = entries.filter((entry) => {
@@ -55,6 +73,7 @@ const TeamAnalyticsDrawer = ({
               createdAt <= new Date(dateRange[0].endDate))
           );
         });
+        console.log("Filtered entries:", filteredEntries.length);
 
         const now = new Date();
         const currentMonth = now.getMonth();
@@ -64,7 +83,10 @@ const TeamAnalyticsDrawer = ({
           const creator = users.find(
             (user) => user._id === entry.createdBy?._id
           );
-          if (!creator) return;
+          if (!creator) {
+            console.warn("Creator not found for entry:", entry._id);
+            return;
+          }
 
           const adminId =
             creator.role === "admin"
@@ -164,7 +186,7 @@ const TeamAnalyticsDrawer = ({
           }
         });
 
-        // Ensure all admins are included, even with no entries
+        // Ensure all admins are included
         const finalStats = admins.map((admin) => ({
           adminId: admin._id,
           adminName: admin.username,
@@ -192,17 +214,18 @@ const TeamAnalyticsDrawer = ({
             closedLost: 0,
           },
         }));
+        console.log("Final stats:", finalStats);
 
         setTeamStats(finalStats);
       } catch (error) {
-        console.error("Error fetching team analytics:", error);
-        toast.error("Failed to load team analytics!");
+        console.error("Error fetching team analytics:", error.message);
+        toast.error(`Failed to load team analytics: ${error.message}`);
       } finally {
         setLoading(false);
       }
     };
 
-    if (isOpen && role === "superadmin") fetchTeamStats();
+    if (isOpen) fetchTeamStats();
   }, [entries, isOpen, role, dateRange]);
 
   const overallStats = useMemo(
@@ -450,7 +473,8 @@ const TeamAnalyticsDrawer = ({
                 boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
               }}
             >
-              No Admin Data Available
+              No Admin Data Available. Please check user roles or contact
+              support.
             </Typography>
           </Box>
         ) : (
