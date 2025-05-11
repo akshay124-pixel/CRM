@@ -2420,7 +2420,6 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           <Form.Control
             type="date"
             {...register("followUpDate")}
-            min={new Date().toISOString().split("T")[0]}
             isInvalid={!!errors.followUpDate}
             aria-label="Follow-up Date"
           />
@@ -2434,7 +2433,6 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           <Form.Control
             type="date"
             {...register("expectedClosingDate")}
-            min={new Date().toISOString().split("T")[0]}
             isInvalid={!!errors.expectedClosingDate}
             aria-label="Expected Closing Date"
           />
