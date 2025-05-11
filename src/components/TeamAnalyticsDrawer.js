@@ -20,7 +20,7 @@ const TeamAnalyticsDrawer = ({
 
   useEffect(() => {
     const fetchTeamStats = async () => {
-      if (role !== "superadmin") return; // Only superadmins access this
+      if (role !== "superadmin") return;
       setLoading(true);
       try {
         const token = localStorage.getItem("token");
@@ -32,7 +32,7 @@ const TeamAnalyticsDrawer = ({
         );
         const users = response.data;
 
-        // Get all admins and their teams
+        // Build team structure
         const relevantAdmins = users
           .filter((user) => user.role === "admin")
           .map((user) => ({
@@ -40,11 +40,10 @@ const TeamAnalyticsDrawer = ({
             username: user.username,
             teamMembers: users
               .filter(
-                (u) => u.role === "others" && u.assignedAdmin === user._id
+                (u) => u.role === "others" && u.assignedAdmin?.$oid === user._id
               )
               .map((u) => ({ _id: u._id, username: u.username })),
           }));
-        // Include unassigned entries
         relevantAdmins.push({
           _id: null,
           username: "Unassigned",
@@ -73,7 +72,7 @@ const TeamAnalyticsDrawer = ({
           const adminId =
             creator?.role === "admin"
               ? creator._id
-              : creator?.assignedAdmin || null;
+              : creator?.assignedAdmin?.$oid || null;
           const admin = relevantAdmins.find((a) => a._id === adminId);
 
           if (admin || adminId === null) {
@@ -382,6 +381,7 @@ const TeamAnalyticsDrawer = ({
                     gap: 4,
                     mb: 2,
                     justifyContent: "center",
+                    flexWrap: "wrap",
                   }}
                 >
                   {[
@@ -402,7 +402,7 @@ const TeamAnalyticsDrawer = ({
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: index * 0.1, duration: 0.3 }}
                       sx={{
-                        flex: 1,
+                        flex: "1 1 150px",
                         background: "rgba(255, 255, 255, 0.1)",
                         borderRadius: "8px",
                         p: 1.5,
@@ -442,7 +442,10 @@ const TeamAnalyticsDrawer = ({
                 <Box
                   sx={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gridTemplateColumns: {
+                      xs: "repeat(2, 1fr)",
+                      sm: "repeat(3, 1fr)",
+                    },
                     gap: "12px",
                     justifyItems: "center",
                     alignItems: "stretch",
@@ -524,12 +527,12 @@ const TeamAnalyticsDrawer = ({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.15 }}
                   sx={{
-                    background: "rgba(255, 255, 255, 0.1)",
+                    background: "rgba(255, 255, 255, 0.15)",
                     borderRadius: "12px",
                     p: 3,
                     boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
                     "&:hover": {
-                      background: "rgba(255, 255, 255, 0.15)",
+                      background: "rgba(255, 255, 255, 0.2)",
                       transform: "translateY(-2px)",
                       transition: "all 0.2s ease",
                     },
@@ -546,8 +549,8 @@ const TeamAnalyticsDrawer = ({
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <Typography
                         sx={{
-                          fontSize: "1.4rem",
-                          fontWeight: "600",
+                          fontSize: "1.5rem",
+                          fontWeight: "700",
                           letterSpacing: "0.4px",
                           textTransform: "capitalize",
                           textShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
@@ -555,24 +558,22 @@ const TeamAnalyticsDrawer = ({
                       >
                         {team.adminName} Team
                       </Typography>
-                      {team.teamMembers.length > 0 && (
-                        <IconButton
-                          onClick={() =>
-                            toggleTeamMembers(team.adminId || "unassigned")
-                          }
-                          sx={{ color: "white", p: 0.5 }}
-                        >
-                          {expandedTeams[team.adminId || "unassigned"] ? (
-                            <FaChevronUp size={16} />
-                          ) : (
-                            <FaChevronDown size={16} />
-                          )}
-                        </IconButton>
-                      )}
+                      <IconButton
+                        onClick={() =>
+                          toggleTeamMembers(team.adminId || "unassigned")
+                        }
+                        sx={{ color: "white", p: 0.5 }}
+                      >
+                        {expandedTeams[team.adminId || "unassigned"] ? (
+                          <FaChevronUp size={16} />
+                        ) : (
+                          <FaChevronDown size={16} />
+                        )}
+                      </IconButton>
                     </Box>
                     <Typography
                       sx={{
-                        fontSize: "1rem",
+                        fontSize: "1.1rem",
                         fontWeight: "600",
                         color: "lightgreen",
                         textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
@@ -582,40 +583,58 @@ const TeamAnalyticsDrawer = ({
                     </Typography>
                   </Box>
 
-                  {team.teamMembers.length > 0 && (
-                    <Collapse in={expandedTeams[team.adminId || "unassigned"]}>
-                      <Box sx={{ mb: 2, pl: 2 }}>
+                  <Collapse in={expandedTeams[team.adminId || "unassigned"]}>
+                    <Box sx={{ mb: 2, pl: 2 }}>
+                      <Typography
+                        sx={{
+                          fontSize: "1.1rem",
+                          fontWeight: "500",
+                          color: "rgba(255, 255, 255, 0.9)",
+                          mb: 1,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                        }}
+                      >
+                        <FaUsers /> Team Members
+                        {team.teamMembers.length === 0 &&
+                          team.adminId !== null && (
+                            <Typography
+                              sx={{
+                                fontSize: "0.9rem",
+                                color: "rgba(255, 255, 255, 0.7)",
+                                ml: 1,
+                              }}
+                            >
+                              (None Assigned)
+                            </Typography>
+                          )}
+                      </Typography>
+                      {team.teamMembers.map((member) => (
                         <Typography
+                          key={member._id}
                           sx={{
-                            fontSize: "1rem",
-                            fontWeight: "500",
+                            fontSize: "0.95rem",
                             color: "rgba(255, 255, 255, 0.8)",
-                            mb: 1,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 1,
+                            ml: 2,
+                            py: 0.5,
                           }}
                         >
-                          <FaUsers /> Team Members
+                          - {member.username}
                         </Typography>
-                        {team.teamMembers.map((member) => (
-                          <Typography
-                            key={member._id}
-                            sx={{
-                              fontSize: "0.9rem",
-                              color: "rgba(255, 255, 255, 0.7)",
-                              ml: 2,
-                            }}
-                          >
-                            - {member.username}
-                          </Typography>
-                        ))}
-                      </Box>
-                    </Collapse>
-                  )}
+                      ))}
+                    </Box>
+                  </Collapse>
 
                   <Box
-                    sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: {
+                        xs: "1fr",
+                        sm: "repeat(2, 1fr)",
+                      },
+                      gap: 1.5,
+                    }}
                   >
                     {[
                       {
@@ -646,12 +665,12 @@ const TeamAnalyticsDrawer = ({
                           background: "rgba(255, 255, 255, 0.05)",
                           borderRadius: "6px",
                           px: 2,
-                          py: 1,
+                          py: 1.5,
                         }}
                       >
                         <Typography
                           sx={{
-                            fontSize: "0.9rem",
+                            fontSize: "0.95rem",
                             fontWeight: "500",
                             color: "rgba(255, 255, 255, 0.9)",
                             textTransform: "uppercase",
