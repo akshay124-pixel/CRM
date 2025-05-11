@@ -32,15 +32,16 @@ const TeamAnalyticsDrawer = ({
         );
         const users = response.data;
 
-        // Build team structure
+        // Build team structure with individual analytics
         const relevantAdmins = users
           .filter((user) => user.role === "admin")
-          .map((user) => ({
-            _id: user._id,
-            username: user.username,
+          .map((admin) => ({
+            _id: admin._id,
+            username: admin.username,
             teamMembers: users
               .filter(
-                (u) => u.role === "others" && u.assignedAdmin?.$oid === user._id
+                (u) =>
+                  u.role === "others" && u.assignedAdmin?.$oid === admin._id
               )
               .map((u) => ({ _id: u._id, username: u.username })),
           }));
@@ -69,10 +70,12 @@ const TeamAnalyticsDrawer = ({
           const creator = users.find(
             (user) => user._id === entry.createdBy?._id
           );
+          if (!creator) return;
+
           const adminId =
-            creator?.role === "admin"
+            creator.role === "admin"
               ? creator._id
-              : creator?.assignedAdmin?.$oid || null;
+              : creator.assignedAdmin?.$oid || null;
           const admin = relevantAdmins.find((a) => a._id === adminId);
 
           if (admin || adminId === null) {
@@ -82,40 +85,69 @@ const TeamAnalyticsDrawer = ({
                 adminId: adminId,
                 adminName: admin?.username || "Unassigned",
                 teamMembers: admin?.teamMembers || [],
+                membersAnalytics: {},
+                teamTotal: {
+                  allTimeEntries: 0,
+                  monthEntries: 0,
+                  cold: 0,
+                  warm: 0,
+                  hot: 0,
+                  closedWon: 0,
+                  closedLost: 0,
+                },
+              };
+            }
+
+            // Initialize member analytics
+            const memberId = creator._id;
+            const memberName = creator.username;
+            if (!statsMap[adminKey].membersAnalytics[memberId]) {
+              statsMap[adminKey].membersAnalytics[memberId] = {
+                username: memberName,
+                allTimeEntries: 0,
+                monthEntries: 0,
                 cold: 0,
                 warm: 0,
                 hot: 0,
                 closedWon: 0,
                 closedLost: 0,
-                allTimeEntries: 0,
-                monthEntries: 0,
               };
             }
-            statsMap[adminKey].allTimeEntries += 1;
+
+            // Update member analytics
+            statsMap[adminKey].membersAnalytics[memberId].allTimeEntries += 1;
+            statsMap[adminKey].teamTotal.allTimeEntries += 1;
 
             const entryDate = new Date(entry.createdAt);
             if (
               entryDate.getMonth() === currentMonth &&
               entryDate.getFullYear() === currentYear
             ) {
-              statsMap[adminKey].monthEntries += 1;
+              statsMap[adminKey].membersAnalytics[memberId].monthEntries += 1;
+              statsMap[adminKey].teamTotal.monthEntries += 1;
             }
 
             switch (entry.status) {
               case "Not Interested":
-                statsMap[adminKey].cold += 1;
+                statsMap[adminKey].membersAnalytics[memberId].cold += 1;
+                statsMap[adminKey].teamTotal.cold += 1;
                 break;
               case "Maybe":
-                statsMap[adminKey].warm += 1;
+                statsMap[adminKey].membersAnalytics[memberId].warm += 1;
+                statsMap[adminKey].teamTotal.warm += 1;
                 break;
               case "Interested":
-                statsMap[adminKey].hot += 1;
+                statsMap[adminKey].membersAnalytics[memberId].hot += 1;
+                statsMap[adminKey].teamTotal.hot += 1;
                 break;
               case "Closed":
-                if (entry.closetype === "Closed Won")
-                  statsMap[adminKey].closedWon += 1;
-                else if (entry.closetype === "Closed Lost")
-                  statsMap[adminKey].closedLost += 1;
+                if (entry.closetype === "Closed Won") {
+                  statsMap[adminKey].membersAnalytics[memberId].closedWon += 1;
+                  statsMap[adminKey].teamTotal.closedWon += 1;
+                } else if (entry.closetype === "Closed Lost") {
+                  statsMap[adminKey].membersAnalytics[memberId].closedLost += 1;
+                  statsMap[adminKey].teamTotal.closedLost += 1;
+                }
                 break;
               default:
                 break;
@@ -123,7 +155,13 @@ const TeamAnalyticsDrawer = ({
           }
         });
 
-        setTeamStats(Object.values(statsMap));
+        // Convert membersAnalytics to array for easier rendering
+        const finalStats = Object.values(statsMap).map((team) => ({
+          ...team,
+          membersAnalytics: Object.values(team.membersAnalytics),
+        }));
+
+        setTeamStats(finalStats);
       } catch (error) {
         console.error("Error fetching team analytics:", error);
         toast.error("Failed to load team analytics!");
@@ -137,13 +175,13 @@ const TeamAnalyticsDrawer = ({
 
   const overallStats = teamStats.reduce(
     (acc, team) => ({
-      total: acc.total + team.allTimeEntries,
-      monthTotal: acc.monthTotal + team.monthEntries,
-      hot: acc.hot + team.hot,
-      cold: acc.cold + team.cold,
-      warm: acc.warm + team.warm,
-      closedWon: acc.closedWon + team.closedWon,
-      closedLost: acc.closedLost + team.closedLost,
+      total: acc.total + team.teamTotal.allTimeEntries,
+      monthTotal: acc.monthTotal + team.teamTotal.monthEntries,
+      hot: acc.hot + team.teamTotal.hot,
+      cold: acc.cold + team.teamTotal.cold,
+      warm: acc.warm + team.teamTotal.warm,
+      closedWon: acc.closedWon + team.teamTotal.closedWon,
+      closedLost: acc.closedLost + team.teamTotal.closedLost,
     }),
     {
       total: 0,
@@ -163,6 +201,7 @@ const TeamAnalyticsDrawer = ({
           Section: "Overall Statistics",
           Team: "",
           "Team Leader": "",
+          Member: "",
           "Total Entries": overallStats.total,
           "This Month": overallStats.monthTotal,
           Hot: overallStats.hot,
@@ -175,6 +214,7 @@ const TeamAnalyticsDrawer = ({
           Section: "",
           Team: "",
           "Team Leader": "",
+          Member: "",
           "Total Entries": "",
           "This Month": "",
           Hot: "",
@@ -188,27 +228,46 @@ const TeamAnalyticsDrawer = ({
             Section: "Team Statistics",
             Team: team.adminName,
             "Team Leader": team.adminName,
-            "Total Entries": team.allTimeEntries,
-            "This Month": team.monthEntries,
-            Hot: team.hot,
-            Cold: team.cold,
-            Warm: team.warm,
-            Won: team.closedWon,
-            Lost: team.closedLost,
+            Member: "",
+            "Total Entries": team.teamTotal.allTimeEntries,
+            "This Month": team.teamTotal.monthEntries,
+            Hot: team.teamTotal.hot,
+            Cold: team.teamTotal.cold,
+            Warm: team.teamTotal.warm,
+            Won: team.teamTotal.closedWon,
+            Lost: team.teamTotal.closedLost,
           },
-          ...team.teamMembers.map((member) => ({
-            Section: "Team Members",
+          ...team.membersAnalytics.map((member) => ({
+            Section: "Member Statistics",
             Team: team.adminName,
-            "Team Leader": "",
+            "Team Leader": team.adminName,
             Member: member.username,
-            "Total Entries": "",
-            "This Month": "",
-            Hot: "",
-            Cold: "",
-            Warm: "",
-            Won: "",
-            Lost: "",
+            "Total Entries": member.allTimeEntries,
+            "This Month": member.monthEntries,
+            Hot: member.hot,
+            Cold: member.cold,
+            Warm: member.warm,
+            Won: member.closedWon,
+            Lost: member.closedLost,
           })),
+          ...team.teamMembers
+            .filter(
+              (m) =>
+                !team.membersAnalytics.some((ma) => ma.username === m.username)
+            )
+            .map((member) => ({
+              Section: "Team Members (No Entries)",
+              Team: team.adminName,
+              "Team Leader": team.adminName,
+              Member: member.username,
+              "Total Entries": 0,
+              "This Month": 0,
+              Hot: 0,
+              Cold: 0,
+              Warm: 0,
+              Won: 0,
+              Lost: 0,
+            })),
         ]),
       ];
 
@@ -579,7 +638,7 @@ const TeamAnalyticsDrawer = ({
                         textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
                       }}
                     >
-                      Total: {team.allTimeEntries}
+                      Total: {team.teamTotal.allTimeEntries}
                     </Typography>
                   </Box>
 
@@ -610,88 +669,126 @@ const TeamAnalyticsDrawer = ({
                             </Typography>
                           )}
                       </Typography>
-                      {team.teamMembers.map((member) => (
-                        <Typography
-                          key={member._id}
-                          sx={{
-                            fontSize: "0.95rem",
-                            color: "rgba(255, 255, 255, 0.8)",
-                            ml: 2,
-                            py: 0.5,
-                          }}
-                        >
-                          - {member.username}
-                        </Typography>
+                      {team.membersAnalytics.map((member, mIndex) => (
+                        <Box key={mIndex} sx={{ mb: 2, ml: 2 }}>
+                          <Typography
+                            sx={{
+                              fontSize: "1rem",
+                              fontWeight: "600",
+                              color: "rgba(255, 255, 255, 0.95)",
+                              mb: 1,
+                            }}
+                          >
+                            {member.username}
+                          </Typography>
+                          <Box
+                            sx={{
+                              display: "grid",
+                              gridTemplateColumns: {
+                                xs: "1fr",
+                                sm: "repeat(2, 1fr)",
+                              },
+                              gap: 1,
+                            }}
+                          >
+                            {[
+                              {
+                                label: "Total Entries",
+                                value: member.allTimeEntries,
+                                color: "lightgreen",
+                              },
+                              {
+                                label: "This Month",
+                                value: member.monthEntries,
+                                color: "yellow",
+                              },
+                              {
+                                label: "Cold",
+                                value: member.cold,
+                                color: "orange",
+                              },
+                              {
+                                label: "Warm",
+                                value: member.warm,
+                                color: "lightgreen",
+                              },
+                              {
+                                label: "Hot",
+                                value: member.hot,
+                                color: "yellow",
+                              },
+                              {
+                                label: "Won",
+                                value: member.closedWon,
+                                color: "lightgrey",
+                              },
+                              {
+                                label: "Lost",
+                                value: member.closedLost,
+                                color: "#e91e63",
+                              },
+                            ].map((stat) => (
+                              <Box
+                                key={stat.label}
+                                sx={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                  background: "rgba(255, 255, 255, 0.05)",
+                                  borderRadius: "6px",
+                                  px: 2,
+                                  py: 1,
+                                }}
+                              >
+                                <Typography
+                                  sx={{
+                                    fontSize: "0.9rem",
+                                    fontWeight: "500",
+                                    color: "rgba(255, 255, 255, 0.9)",
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.5px",
+                                  }}
+                                >
+                                  {stat.label}
+                                </Typography>
+                                <Typography
+                                  sx={{
+                                    fontSize: "0.95rem",
+                                    fontWeight: "600",
+                                    color: stat.color,
+                                    textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
+                                  }}
+                                >
+                                  {stat.value}
+                                </Typography>
+                              </Box>
+                            ))}
+                          </Box>
+                        </Box>
                       ))}
+                      {team.teamMembers
+                        .filter(
+                          (m) =>
+                            !team.membersAnalytics.some(
+                              (ma) => ma.username === m.username
+                            )
+                        )
+                        .map((member) => (
+                          <Box key={member._id} sx={{ mb: 2, ml: 2 }}>
+                            <Typography
+                              sx={{
+                                fontSize: "1rem",
+                                fontWeight: "600",
+                                color: "rgba(255, 255, 255, 0.95)",
+                                mb: 1,
+                              }}
+                            >
+                              {member.username} (No Entries)
+                            </Typography>
+                          </Box>
+                        ))}
                     </Box>
                   </Collapse>
-
-                  <Box
-                    sx={{
-                      display: "grid",
-                      gridTemplateColumns: {
-                        xs: "1fr",
-                        sm: "repeat(2, 1fr)",
-                      },
-                      gap: 1.5,
-                    }}
-                  >
-                    {[
-                      {
-                        label: "This Month",
-                        value: team.monthEntries,
-                        color: "yellow",
-                      },
-                      { label: "Cold", value: team.cold, color: "orange" },
-                      { label: "Warm", value: team.warm, color: "lightgreen" },
-                      { label: "Hot", value: team.hot, color: "yellow" },
-                      {
-                        label: "Won",
-                        value: team.closedWon,
-                        color: "lightgrey",
-                      },
-                      {
-                        label: "Lost",
-                        value: team.closedLost,
-                        color: "#e91e63",
-                      },
-                    ].map((stat) => (
-                      <Box
-                        key={stat.label}
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          background: "rgba(255, 255, 255, 0.05)",
-                          borderRadius: "6px",
-                          px: 2,
-                          py: 1.5,
-                        }}
-                      >
-                        <Typography
-                          sx={{
-                            fontSize: "0.95rem",
-                            fontWeight: "500",
-                            color: "rgba(255, 255, 255, 0.9)",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.5px",
-                          }}
-                        >
-                          {stat.label}
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontSize: "1rem",
-                            fontWeight: "600",
-                            color: stat.color,
-                            textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
-                          }}
-                        >
-                          {stat.value}
-                        </Typography>
-                      </Box>
-                    ))}
-                  </Box>
                 </motion.div>
               </Box>
             ))}
