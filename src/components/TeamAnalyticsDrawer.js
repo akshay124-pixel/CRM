@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Drawer, Box, Typography, IconButton, Collapse } from "@mui/material";
 import { FaTimes, FaUsers, FaChevronDown, FaChevronUp } from "react-icons/fa";
@@ -24,16 +24,15 @@ const TeamAnalyticsDrawer = ({
       setLoading(true);
       try {
         const token = localStorage.getItem("token");
-        const response = await axios.get(
-          "https://crm-server-amz7.onrender.com/api/users",
-          {
+        const [usersResponse] = await Promise.all([
+          axios.get("https://crm-server-amz7.onrender.com/api/users", {
             headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        const users = response.data;
+          }),
+        ]);
+        const users = usersResponse.data;
 
-        // Build team structure for admins only
-        const relevantAdmins = users
+        // Build admin list with team members
+        const admins = users
           .filter((user) => user.role === "admin")
           .map((admin) => ({
             _id: admin._id,
@@ -71,13 +70,13 @@ const TeamAnalyticsDrawer = ({
             creator.role === "admin"
               ? creator._id
               : creator.assignedAdmin?.$oid;
-          const admin = relevantAdmins.find((a) => a._id === adminId);
+          const admin = admins.find((a) => a._id === adminId);
 
           if (admin) {
             const adminKey = adminId;
             if (!statsMap[adminKey]) {
               statsMap[adminKey] = {
-                adminId: adminId,
+                adminId,
                 adminName: admin.username,
                 teamMembers: admin.teamMembers,
                 adminAnalytics: {
@@ -103,7 +102,6 @@ const TeamAnalyticsDrawer = ({
               };
             }
 
-            // Update analytics
             const memberId = creator._id;
             const memberName = creator.username;
             let targetAnalytics;
@@ -166,10 +164,33 @@ const TeamAnalyticsDrawer = ({
           }
         });
 
-        // Convert membersAnalytics to array
-        const finalStats = Object.values(statsMap).map((team) => ({
-          ...team,
-          membersAnalytics: Object.values(team.membersAnalytics),
+        // Ensure all admins are included, even with no entries
+        const finalStats = admins.map((admin) => ({
+          adminId: admin._id,
+          adminName: admin.username,
+          teamMembers: admin.teamMembers,
+          adminAnalytics: statsMap[admin._id]?.adminAnalytics || {
+            username: admin.username,
+            allTimeEntries: 0,
+            monthEntries: 0,
+            cold: 0,
+            warm: 0,
+            hot: 0,
+            closedWon: 0,
+            closedLost: 0,
+          },
+          membersAnalytics: statsMap[admin._id]?.membersAnalytics
+            ? Object.values(statsMap[admin._id].membersAnalytics)
+            : [],
+          teamTotal: statsMap[admin._id]?.teamTotal || {
+            allTimeEntries: 0,
+            monthEntries: 0,
+            cold: 0,
+            warm: 0,
+            hot: 0,
+            closedWon: 0,
+            closedLost: 0,
+          },
         }));
 
         setTeamStats(finalStats);
@@ -184,25 +205,29 @@ const TeamAnalyticsDrawer = ({
     if (isOpen && role === "superadmin") fetchTeamStats();
   }, [entries, isOpen, role, dateRange]);
 
-  const overallStats = teamStats.reduce(
-    (acc, team) => ({
-      total: acc.total + team.teamTotal.allTimeEntries,
-      monthTotal: acc.monthTotal + team.teamTotal.monthEntries,
-      hot: acc.hot + team.teamTotal.hot,
-      cold: acc.cold + team.teamTotal.cold,
-      warm: acc.warm + team.teamTotal.warm,
-      closedWon: acc.closedWon + team.teamTotal.closedWon,
-      closedLost: acc.closedLost + team.teamTotal.closedLost,
-    }),
-    {
-      total: 0,
-      monthTotal: 0,
-      hot: 0,
-      cold: 0,
-      warm: 0,
-      closedWon: 0,
-      closedLost: 0,
-    }
+  const overallStats = useMemo(
+    () =>
+      teamStats.reduce(
+        (acc, team) => ({
+          total: acc.total + team.teamTotal.allTimeEntries,
+          monthTotal: acc.monthTotal + team.teamTotal.monthEntries,
+          hot: acc.hot + team.teamTotal.hot,
+          cold: acc.cold + team.teamTotal.cold,
+          warm: acc.warm + team.teamTotal.warm,
+          closedWon: acc.closedWon + team.teamTotal.closedWon,
+          closedLost: acc.closedLost + team.teamTotal.closedLost,
+        }),
+        {
+          total: 0,
+          monthTotal: 0,
+          hot: 0,
+          cold: 0,
+          warm: 0,
+          closedWon: 0,
+          closedLost: 0,
+        }
+      ),
+    [teamStats]
   );
 
   const handleExport = () => {
@@ -366,7 +391,7 @@ const TeamAnalyticsDrawer = ({
             textShadow: "0 2px 4px rgba(0, 0, 0, 0.3)",
           }}
         >
-          Team-Wise Analytics
+          Team Analytics
         </Typography>
         <IconButton
           onClick={onClose}
@@ -397,6 +422,7 @@ const TeamAnalyticsDrawer = ({
                 textAlign: "center",
                 borderRadius: "8px",
                 padding: "16px",
+                background: "rgba(255, 255, 255, 0.1)",
               }}
             >
               Loading Analytics...
@@ -424,7 +450,7 @@ const TeamAnalyticsDrawer = ({
                 boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
               }}
             >
-              No Team Data Available
+              No Admin Data Available
             </Typography>
           </Box>
         ) : (
@@ -460,11 +486,14 @@ const TeamAnalyticsDrawer = ({
                 </Typography>
                 <Box
                   sx={{
-                    display: "flex",
-                    gap: 4,
-                    mb: 2,
-                    justifyContent: "center",
-                    flexWrap: "wrap",
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "repeat(2, 1fr)",
+                      sm: "repeat(3, 1fr)",
+                    },
+                    gap: "12px",
+                    justifyItems: "center",
+                    alignItems: "stretch",
                   }}
                 >
                   {[
@@ -478,63 +507,6 @@ const TeamAnalyticsDrawer = ({
                       value: overallStats.monthTotal,
                       color: "yellow",
                     },
-                  ].map((stat, index) => (
-                    <motion.div
-                      key={stat.label}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: index * 0.1, duration: 0.3 }}
-                      sx={{
-                        flex: "1 1 150px",
-                        background: "rgba(255, 255, 255, 0.1)",
-                        borderRadius: "8px",
-                        p: 1.5,
-                        textAlign: "center",
-                        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
-                        minHeight: "80px",
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Typography
-                        sx={{
-                          fontSize: "0.9rem",
-                          fontWeight: "600",
-                          color: "rgba(255, 255, 255, 0.9)",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.6px",
-                          mb: 0.5,
-                        }}
-                      >
-                        {stat.label}
-                      </Typography>
-                      <Typography
-                        sx={{
-                          fontSize: "1.3rem",
-                          fontWeight: "700",
-                          color: stat.color,
-                          textShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
-                        }}
-                      >
-                        {stat.value}
-                      </Typography>
-                    </motion.div>
-                  ))}
-                </Box>
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: {
-                      xs: "repeat(2, 1fr)",
-                      sm: "repeat(3, 1fr)",
-                    },
-                    gap: "12px",
-                    justifyItems: "center",
-                    alignItems: "stretch",
-                  }}
-                >
-                  {[
                     { label: "Hot", value: overallStats.hot, color: "yellow" },
                     {
                       label: "Cold",
@@ -561,7 +533,7 @@ const TeamAnalyticsDrawer = ({
                       key={stat.label}
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: (index + 2) * 0.1, duration: 0.3 }}
+                      transition={{ delay: index * 0.1, duration: 0.3 }}
                       sx={{
                         width: "100%",
                         background: "rgba(255, 255, 255, 0.1)",
@@ -604,7 +576,7 @@ const TeamAnalyticsDrawer = ({
             </Box>
 
             {teamStats.map((team, index) => (
-              <Box key={team.adminName + index} sx={{ mb: 3 }}>
+              <Box key={team.adminId} sx={{ mb: 3 }}>
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -751,13 +723,13 @@ const TeamAnalyticsDrawer = ({
                   </Box>
 
                   <Collapse in={expandedTeams[team.adminId]}>
-                    <Box sx={{ mb: 2, pl: 2 }}>
+                    <Box sx={{ pl: 2 }}>
                       <Typography
                         sx={{
                           fontSize: "1.1rem",
                           fontWeight: "500",
                           color: "rgba(255, 255, 255, 0.9)",
-                          mb: 1,
+                          mb: 2,
                           display: "flex",
                           alignItems: "center",
                           gap: 1,
