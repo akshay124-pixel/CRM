@@ -4,6 +4,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "../App.css";
 import { DateRangePicker } from "react-date-range";
 import "react-date-range/dist/styles.css";
+import TeamAnalyticsDrawer from "./TeamAnalyticsDrawer.js";
 import "react-date-range/dist/theme/default.css";
 import { jwtDecode } from "jwt-decode";
 import {
@@ -2760,6 +2761,14 @@ function DashBoard() {
             userId={userId}
             dateRange={dateRange} // Pass dateRange prop
           />
+          <TeamAnalyticsDrawer
+            entries={entries}
+            isOpen={isTeamAnalyticsOpen}
+            onClose={() => setIsTeamAnalyticsOpen(false)}
+            role={userRole}
+            userId={userId}
+            dateRange={dateRange}
+          />
         </>
       )}
       {isAnalyticsModalOpen && (
@@ -2906,6 +2915,39 @@ function DashBoard() {
               >
                 <FaChartBar style={{ marginRight: "8px" }} />
                 Value Analytics
+              </button>
+              <button
+                className="action-button"
+                onClick={() => {
+                  setIsTeamAnalyticsOpen(true);
+                  setIsAnalyticsModalOpen(false);
+                }}
+                style={{
+                  padding: isMobile ? "10px 15px" : "12px 20px",
+                  background: "linear-gradient(135deg, #2575fc, #6a11cb)",
+                  color: "white",
+                  borderRadius: "12px",
+                  cursor: "pointer",
+                  fontWeight: "bold",
+                  border: "none",
+                  fontSize: isMobile ? "0.9rem" : "1rem",
+                  boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
+                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.transform = "translateY(-2px)";
+                  e.target.style.boxShadow = "0px 6px 12px rgba(0, 0, 0, 0.2)";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = "translateY(0)";
+                  e.target.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.1)";
+                }}
+              >
+                <FaChartBar style={{ marginRight: "8px" }} />
+                Team-Analytics
               </button>
             </div>
           </motion.div>
