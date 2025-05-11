@@ -244,6 +244,7 @@ function DashBoard() {
   const [selectedCity, setSelectedCity] = useState("");
   const [isAnalyticsModalOpen, setIsAnalyticsModalOpen] = useState(false);
   const [dashboardFilter, setDashboardFilter] = useState("total");
+  const [isTeamAnalyticsOpen, setIsTeamAnalyticsOpen] = useState(false);
   const [dateRange, setDateRange] = useState([
     { startDate: null, endDate: null, key: "selection" },
   ]);
@@ -2765,7 +2766,7 @@ function DashBoard() {
             entries={entries}
             isOpen={isTeamAnalyticsOpen}
             onClose={() => setIsTeamAnalyticsOpen(false)}
-            role={userRole}
+            role={role} // Corrected from userRole to role
             userId={userId}
             dateRange={dateRange}
           />
@@ -2919,7 +2920,7 @@ function DashBoard() {
               <button
                 className="action-button"
                 onClick={() => {
-                  setIsTeamAnalyticsOpen(true);
+                  setIsTeamAnalyticsOpen(true); // Now defined
                   setIsAnalyticsModalOpen(false);
                 }}
                 style={{
