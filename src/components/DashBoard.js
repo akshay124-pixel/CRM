@@ -2006,13 +2006,17 @@ function DashBoard() {
             onChange={(e) => setSelectedUsername(e.target.value)}
           >
             <option value="">-- Select User --</option>
-            {usernames.map((username) => (
-              <option key={username} value={username}>
-                {username}
-              </option>
-            ))}
+            {usernames
+              .slice() // create a shallow copy to avoid mutating the original array
+              .sort((a, b) => a.localeCompare(b))
+              .map((username) => (
+                <option key={username} value={username}>
+                  {username}
+                </option>
+              ))}
           </select>
         )}
+
         <div>
           <input
             type="text"
