@@ -16,16 +16,14 @@ const TeamAnalyticsDrawer = ({
 }) => {
   const [teamStats, setTeamStats] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [expandedTeams, setExpandedTeams] = useState({}); // Track expanded teams
+  const [expandedTeams, setExpandedTeams] = useState({});
 
   useEffect(() => {
     const fetchTeamStats = async () => {
+      if (role !== "superadmin") return; // Only superadmins access this
       setLoading(true);
       try {
         const token = localStorage.getItem("token");
-        let relevantAdmins = [];
-
-        // Fetch users to map admin teams
         const response = await axios.get(
           "https://crm-server-amz7.onrender.com/api/users",
           {
@@ -34,59 +32,33 @@ const TeamAnalyticsDrawer = ({
         );
         const users = response.data;
 
-        if (role === "superadmin") {
-          // Superadmins see all admins
-          relevantAdmins = users
-            .filter((user) => user.role === "admin")
-            .map((user) => ({
-              _id: user._id,
-              username: user.username,
-              teamMembers: users
-                .filter(
-                  (u) => u.role === "others" && u.assignedAdmin === user._id
-                )
-                .map((u) => ({ _id: u._id, username: u.username })),
-            }));
-          // Include unassigned entries (no assignedAdmin)
-          relevantAdmins.push({
-            _id: null,
-            username: "Unassigned",
-            teamMembers: [],
-          });
-        } else if (role === "admin") {
-          // Admins see only their own team
-          relevantAdmins = [
-            {
-              _id: userId,
-              username:
-                users.find((user) => user._id === userId)?.username ||
-                "Current Admin",
-              teamMembers: users
-                .filter(
-                  (u) => u.role === "others" && u.assignedAdmin === userId
-                )
-                .map((u) => ({ _id: u._id, username: u.username })),
-            },
-          ];
-        }
+        // Get all admins and their teams
+        const relevantAdmins = users
+          .filter((user) => user.role === "admin")
+          .map((user) => ({
+            _id: user._id,
+            username: user.username,
+            teamMembers: users
+              .filter(
+                (u) => u.role === "others" && u.assignedAdmin === user._id
+              )
+              .map((u) => ({ _id: u._id, username: u.username })),
+          }));
+        // Include unassigned entries
+        relevantAdmins.push({
+          _id: null,
+          username: "Unassigned",
+          teamMembers: [],
+        });
 
         const statsMap = {};
-        // Filter entries by date range and role
         const filteredEntries = entries.filter((entry) => {
           const createdAt = new Date(entry.createdAt);
           return (
-            (!dateRange[0].startDate ||
-              !dateRange[0].endDate ||
-              (createdAt >= new Date(dateRange[0].startDate) &&
-                createdAt <= new Date(dateRange[0].endDate))) &&
-            (role === "superadmin" ||
-              entry.createdBy?._id === userId ||
-              users.some(
-                (user) =>
-                  user.assignedAdmin === userId &&
-                  (user._id === entry.createdBy?._id ||
-                    user._id === entry.assignedTo?._id)
-              ))
+            !dateRange[0].startDate ||
+            !dateRange[0].endDate ||
+            (createdAt >= new Date(dateRange[0].startDate) &&
+              createdAt <= new Date(dateRange[0].endDate))
           );
         });
 
@@ -95,7 +67,6 @@ const TeamAnalyticsDrawer = ({
         const currentYear = now.getFullYear();
 
         filteredEntries.forEach((entry) => {
-          // Determine the admin team (based on createdBy's assignedAdmin)
           const creator = users.find(
             (user) => user._id === entry.createdBy?._id
           );
@@ -162,10 +133,9 @@ const TeamAnalyticsDrawer = ({
       }
     };
 
-    if (isOpen) fetchTeamStats();
-  }, [entries, isOpen, role, userId, dateRange]);
+    if (isOpen && role === "superadmin") fetchTeamStats();
+  }, [entries, isOpen, role, dateRange]);
 
-  // Calculate overall statistics
   const overallStats = teamStats.reduce(
     (acc, team) => ({
       total: acc.total + team.allTimeEntries,
@@ -187,12 +157,9 @@ const TeamAnalyticsDrawer = ({
     }
   );
 
-  // Handle export to Excel
   const handleExport = () => {
     try {
-      // Prepare data for export
       const exportData = [
-        // Overall Statistics
         {
           Section: "Overall Statistics",
           Team: "",
@@ -205,7 +172,6 @@ const TeamAnalyticsDrawer = ({
           Won: overallStats.closedWon,
           Lost: overallStats.closedLost,
         },
-        // Separator row
         {
           Section: "",
           Team: "",
@@ -218,27 +184,39 @@ const TeamAnalyticsDrawer = ({
           Won: "",
           Lost: "",
         },
-        // Team Statistics
-        ...teamStats.map((team) => ({
-          Section: "Team Statistics",
-          Team: team.adminName,
-          "Team Leader": team.adminName,
-          "Total Entries": team.allTimeEntries,
-          "This Month": team.monthEntries,
-          Hot: team.hot,
-          Cold: team.cold,
-          Warm: team.warm,
-          Won: team.closedWon,
-          Lost: team.closedLost,
-        })),
+        ...teamStats.flatMap((team) => [
+          {
+            Section: "Team Statistics",
+            Team: team.adminName,
+            "Team Leader": team.adminName,
+            "Total Entries": team.allTimeEntries,
+            "This Month": team.monthEntries,
+            Hot: team.hot,
+            Cold: team.cold,
+            Warm: team.warm,
+            Won: team.closedWon,
+            Lost: team.closedLost,
+          },
+          ...team.teamMembers.map((member) => ({
+            Section: "Team Members",
+            Team: team.adminName,
+            "Team Leader": "",
+            Member: member.username,
+            "Total Entries": "",
+            "This Month": "",
+            Hot: "",
+            Cold: "",
+            Warm: "",
+            Won: "",
+            Lost: "",
+          })),
+        ]),
       ];
 
-      // Create worksheet
       const worksheet = XLSX.utils.json_to_sheet(exportData);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Team Analytics");
 
-      // Auto-size columns
       const colWidths = Object.keys(exportData[0]).map((key) => {
         const maxLength = Math.max(
           key.length,
@@ -248,7 +226,6 @@ const TeamAnalyticsDrawer = ({
       });
       worksheet["!cols"] = colWidths;
 
-      // Generate and download Excel file
       XLSX.writeFile(
         workbook,
         `team_analytics_${new Date().toISOString().slice(0, 10)}.xlsx`
@@ -260,7 +237,6 @@ const TeamAnalyticsDrawer = ({
     }
   };
 
-  // Toggle team members visibility
   const toggleTeamMembers = (adminId) => {
     setExpandedTeams((prev) => ({
       ...prev,
@@ -287,7 +263,6 @@ const TeamAnalyticsDrawer = ({
         },
       }}
     >
-      {/* Header */}
       <Box
         sx={{
           padding: "24px",
@@ -322,7 +297,6 @@ const TeamAnalyticsDrawer = ({
         </IconButton>
       </Box>
 
-      {/* Content */}
       <Box sx={{ flex: 1, overflowY: "auto", px: 3, py: 4 }}>
         {loading ? (
           <Box
@@ -373,7 +347,6 @@ const TeamAnalyticsDrawer = ({
           </Box>
         ) : (
           <>
-            {/* Overall Statistics Section */}
             <Box sx={{ mb: 4 }}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -403,7 +376,6 @@ const TeamAnalyticsDrawer = ({
                 >
                   📊 Overall Statistics
                 </Typography>
-                {/* Top Row: Total Entries and This Month */}
                 <Box
                   sx={{
                     display: "flex",
@@ -467,7 +439,6 @@ const TeamAnalyticsDrawer = ({
                     </motion.div>
                   ))}
                 </Box>
-                {/* Bottom Grid: Hot, Cold, Warm, Won, Lost */}
                 <Box
                   sx={{
                     display: "grid",
@@ -546,7 +517,6 @@ const TeamAnalyticsDrawer = ({
               </motion.div>
             </Box>
 
-            {/* Individual Team Statistics */}
             {teamStats.map((team, index) => (
               <Box key={team.adminName + index} sx={{ mb: 3 }}>
                 <motion.div
@@ -565,7 +535,6 @@ const TeamAnalyticsDrawer = ({
                     },
                   }}
                 >
-                  {/* Team Header */}
                   <Box
                     sx={{
                       mb: 2,
@@ -613,7 +582,6 @@ const TeamAnalyticsDrawer = ({
                     </Typography>
                   </Box>
 
-                  {/* Team Members (Collapsible) */}
                   {team.teamMembers.length > 0 && (
                     <Collapse in={expandedTeams[team.adminId || "unassigned"]}>
                       <Box sx={{ mb: 2, pl: 2 }}>
@@ -646,7 +614,6 @@ const TeamAnalyticsDrawer = ({
                     </Collapse>
                   )}
 
-                  {/* Status Metrics */}
                   <Box
                     sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}
                   >
@@ -713,7 +680,6 @@ const TeamAnalyticsDrawer = ({
         )}
       </Box>
 
-      {/* Footer */}
       <Box
         sx={{
           p: 3,

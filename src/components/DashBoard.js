@@ -2762,14 +2762,16 @@ function DashBoard() {
             userId={userId}
             dateRange={dateRange} // Pass dateRange prop
           />
-          <TeamAnalyticsDrawer
-            entries={entries}
-            isOpen={isTeamAnalyticsOpen}
-            onClose={() => setIsTeamAnalyticsOpen(false)}
-            role={role} // Corrected from userRole to role
-            userId={userId}
-            dateRange={dateRange}
-          />
+          {role === "superadmin" && (
+            <TeamAnalyticsDrawer
+              entries={entries}
+              isOpen={isTeamAnalyticsOpen}
+              onClose={() => setIsTeamAnalyticsOpen(false)}
+              role={role}
+              userId={userId}
+              dateRange={dateRange}
+            />
+          )}
         </>
       )}
       {isAnalyticsModalOpen && (

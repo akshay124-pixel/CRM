@@ -2472,7 +2472,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
               setValue("remarks", pastedText, { shouldValidate: true });
             }}
             spellCheck="true"
-            placeholder="Enter remarks (copy-paste supported)"
+            placeholder="Enter remarks"
           />
           <Form.Text>{watch("remarks")?.length || 0}/500</Form.Text>
           <Form.Control.Feedback type="invalid">
