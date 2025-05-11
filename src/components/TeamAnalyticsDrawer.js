@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Drawer, Box, Typography, IconButton } from "@mui/material";
-import { FaTimes } from "react-icons/fa";
+import { Drawer, Box, Typography, IconButton, Collapse } from "@mui/material";
+import { FaTimes, FaUsers, FaChevronDown, FaChevronUp } from "react-icons/fa";
 import axios from "axios";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
@@ -16,6 +16,7 @@ const TeamAnalyticsDrawer = ({
 }) => {
   const [teamStats, setTeamStats] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [expandedTeams, setExpandedTeams] = useState({}); // Track expanded teams
 
   useEffect(() => {
     const fetchTeamStats = async () => {
@@ -40,9 +41,18 @@ const TeamAnalyticsDrawer = ({
             .map((user) => ({
               _id: user._id,
               username: user.username,
+              teamMembers: users
+                .filter(
+                  (u) => u.role === "others" && u.assignedAdmin === user._id
+                )
+                .map((u) => ({ _id: u._id, username: u.username })),
             }));
           // Include unassigned entries (no assignedAdmin)
-          relevantAdmins.push({ _id: null, username: "Unassigned" });
+          relevantAdmins.push({
+            _id: null,
+            username: "Unassigned",
+            teamMembers: [],
+          });
         } else if (role === "admin") {
           // Admins see only their own team
           relevantAdmins = [
@@ -51,12 +61,17 @@ const TeamAnalyticsDrawer = ({
               username:
                 users.find((user) => user._id === userId)?.username ||
                 "Current Admin",
+              teamMembers: users
+                .filter(
+                  (u) => u.role === "others" && u.assignedAdmin === userId
+                )
+                .map((u) => ({ _id: u._id, username: u.username })),
             },
           ];
         }
 
         const statsMap = {};
-        // Filter entries by date range
+        // Filter entries by date range and role
         const filteredEntries = entries.filter((entry) => {
           const createdAt = new Date(entry.createdAt);
           return (
@@ -84,7 +99,10 @@ const TeamAnalyticsDrawer = ({
           const creator = users.find(
             (user) => user._id === entry.createdBy?._id
           );
-          const adminId = creator?.assignedAdmin || null; // null for unassigned
+          const adminId =
+            creator?.role === "admin"
+              ? creator._id
+              : creator?.assignedAdmin || null;
           const admin = relevantAdmins.find((a) => a._id === adminId);
 
           if (admin || adminId === null) {
@@ -93,6 +111,7 @@ const TeamAnalyticsDrawer = ({
               statsMap[adminKey] = {
                 adminId: adminId,
                 adminName: admin?.username || "Unassigned",
+                teamMembers: admin?.teamMembers || [],
                 cold: 0,
                 warm: 0,
                 hot: 0,
@@ -177,6 +196,7 @@ const TeamAnalyticsDrawer = ({
         {
           Section: "Overall Statistics",
           Team: "",
+          "Team Leader": "",
           "Total Entries": overallStats.total,
           "This Month": overallStats.monthTotal,
           Hot: overallStats.hot,
@@ -189,6 +209,7 @@ const TeamAnalyticsDrawer = ({
         {
           Section: "",
           Team: "",
+          "Team Leader": "",
           "Total Entries": "",
           "This Month": "",
           Hot: "",
@@ -201,6 +222,7 @@ const TeamAnalyticsDrawer = ({
         ...teamStats.map((team) => ({
           Section: "Team Statistics",
           Team: team.adminName,
+          "Team Leader": team.adminName,
           "Total Entries": team.allTimeEntries,
           "This Month": team.monthEntries,
           Hot: team.hot,
@@ -236,6 +258,14 @@ const TeamAnalyticsDrawer = ({
       console.error("Error exporting team analytics:", error);
       toast.error("Failed to export team analytics!");
     }
+  };
+
+  // Toggle team members visibility
+  const toggleTeamMembers = (adminId) => {
+    setExpandedTeams((prev) => ({
+      ...prev,
+      [adminId]: !prev[adminId],
+    }));
   };
 
   return (
@@ -331,7 +361,7 @@ const TeamAnalyticsDrawer = ({
                 fontSize: "1.2rem",
                 fontWeight: "400",
                 fontStyle: "italic",
-                text: "center",
+                textAlign: "center",
                 background: "rgba(255, 255, 255, 0.05)",
                 borderRadius: "8px",
                 padding: "16px",
@@ -536,48 +566,96 @@ const TeamAnalyticsDrawer = ({
                   }}
                 >
                   {/* Team Header */}
-                  <Box sx={{ mb: 2 }}>
+                  <Box
+                    sx={{
+                      mb: 2,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Typography
+                        sx={{
+                          fontSize: "1.4rem",
+                          fontWeight: "600",
+                          letterSpacing: "0.4px",
+                          textTransform: "capitalize",
+                          textShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
+                        }}
+                      >
+                        {team.adminName} Team
+                      </Typography>
+                      {team.teamMembers.length > 0 && (
+                        <IconButton
+                          onClick={() =>
+                            toggleTeamMembers(team.adminId || "unassigned")
+                          }
+                          sx={{ color: "white", p: 0.5 }}
+                        >
+                          {expandedTeams[team.adminId || "unassigned"] ? (
+                            <FaChevronUp size={16} />
+                          ) : (
+                            <FaChevronDown size={16} />
+                          )}
+                        </IconButton>
+                      )}
+                    </Box>
                     <Typography
                       sx={{
-                        fontSize: "1.4rem",
+                        fontSize: "1rem",
                         fontWeight: "600",
-                        letterSpacing: "0.4px",
-                        textTransform: "capitalize",
-                        textShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
-                        mb: 1,
+                        color: "lightgreen",
+                        textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
                       }}
                     >
-                      {team.adminName} Team
+                      Total: {team.allTimeEntries}
                     </Typography>
-                    <Box sx={{ display: "flex", gap: 3 }}>
-                      <Typography
-                        sx={{
-                          fontSize: "1rem",
-                          fontWeight: "600",
-                          color: "lightgreen",
-                          textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
-                        }}
-                      >
-                        Total: {team.allTimeEntries}
-                      </Typography>
-                      <Typography
-                        sx={{
-                          fontSize: "1rem",
-                          fontWeight: "600",
-                          color: "yellow",
-                          textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
-                        }}
-                      >
-                        This Month: {team.monthEntries}
-                      </Typography>
-                    </Box>
                   </Box>
+
+                  {/* Team Members (Collapsible) */}
+                  {team.teamMembers.length > 0 && (
+                    <Collapse in={expandedTeams[team.adminId || "unassigned"]}>
+                      <Box sx={{ mb: 2, pl: 2 }}>
+                        <Typography
+                          sx={{
+                            fontSize: "1rem",
+                            fontWeight: "500",
+                            color: "rgba(255, 255, 255, 0.8)",
+                            mb: 1,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                          }}
+                        >
+                          <FaUsers /> Team Members
+                        </Typography>
+                        {team.teamMembers.map((member) => (
+                          <Typography
+                            key={member._id}
+                            sx={{
+                              fontSize: "0.9rem",
+                              color: "rgba(255, 255, 255, 0.7)",
+                              ml: 2,
+                            }}
+                          >
+                            - {member.username}
+                          </Typography>
+                        ))}
+                      </Box>
+                    </Collapse>
+                  )}
 
                   {/* Status Metrics */}
                   <Box
                     sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}
                   >
                     {[
+                      {
+                        label: "This Month",
+                        value: team.monthEntries,
+                        color: "yellow",
+                      },
                       { label: "Cold", value: team.cold, color: "orange" },
                       { label: "Warm", value: team.warm, color: "lightgreen" },
                       { label: "Hot", value: team.hot, color: "yellow" },

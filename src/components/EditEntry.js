@@ -2453,10 +2453,26 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
                   ? "Remarks are required when updating status"
                   : false,
               maxLength: { value: 500, message: "Max 500 characters" },
+              onChange: (e) => {
+                const value = e.target.value.slice(0, 500);
+                e.target.value = value;
+                return value;
+              },
             })}
             rows={3}
             isInvalid={!!errors.remarks}
             aria-label="Remarks"
+            onPaste={(e) => {
+              const pastedText = e.clipboardData.getData("text").slice(0, 500);
+              e.target.value = pastedText;
+              if (pastedText.length >= 500) {
+                toast.warn("Pasted content truncated to 500 characters.");
+              }
+
+              setValue("remarks", pastedText, { shouldValidate: true });
+            }}
+            spellCheck="true"
+            placeholder="Enter remarks (copy-paste supported)"
           />
           <Form.Text>{watch("remarks")?.length || 0}/500</Form.Text>
           <Form.Control.Feedback type="invalid">
