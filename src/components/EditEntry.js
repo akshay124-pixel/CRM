@@ -2229,7 +2229,6 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           <Controller
             name="status"
             control={control}
-            rules={{ required: "Status is required" }}
             render={({ field }) => (
               <Form.Control
                 as="select"
