@@ -2026,8 +2026,7 @@ function DashBoard() {
             display: "flex",
             flexWrap: "wrap",
             gap: 2,
-            mt: 3,
-            alignItems: "center",
+
             justifyContent: "space-between",
           }}
         >
