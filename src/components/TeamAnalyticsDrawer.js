@@ -25,6 +25,39 @@ import * as XLSX from "xlsx";
 import DOMPurify from "dompurify";
 import { FixedSizeList } from "react-window";
 
+// Mock data for testing
+const mockUsers = [
+  { _id: "user1", username: "Admin1", role: "admin", assignedAdmin: null },
+  {
+    _id: "user2",
+    username: "Member1",
+    role: "others",
+    assignedAdmin: { $oid: "user1" },
+  },
+  {
+    _id: "user3",
+    username: "Member2",
+    role: "others",
+    assignedAdmin: { $oid: "user1" },
+  },
+];
+const mockEntries = [
+  {
+    _id: "1",
+    createdBy: { _id: "user1" },
+    createdAt: new Date().toISOString(),
+    status: "Interested",
+    closetype: "",
+  },
+  {
+    _id: "2",
+    createdBy: { _id: "user2" },
+    createdAt: new Date().toISOString(),
+    status: "Closed",
+    closetype: "Closed Won",
+  },
+];
+
 // Custom hook for cached API calls
 const useCachedApi = (url, token) => {
   const [data, setData] = useState(null);
@@ -33,6 +66,13 @@ const useCachedApi = (url, token) => {
   const [retryCount, setRetryCount] = useState(0);
 
   const fetchData = useCallback(async () => {
+    // Skip API calls during static build
+    if (process.env.NODE_ENV === "production" && !process.env.VERCEL_DEV) {
+      setData(mockUsers); // Use mock data during build
+      setLoading(false);
+      return;
+    }
+
     if (!token) {
       setError("No authentication token found");
       return;
@@ -103,16 +143,17 @@ const StatCard = ({ label, value, color }) => (
 );
 
 const TeamAnalyticsDrawer = ({
-  entries,
-  isOpen,
-  onClose,
-  role,
-  userId,
-  dateRange,
+  entries = [],
+  isOpen = false,
+  onClose = () => {},
+  role = "",
+  userId = "",
+  dateRange = [{ startDate: null, endDate: null }],
 }) => {
   const [teamStats, setTeamStats] = useState([]);
   const [expandedTeams, setExpandedTeams] = useState({});
   const [showZeroEntries, setShowZeroEntries] = useState(true);
+  const [useMockData, setUseMockData] = useState(false);
 
   // API hook
   const {
@@ -125,16 +166,41 @@ const TeamAnalyticsDrawer = ({
     localStorage.getItem("token")
   );
 
+  // Debug logging (disabled in production)
+  const debugLog = (...args) => {
+    if (process.env.NODE_ENV !== "production") {
+      console.log(...args);
+    }
+  };
+
   // Calculate team stats
   const teamStatsMemo = useMemo(() => {
-    if (role !== "superadmin" || !users || !Array.isArray(users)) return [];
+    debugLog("Computing teamStats", {
+      users: users?.length,
+      entries: entries.length,
+      role,
+    });
 
-    const admins = users
+    if (role !== "superadmin") {
+      debugLog("Role is not superadmin", role);
+      return [];
+    }
+
+    const effectiveUsers = useMockData ? mockUsers : users || [];
+    const effectiveEntries = useMockData ? mockEntries : entries || [];
+
+    if (!Array.isArray(effectiveUsers) || effectiveUsers.length === 0) {
+      debugLog("No valid users data");
+      return [];
+    }
+
+    // Filter admins, fallback to all users if no admins
+    let admins = effectiveUsers
       .filter((user) => user.role === "admin")
       .map((admin) => ({
         _id: admin._id,
         username: DOMPurify.sanitize(admin.username),
-        teamMembers: users
+        teamMembers: effectiveUsers
           .filter(
             (u) =>
               u.role === "others" &&
@@ -148,8 +214,20 @@ const TeamAnalyticsDrawer = ({
           })),
       }));
 
+    // Fallback: If no admins, treat all users as pseudo-admins for display
+    if (admins.length === 0) {
+      debugLog("No admins found, using all users as pseudo-admins");
+      admins = effectiveUsers.map((user) => ({
+        _id: user._id,
+        username: DOMPurify.sanitize(user.username),
+        teamMembers: [],
+      }));
+    }
+
+    debugLog("Admins", admins);
+
     const statsMap = {};
-    const filteredEntries = entries.filter((entry) => {
+    const filteredEntries = effectiveEntries.filter((entry) => {
       const createdAt = new Date(entry.createdAt);
       return (
         !dateRange[0]?.startDate ||
@@ -159,13 +237,20 @@ const TeamAnalyticsDrawer = ({
       );
     });
 
+    debugLog("Filtered entries", filteredEntries.length);
+
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
     filteredEntries.forEach((entry) => {
-      const creator = users.find((user) => user._id === entry.createdBy?._id);
-      if (!creator) return;
+      const creator = effectiveUsers.find(
+        (user) => user._id === entry.createdBy?._id
+      );
+      if (!creator) {
+        debugLog("Creator not found for entry", entry._id);
+        return;
+      }
 
       const adminId =
         creator.role === "admin"
@@ -175,15 +260,15 @@ const TeamAnalyticsDrawer = ({
           : creator.assignedAdmin?.$oid;
       const admin = admins.find((a) => a._id === adminId);
 
-      if (admin) {
-        const adminKey = adminId;
+      if (admin || creator.role !== "others") {
+        const adminKey = adminId || creator._id; // Fallback to creator._id if no admin
         if (!statsMap[adminKey]) {
           statsMap[adminKey] = {
-            adminId,
-            adminName: admin.username,
-            teamMembers: admin.teamMembers,
+            adminId: adminKey,
+            adminName: admin ? admin.username : creator.username,
+            teamMembers: admin ? admin.teamMembers : [],
             adminAnalytics: {
-              username: admin.username,
+              username: admin ? admin.username : creator.username,
               allTimeEntries: 0,
               monthEntries: 0,
               cold: 0,
@@ -210,7 +295,7 @@ const TeamAnalyticsDrawer = ({
         const memberName = creator.username;
         let targetAnalytics;
 
-        if (creator.role === "admin") {
+        if (creator.role === "admin" || !admin) {
           targetAnalytics = statsMap[adminKey].adminAnalytics;
         } else {
           if (!statsMap[adminKey].membersAnalytics[memberId]) {
@@ -268,7 +353,7 @@ const TeamAnalyticsDrawer = ({
       }
     });
 
-    return admins.map((admin) => ({
+    const finalStats = admins.map((admin) => ({
       adminId: admin._id,
       adminName: admin.username,
       teamMembers: admin.teamMembers,
@@ -296,7 +381,10 @@ const TeamAnalyticsDrawer = ({
         closedLost: 0,
       },
     }));
-  }, [users, entries, role, dateRange]);
+
+    debugLog("Final stats", finalStats);
+    return finalStats;
+  }, [users, entries, role, dateRange, useMockData]);
 
   useEffect(() => {
     if (isOpen && role === "superadmin") {
@@ -595,28 +683,69 @@ const TeamAnalyticsDrawer = ({
             </Button>
           </Box>
         ) : !users || users.length === 0 ? (
-          <Typography
+          <Box
             sx={{
-              color: "rgba(255, 255, 255, 0.7)",
-              fontSize: "1.2rem",
-              textAlign: "center",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 2,
               py: 4,
             }}
           >
-            No user data available. Please check the API or contact support.
-          </Typography>
+            <Typography
+              sx={{
+                color: "rgba(255, 255, 255, 0.7)",
+                fontSize: "1.2rem",
+                textAlign: "center",
+              }}
+            >
+              No user data available. Please check the API endpoint (
+              {process.env.REACT_APP_API_URL}/api/users) or contact support.
+            </Typography>
+            {process.env.NODE_ENV !== "production" && (
+              <Button
+                onClick={() => setUseMockData(true)}
+                variant="contained"
+                sx={{ backgroundColor: "#34d399" }}
+              >
+                Use Mock Data
+              </Button>
+            )}
+          </Box>
         ) : teamStats.length === 0 ? (
-          <Typography
+          <Box
             sx={{
-              color: "rgba(255, 255, 255, 0.7)",
-              fontSize: "1.2rem",
-              textAlign: "center",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 2,
               py: 4,
             }}
           >
-            No team data available. Ensure admins are assigned and entries
-            exist.
-          </Typography>
+            <Typography
+              sx={{
+                color: "rgba(255, 255, 255, 0.7)",
+                fontSize: "1.2rem",
+                textAlign: "center",
+              }}
+            >
+              No team data available. Ensure users with 'admin' role exist and
+              entries are created.
+              <br />
+              Users found: {users.length}. Entries found: {entries.length}.
+              <br />
+              Check the API or assign users to admins in the system.
+            </Typography>
+            {process.env.NODE_ENV !== "production" && (
+              <Button
+                onClick={() => setUseMockData(true)}
+                variant="contained"
+                sx={{ backgroundColor: "#34d399" }}
+              >
+                Use Mock Data
+              </Button>
+            )}
+          </Box>
         ) : (
           <>
             <Box sx={{ mb: 4 }}>
@@ -725,6 +854,20 @@ const TeamAnalyticsDrawer = ({
               label="Show Zero-Entry Members"
               sx={{ mb: 2, color: "rgba(255, 255, 255, 0.9)" }}
             />
+
+            {process.env.NODE_ENV !== "production" && (
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={useMockData}
+                    onChange={() => setUseMockData((prev) => !prev)}
+                    color="primary"
+                  />
+                }
+                label="Use Mock Data"
+                sx={{ mb: 2, color: "rgba(255, 255, 255, 0.9)" }}
+              />
+            )}
 
             {teamStats.map((team, index) => (
               <Box key={team.adminId} sx={{ mb: 3 }}>
