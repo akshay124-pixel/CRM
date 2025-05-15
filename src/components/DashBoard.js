@@ -100,15 +100,6 @@ const ActionButton = ({
   );
 };
 
-// Logout handler
-const handleLogout = (navigate) => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("userId");
-  localStorage.removeItem("role");
-  localStorage.removeItem("user");
-  navigate("/login");
-};
-
 // Call Tracking Dashboard Component
 const CallTrackingDashboard = ({
   entries,
@@ -2035,7 +2026,7 @@ function DashBoard() {
             display: "flex",
             flexWrap: "wrap",
             gap: 2,
-
+            mt: 3,
             alignItems: "center",
             justifyContent: "space-between",
           }}
@@ -2264,12 +2255,6 @@ function DashBoard() {
               ariaLabel="View attendance"
             />
           )}
-          <ActionButton
-            onClick={() => handleLogout(navigate)}
-            icon={<FaSignOutAlt />}
-            label="Logout"
-            ariaLabel="Log out"
-          />
         </Box>
 
         {/* Selection Actions */}
