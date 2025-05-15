@@ -4,10 +4,10 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "../App.css";
 import { DateRangePicker } from "react-date-range";
 import "react-date-range/dist/styles.css";
-import TeamAnalyticsDrawer from "./TeamAnalyticsDrawer.js";
 import "react-date-range/dist/theme/default.css";
-import { useNavigate } from "react-router-dom";
+import TeamAnalyticsDrawer from "./TeamAnalyticsDrawer.js";
 import { jwtDecode } from "jwt-decode";
+import { useNavigate } from "react-router-dom";
 import {
   Popover,
   Typography,
@@ -27,7 +27,7 @@ import {
   FaUpload,
   FaUsers,
   FaChartBar,
-  FaCheckCircle, // Added for selection feedback
+  FaCheckCircle,
 } from "react-icons/fa";
 import axios from "axios";
 import * as XLSX from "xlsx";
@@ -42,7 +42,7 @@ import ViewEntry from "./ViewEntry";
 import TeamBuilder from "./TeamBuilder";
 import AdminDrawer from "./AdminDrawer";
 import ValueAnalyticsDrawer from "./ValueAnalyticsDrawer.js";
-import { FixedSizeList } from "react-window"; // Added for mobile virtualization
+import { FixedSizeList } from "react-window";
 
 // Custom hook for mobile detection
 const useIsMobile = () => {
@@ -69,8 +69,6 @@ const CallTrackingDashboard = ({
 }) => {
   const callStats = useMemo(() => {
     const stats = { cold: 0, warm: 0, hot: 0, closedWon: 0, closedLost: 0 };
-
-    // Apply role/userId and selectedUsername filters in one step
     const filteredEntries = entries.filter(
       (entry) =>
         (role === "superadmin" ||
@@ -102,6 +100,7 @@ const CallTrackingDashboard = ({
     });
     return stats;
   }, [entries, role, userId, selectedUsername]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -20 }}
@@ -235,9 +234,10 @@ function DashBoard() {
   const [isTeamBuilderOpen, setIsTeamBuilderOpen] = useState(false);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [isValueAnalyticsOpen, setIsValueAnalyticsOpen] = useState(false);
+  const [isTeamAnalyticsOpen, setIsTeamAnalyticsOpen] = useState(false);
+  const [isAnalyticsModalOpen, setIsAnalyticsModalOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [entryToEdit, setEntryToEdit] = useState(null);
-  const [totalVisits, setTotalVisits] = useState(0);
-  const [monthlyVisits, setMonthlyVisits] = useState(0);
   const [entryToView, setEntryToView] = useState(null);
   const [itemIdToDelete, setItemIdToDelete] = useState(null);
   const [itemIdsToDelete, setItemIdsToDelete] = useState([]);
@@ -246,25 +246,26 @@ function DashBoard() {
   const [usernames, setUsernames] = useState([]);
   const [selectedState, setSelectedState] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
-  const [isAnalyticsModalOpen, setIsAnalyticsModalOpen] = useState(false);
   const [dashboardFilter, setDashboardFilter] = useState("total");
-  const [isTeamAnalyticsOpen, setIsTeamAnalyticsOpen] = useState(false);
   const [dateRange, setDateRange] = useState([
     { startDate: null, endDate: null, key: "selection" },
   ]);
   const [selectedEntries, setSelectedEntries] = useState([]);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [doubleClickInitiated, setDoubleClickInitiated] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [totalVisits, setTotalVisits] = useState(0);
+  const [monthlyVisits, setMonthlyVisits] = useState(0);
+
+  // Placeholder for states and cities (replace with actual data)
+  const statesAndCities = {
+    // Example: { "State1": ["City1", "City2"], "State2": ["City3", "City4"] }
+  };
 
   const debouncedSearchChange = useMemo(
     () => debounce((value) => setSearchTerm(value), 300),
     []
   );
-
-  // Placeholder for states and cities (replace with actual data)
-  const statesAndCities = {};
 
   const fetchUserDetails = useCallback(async () => {
     try {
@@ -289,42 +290,12 @@ function DashBoard() {
       setError("Session verification failed. Please log in again.");
       toast.error("Session verification failed. Please log in again.");
       localStorage.clear();
+      navigate("/login");
     } finally {
       setAuthLoading(false);
     }
-  }, []);
-  const [filters, setFilters] = useState({
-    customerName: "",
-    mobileNumber: "",
-    status: "",
-    category: "",
-    state: "",
-    city: "",
-    type: "",
-    fromDate: null,
-    toDate: null,
-  });
-  // Update filters when searchTerm, selectedState, selectedCity, selectedUsername, dashboardFilter, or dateRange change
-  useEffect(() => {
-    setFilters({
-      customerName: searchTerm,
-      mobileNumber: searchTerm,
-      status: dashboardFilter === "total" ? "" : dashboardFilter,
-      category: "",
-      state: selectedState,
-      city: selectedCity,
-      type: "",
-      fromDate: dateRange[0].startDate,
-      toDate: dateRange[0].endDate,
-    });
-  }, [
-    searchTerm,
-    selectedState,
-    selectedCity,
-    selectedUsername,
-    dashboardFilter,
-    dateRange,
-  ]);
+  }, [navigate]);
+
   const fetchEntries = useCallback(async () => {
     setLoading(true);
     try {
@@ -365,7 +336,6 @@ function DashBoard() {
     if (!authLoading && role && userId) fetchEntries();
   }, [authLoading, role, userId, fetchEntries]);
 
-  // Update filteredData useMemo
   const filteredData = useMemo(() => {
     return entries
       .filter((row) => {
@@ -501,10 +471,8 @@ function DashBoard() {
     setDateRange([{ startDate: null, endDate: null, key: "selection" }]);
   };
 
-  // Modified handleExport to export filtered data using filteredData instead of server fetch
   const handleExport = async () => {
     try {
-      // Prepare data for export using filteredData
       const exportData = filteredData.map((entry) => ({
         Customer_Name: entry.customerName || "",
         Mobile_Number: entry.mobileNumber || "",
@@ -545,24 +513,21 @@ function DashBoard() {
         Fourth_Person_Met: entry.fourthPersonMeet || "",
       }));
 
-      // Create worksheet from filtered data
       const worksheet = XLSX.utils.json_to_sheet(exportData);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Filtered Entries");
 
-      // Generate Excel file as a buffer
       const excelBuffer = XLSX.write(workbook, {
         bookType: "xlsx",
         type: "array",
       });
 
-      // Create Blob and trigger download
       const blob = new Blob([excelBuffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = "DataSet.xlsx"; // Updated filename to reflect filtered data
+      link.download = "Filtered_Entries.xlsx";
       link.click();
       URL.revokeObjectURL(link.href);
       toast.success("Filtered entries exported successfully!");
@@ -581,7 +546,6 @@ function DashBoard() {
 
     const token = localStorage.getItem("token");
     if (!token) {
-      console.error("No authentication token found in localStorage");
       toast.error("Please log in to upload entries!");
       return;
     }
@@ -646,50 +610,33 @@ function DashBoard() {
           fourthPersonMeet: item.Fourth_Person_Met?.trim() || "",
         }));
 
-        console.log(
-          "Uploading entries with token:",
-          token.substring(0, 10) + "..."
-        );
-        console.log("Entries to upload:", newEntries);
-
-        try {
-          const response = await axios.post(
-            "https://crm-server-amz7.onrender.com/api/entries",
-            newEntries,
-            {
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
-
-          if (response.status === 200 || response.status === 201) {
-            setEntries((prev) => [...newEntries, ...prev]);
-            toast.success("Entries uploaded successfully!");
-            fetchEntries();
+        const response = await axios.post(
+          "https://crm-server-amz7.onrender.com/api/entries",
+          newEntries,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
           }
-        } catch (apiError) {
-          console.error(
-            "API error:",
-            apiError.response?.data || apiError.message
-          );
-          const errorMessage =
-            apiError.response?.data?.message ||
-            "Failed to upload entries. Please check your login status.";
-          toast.error(errorMessage);
+        );
+
+        if (response.status === 200 || response.status === 201) {
+          setEntries((prev) => [...newEntries, ...prev]);
+          toast.success("Entries uploaded successfully!");
+          fetchEntries();
         }
       } catch (error) {
-        console.error("File parsing error:", error.message);
-        toast.error("Error parsing the Excel file!");
+        console.error("File parsing or API error:", error.message);
+        toast.error("Failed to upload entries!");
       }
     };
     reader.onerror = () => {
-      console.error("File reader error");
       toast.error("Error reading the file!");
     };
     reader.readAsArrayBuffer(file);
   };
+
   const handleDoubleClick = (id) => {
     if (!doubleClickInitiated && (role === "superadmin" || role === "admin")) {
       setIsSelectionMode(true);
@@ -714,73 +661,7 @@ function DashBoard() {
       setSelectedEntries(allFilteredIds);
     }
   };
-  // Memoize visits calculation to prevent unnecessary recalculations
-  const { total, monthly } = useMemo(() => {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
 
-    const total = entries.reduce((sum, entry) => {
-      return sum + (entry.history?.length || 0); // Only count history items
-    }, 0);
-
-    const monthly = entries.reduce((sum, entry) => {
-      const entryDate = new Date(entry.createdAt);
-      const entryMonth = entryDate.getMonth();
-      const entryYear = entryDate.getFullYear();
-
-      // Only include entries from the current month
-      if (entryMonth === currentMonth && entryYear === currentYear) {
-        return sum + (entry.history?.length || 0); // Only count history items
-      }
-      return sum;
-    }, 0);
-
-    return { total, monthly };
-  }, [entries]);
-
-  // Update visits state when memoized values change
-  useEffect(() => {
-    console.log("Total Visits:", total, "Monthly Visits:", monthly); // Debug log
-    setTotalVisits(total);
-    setMonthlyVisits(monthly);
-  }, [total, monthly]);
-
-  // Fetch entries without entries in dependencies
-  useEffect(() => {
-    if (!authLoading && role && userId) {
-      fetchEntries();
-    }
-  }, [authLoading, role, userId, fetchEntries]);
-
-  // Reset monthly visits at the start of a new month
-  useEffect(() => {
-    const checkMonthChange = () => {
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-
-      const monthly = entries.reduce((sum, entry) => {
-        const entryDate = new Date(entry.createdAt);
-        const entryMonth = entryDate.getMonth();
-        const entryYear = entryDate.getFullYear();
-
-        // Only include entries from the current month
-        if (entryMonth === currentMonth && entryYear === currentYear) {
-          return sum + (entry.history?.length || 0); // Only count history items
-        }
-        return sum;
-      }, 0);
-
-      console.log("Monthly Visits (reset check):", monthly); // Debug log
-      setMonthlyVisits(monthly);
-    };
-
-    // Check every minute for a month change
-    const interval = setInterval(checkMonthChange, 60000);
-    return () => clearInterval(interval);
-  }, [entries]);
-  //Ends Here
   const handleCopySelected = () => {
     const selectedData = entries.filter((entry) =>
       selectedEntries.includes(entry._id)
@@ -825,6 +706,58 @@ function DashBoard() {
     setIsDeleteModalOpen(true);
   }, [selectedEntries]);
 
+  const { total, monthly } = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const total = entries.reduce((sum, entry) => {
+      return sum + (entry.history?.length || 0);
+    }, 0);
+
+    const monthly = entries.reduce((sum, entry) => {
+      const entryDate = new Date(entry.createdAt);
+      const entryMonth = entryDate.getMonth();
+      const entryYear = entryDate.getFullYear();
+
+      if (entryMonth === currentMonth && entryYear === currentYear) {
+        return sum + (entry.history?.length || 0);
+      }
+      return sum;
+    }, 0);
+
+    return { total, monthly };
+  }, [entries]);
+
+  useEffect(() => {
+    setTotalVisits(total);
+    setMonthlyVisits(monthly);
+  }, [total, monthly]);
+
+  useEffect(() => {
+    const checkMonthChange = () => {
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      const monthly = entries.reduce((sum, entry) => {
+        const entryDate = new Date(entry.createdAt);
+        const entryMonth = entryDate.getMonth();
+        const entryYear = entryDate.getFullYear();
+
+        if (entryMonth === currentMonth && entryYear === currentYear) {
+          return sum + (entry.history?.length || 0);
+        }
+        return sum;
+      }, 0);
+
+      setMonthlyVisits(monthly);
+    };
+
+    const interval = setInterval(checkMonthChange, 60000);
+    return () => clearInterval(interval);
+  }, [entries]);
+
   const rowRenderer = ({ index, key, style }) => {
     const row = filteredData[index];
     const isSelected = selectedEntries.includes(row._id);
@@ -842,7 +775,6 @@ function DashBoard() {
             ? new Date(row.createdAt).toLocaleDateString("en-GB")
             : "N/A"}
         </div>
-
         <div className="virtual-cell">{row.customerName}</div>
         <div className="virtual-cell">{row.mobileNumber}</div>
         <div className="virtual-cell">{row.address}</div>
@@ -850,7 +782,6 @@ function DashBoard() {
         <div className="virtual-cell">{row.state}</div>
         <div className="virtual-cell">{row.organization}</div>
         <div className="virtual-cell">{row.createdBy?.username}</div>
-
         <div
           className="virtual-cell actions-cell"
           style={{
@@ -870,11 +801,14 @@ function DashBoard() {
             style={{
               width: "40px",
               height: "40px",
-              borderRadius: "22px",
+              borderRadius: "50%",
               padding: "0",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            <FaEye style={{ marginBottom: "3px" }} />
+            <FaEye />
           </Button>
           <button
             onClick={() => {
@@ -882,7 +816,15 @@ function DashBoard() {
               setIsEditModalOpen(true);
             }}
             className="editBtn"
-            style={{ width: "40px", height: "40px", padding: "0" }}
+            style={{
+              width: "40px",
+              height: "40px",
+              borderRadius: "50%",
+              padding: "0",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
           >
             <svg height="1em" viewBox="0 0 512 512">
               <path d="M410.3 231l11.3-11.3-33.9-33.9-62.1-62.1L291.7 89.8l-11.3 11.3-22.6 22.6L58.6 322.9c-10.4 10.4-18 23.3-22.2 37.4L1 480.7c-2.5 8.4-.2 17.5 6.1 23.7s15.3 8.5 23.7 6.1l120.3-35.4c14.1-4.2 27-11.8 37.4-22.2L387.7 253.7 410.3 231zM160 399.4l-9.1 22.7c-4 3.1-8.5 5.4-13.3 6.9L59.4 452l23-78.1c1.4-4.9 3.8-9.4 6.9-13.3l22.7-9.1v32c0 8.8 7.2 16 16 16h32zM362.7 18.7L348.3 33.2 325.7 55.8 314.3 67.1l33.9 33.9 62.1 62.1 33.9 33.9 11.3-11.3 22.6-22.6 14.5-14.5c25-25 25-65.5 0-90.5L453.3 18.7c-25-25-65.5-25-90.5 0zm-47.4 168l-144 144c-6.2 6.2-16.4-6.2-22.6 0s-6.2 16.4 0 22.6l144-144c6.2-6.2 16.4-6.2 22.6 0s6.2 16.4 0 22.6z"></path>
@@ -894,7 +836,15 @@ function DashBoard() {
               setItemIdToDelete(row._id);
               setIsDeleteModalOpen(true);
             }}
-            style={{ width: "40px", height: "40px", padding: "0" }}
+            style={{
+              width: "40px",
+              height: "40px",
+              borderRadius: "50%",
+              padding: "0",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
           >
             <svg
               className="bin-top"
@@ -945,8 +895,8 @@ function DashBoard() {
         onClick={() => handleSingleClick(row._id)}
         onDoubleClick={() => handleDoubleClick(row._id)}
         style={{
-          ...style, // For react-window virtualization
-          padding: "0 10px 24px 10px", // 24px gap between cards
+          ...style,
+          padding: "0 10px 24px 10px",
           boxSizing: "border-box",
         }}
         initial={{ opacity: 0, scale: 0.95 }}
@@ -956,7 +906,6 @@ function DashBoard() {
         <Box
           sx={{
             p: 2,
-
             borderRadius: "12px",
             boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
             backgroundColor: isSelected ? "rgba(37, 117, 252, 0.1)" : "#fff",
@@ -967,7 +916,6 @@ function DashBoard() {
             overflow: "hidden",
           }}
         >
-          {/* Card Header with Entry Number and Date */}
           <Box
             sx={{
               display: "flex",
@@ -995,7 +943,6 @@ function DashBoard() {
             </Typography>
           </Box>
 
-          {/* Selection Checkmark */}
           {isSelected && (
             <motion.div
               initial={{ opacity: 0, scale: 0 }}
@@ -1012,17 +959,16 @@ function DashBoard() {
             </motion.div>
           )}
 
-          {/* Card Content */}
           <Typography
             variant="h6"
             sx={{
               fontWeight: "bold",
               mb: 1,
               fontSize: "1.1rem",
-              whiteSpace: "nowrap", // Prevents text wrapping
-              overflow: "hidden", // Hides overflow content
-              textOverflow: "ellipsis", // Adds ellipsis for truncated text
-              maxWidth: "100%", // Ensures it respects parent container's width
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              maxWidth: "100%",
             }}
           >
             {row.customerName}
@@ -1064,7 +1010,6 @@ function DashBoard() {
             <strong>Category:</strong> {row.category}
           </Typography>
 
-          {/* Action Buttons */}
           <Box
             sx={{
               display: "flex",
@@ -1084,14 +1029,17 @@ function DashBoard() {
               style={{
                 width: "40px",
                 height: "40px",
-                borderRadius: "22px",
+                borderRadius: "50%",
                 padding: "0",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               }}
               role="button"
               tabIndex={0}
               aria-label={`View entry for ${row.customerName}`}
             >
-              <FaEye style={{ marginBottom: "3px" }} />
+              <FaEye />
             </Button>
             <button
               className="editBtn"
@@ -1099,7 +1047,15 @@ function DashBoard() {
                 setEntryToEdit(row);
                 setIsEditModalOpen(true);
               }}
-              style={{ width: "40px", height: "40px", padding: "0" }}
+              style={{
+                width: "40px",
+                height: "40px",
+                borderRadius: "50%",
+                padding: "0",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
               role="button"
               tabIndex={0}
               aria-label={`Edit entry for ${row.customerName}`}
@@ -1114,7 +1070,15 @@ function DashBoard() {
                 setItemIdToDelete(row._id);
                 setIsDeleteModalOpen(true);
               }}
-              style={{ width: "40px", height: "40px", padding: "0" }}
+              style={{
+                width: "40px",
+                height: "40px",
+                borderRadius: "50%",
+                padding: "0",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
               role="button"
               tabIndex={0}
               aria-label={`Delete entry for ${row.customerName}`}
@@ -1181,6 +1145,7 @@ function DashBoard() {
     justifyContent: "center",
     gap: "8px",
   };
+
   if (authLoading) {
     return (
       <div
@@ -1189,6 +1154,7 @@ function DashBoard() {
           justifyContent: "center",
           alignItems: "center",
           height: "100vh",
+          backgroundColor: "#f5f7fa",
         }}
       >
         <div className="loading-wave">
@@ -1201,7 +1167,22 @@ function DashBoard() {
     );
   }
 
-  if (error) return <Typography color="error">{error}</Typography>;
+  if (error) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+        }}
+      >
+        <Typography color="error" variant="h6">
+          {error}
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <>
@@ -1336,295 +1317,157 @@ function DashBoard() {
         </button>
       </div>
 
-      <div
-        className="dashboard-container"
-        style={{
-          width: isMobile ? "100%" : "90%",
-          margin: "auto",
-          padding: isMobile ? "10px" : "20px",
-        }}
-      >
-        <CallTrackingDashboard
-          entries={entries}
-          role={role}
-          onFilterChange={setDashboardFilter}
-          selectedCategory={dashboardFilter}
-          userId={userId}
-          selectedUsername={selectedUsername}
-        />
-        <div style={{ textAlign: "center", margin: isMobile ? "10px 0" : "0" }}>
-          <label
-            className="action-button"
-            style={{
-              padding: isMobile ? "10px 15px" : "12px 20px",
-              background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-              color: "white",
-              borderRadius: "12px",
-              margin: isMobile ? "5px" : "0 10px",
-              cursor: "pointer",
-              fontWeight: "bold",
-              border: "none",
-              fontSize: isMobile ? "0.9rem" : "1rem",
-              boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
-              transition: "transform 0.2s ease, box-shadow 0.2s ease",
-              display: "inline-block",
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.transform = "translateY(-2px)";
-              e.target.style.boxShadow = "0px 6px 12px rgba(0, 0, 0, 0.2)";
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.transform = "translateY(0)";
-              e.target.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.1)";
+      <Box sx={{ minHeight: "100vh", pb: 10 }}>
+        {/* Dashboard Content */}
+        <Box
+          sx={{
+            maxWidth: isMobile ? "100%" : "90%",
+            mx: "auto",
+            p: isMobile ? 2 : 3,
+          }}
+        >
+          <CallTrackingDashboard
+            entries={entries}
+            role={role}
+            onFilterChange={setDashboardFilter}
+            selectedCategory={dashboardFilter}
+            userId={userId}
+            selectedUsername={selectedUsername}
+          />
+
+          {/* Action Buttons */}
+          <Box
+            sx={{
+              textAlign: "center",
+              my: 3,
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 2,
+              justifyContent: "center",
             }}
           >
-            <FaUpload style={{ marginRight: "8px", verticalAlign: "middle" }} />
-            Bulk Upload via Excel
-            <input
-              type="file"
-              onChange={handleFileUpload}
-              accept=".xlsx, .xls"
-              style={{ display: "none" }}
-            />
-          </label>
-          <button
-            className="action-button"
-            onClick={() => setIsAddModalOpen(true)}
-            style={{
-              padding: isMobile ? "10px 15px" : "12px 20px",
-              background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-              color: "white",
-              borderRadius: "12px",
-              cursor: "pointer",
-              fontWeight: "bold",
-              border: "none",
-              fontSize: isMobile ? "0.9rem" : "1rem",
-              boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
-              transition: "transform 0.2s ease, box-shadow 0.2s ease",
-              margin: isMobile ? "5px" : "0 10px",
-              display: "inline-block",
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.transform = "translateY(-2px)";
-              e.target.style.boxShadow = "0px 6px 12px rgba(0, 0, 0, 0.2)";
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.transform = "translateY(0)";
-              e.target.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.1)";
-            }}
-          >
-            <FaPlus style={{ marginRight: "8px", verticalAlign: "middle" }} />
-            Add New Entry
-          </button>
-          {(role === "superadmin" || role === "admin") && (
-            <>
-              <button
-                className="action-button"
-                onClick={() => setIsTeamBuilderOpen(true)}
-                style={{
-                  padding: isMobile ? "10px 15px" : "12px 20px",
-                  background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-                  color: "white",
-                  borderRadius: "12px",
-                  cursor: "pointer",
-                  fontWeight: "bold",
-                  border: "none",
-                  fontSize: isMobile ? "0.9rem" : "1rem",
-                  boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
-                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                  margin: isMobile ? "5px" : "0 10px",
-                  display: "inline-block",
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = "translateY(-2px)";
-                  e.target.style.boxShadow = "0px 6px 12px rgba(0, 0, 0, 0.2)";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = "translateY(0)";
-                  e.target.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.1)";
-                }}
-              >
-                <FaUsers style={{ marginRight: "8px" }} />
-                Team Builder
-              </button>
-              <button
-                className="action-button"
-                onClick={() => setIsAnalyticsModalOpen(true)}
-                style={{
-                  padding: isMobile ? "10px 15px" : "12px 20px",
-                  background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-                  color: "white",
-                  borderRadius: "12px",
-                  cursor: "pointer",
-                  fontWeight: "bold",
-                  border: "none",
-                  fontSize: isMobile ? "0.9rem" : "1rem",
-                  boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
-                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                  margin: isMobile ? "5px" : "0 10px",
-                  display: "inline-block",
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = "translateY(-2px)";
-                  e.target.style.boxShadow = "0px 6px 12px rgba(0, 0, 0, 0.2)";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = "translateY(0)";
-                  e.target.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.1)";
-                }}
-              >
-                <FaChartBar style={{ marginRight: "8px" }} />
-                Analytics
-              </button>
-              {(role === "superadmin" || role === "admin") && (
-                <button
-                  onClick={() => setIsDrawerOpen(true)}
+            <motion.label
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              style={actionButtonStyle}
+            >
+              <FaUpload size={16} />
+              Bulk Upload
+              <input
+                type="file"
+                onChange={handleFileUpload}
+                accept=".xlsx, .xls"
+                style={{ display: "none" }}
+              />
+            </motion.label>
+            <motion.button
+              onClick={() => setIsAddModalOpen(true)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              style={actionButtonStyle}
+            >
+              <FaPlus size={16} />
+              Add New Entry
+            </motion.button>
+            {(role === "superadmin" || role === "admin") && (
+              <>
+                <motion.button
+                  onClick={() => setIsTeamBuilderOpen(true)}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   style={actionButtonStyle}
                 >
-                  <FaClock size={16} />
-                  Attendance
-                </button>
-              )}
-              <button
-                className="action-button"
-                onClick={handleExport}
-                style={{
-                  padding: isMobile ? "10px 15px" : "12px 20px",
-                  background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-                  color: "white",
-                  borderRadius: "12px",
-                  cursor: "pointer",
-                  fontWeight: "bold",
-                  border: "none",
-                  fontSize: isMobile ? "0.9rem" : "1rem",
-                  boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
-                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                  margin: isMobile ? "5px" : "0 10px",
-                  display: "inline-block",
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = "translateY(-2px)";
-                  e.target.style.boxShadow = "0px 6px 12px rgba(0, 0, 0, 0.2)";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = "translateY(0)";
-                  e.target.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.1)";
-                }}
-              >
-                <FaFileExcel
-                  style={{ marginRight: "8px", verticalAlign: "middle" }}
-                />
-                Export To Excel
-              </button>
-            </>
-          )}
+                  <FaUsers size={16} />
+                  Team Builder
+                </motion.button>
+                <motion.button
+                  onClick={() => setIsAnalyticsModalOpen(true)}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  style={actionButtonStyle}
+                >
+                  <FaChartBar size={16} />
+                  Analytics
+                </motion.button>
+                <motion.button
+                  onClick={handleExport}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  style={actionButtonStyle}
+                >
+                  <FaFileExcel size={16} />
+                  Export to Excel
+                </motion.button>
+                {(role === "superadmin" || role === "admin") && (
+                  <motion.button
+                    onClick={() => setIsDrawerOpen(true)}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    style={actionButtonStyle}
+                  >
+                    <FaClock size={16} />
+                    Attendance
+                  </motion.button>
+                )}
+              </>
+            )}
+          </Box>
+
+          {/* Selection Controls */}
           {(role === "superadmin" || role === "admin") &&
             filteredData.length > 0 && (
-              <div
-                style={{
-                  marginTop: "10px",
-                  marginLeft: isMobile ? "0" : "50px",
-                  display: isMobile ? "flex" : "block",
-                  flexWrap: isMobile ? "wrap" : "none",
-                  justifyContent: isMobile ? "center" : "flex-start",
+              <Box
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 2,
+                  justifyContent: "center",
+                  my: 2,
                 }}
               >
                 {isSelectionMode && (
-                  <Button
-                    variant="info"
-                    className="select mx-3"
+                  <motion.button
                     onClick={handleSelectAll}
-                    style={{
-                      margin: isMobile ? "5px" : "0 10px 0 0",
-                      background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-                      border: "none",
-                      color: "white",
-                      padding: isMobile ? "8px 15px" : "10px 20px",
-                      borderRadius: "12px",
-                      fontWeight: "bold",
-                      boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
-                      transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.transform = "translateY(-2px)";
-                      e.target.style.boxShadow =
-                        "0px 6px 12px rgba(0, 0, 0, 0.2)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.transform = "translateY(0)";
-                      e.target.style.boxShadow =
-                        "0px 4px 6px rgba(0, 0, 0, 0.1)";
-                    }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    style={actionButtonStyle}
                   >
                     Select All
-                  </Button>
+                  </motion.button>
                 )}
                 {selectedEntries.length > 0 && (
                   <>
-                    <Button
-                      variant="primary"
+                    <motion.button
                       onClick={handleCopySelected}
-                      style={{
-                        margin: isMobile ? "5px" : "0 10px 0 0",
-                        background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-                        border: "none",
-                        padding: isMobile ? "8px 15px" : "10px 20px",
-                        borderRadius: "12px",
-                        fontWeight: "bold",
-                        boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
-                        transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.target.style.transform = "translateY(-2px)";
-                        e.target.style.boxShadow =
-                          "0px 6px 12px rgba(0, 0, 0, 0.2)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.transform = "translateY(0)";
-                        e.target.style.boxShadow =
-                          "0px 4px 6px rgba(0, 0, 0, 0.1)";
-                      }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      style={actionButtonStyle}
                     >
-                      Copy Selected {selectedEntries.length}
-                    </Button>
-                    <Button
-                      variant="danger"
-                      className="copy mx-2"
+                      Copy Selected ({selectedEntries.length})
+                    </motion.button>
+                    <motion.button
                       onClick={handleDeleteSelected}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       style={{
-                        margin: isMobile ? "5px" : "0 10px 0 0",
+                        ...actionButtonStyle,
                         background: "linear-gradient(90deg, #ff4444, #cc0000)",
-                        border: "none",
-                        padding: isMobile ? "8px 15px" : "10px 20px",
-                        borderRadius: "12px",
-                        fontWeight: "bold",
-                        boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
-                        transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.target.style.transform = "translateY(-2px)";
-                        e.target.style.boxShadow =
-                          "0px 6px 12px rgba(0, 0, 0, 0.2)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.transform = "translateY(0)";
-                        e.target.style.boxShadow =
-                          "0px 4px 6px rgba(0, 0, 0, 0.1)";
                       }}
                     >
-                      Delete Selected {selectedEntries.length}
-                    </Button>
+                      Delete Selected ({selectedEntries.length})
+                    </motion.button>
                   </>
                 )}
-              </div>
+              </Box>
             )}
+
+          {/* Instructions */}
+
           <p
             style={{
               fontSize: isMobile ? "0.8rem" : "0.9rem",
               color: "#6c757d",
-              marginTop: "10px",
+
               textAlign: isMobile ? "center" : "center",
             }}
           >
@@ -1635,564 +1478,389 @@ function DashBoard() {
               Remarks, Products Description, Type, Close Type, Assigned To.
             </strong>
           </p>
-        </div>
+          {/* Stats */}
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 2,
 
-        <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
-          <div
-            style={{
-              fontWeight: "600",
-              fontSize: isMobile ? "0.9rem" : "1rem",
-              color: "#fff",
-              background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-              padding: isMobile ? "5px 10px" : "5px 15px",
-              borderRadius: "20px",
-              boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
-              display: "inline-block",
-              textAlign: "center",
-              width: "auto",
-              textTransform: "capitalize",
+              mb: 3,
             }}
           >
-            Total Results: {filteredData.length}
-          </div>
-          <div
-            style={{
-              fontWeight: "600",
-              fontSize: isMobile ? "0.9rem" : "1rem",
-              color: "#fff",
-              background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-              padding: isMobile ? "5px 10px" : "5px 15px",
-              borderRadius: "20px",
-              boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
-              display: "inline-block",
-              textAlign: "center",
-              width: "auto",
-              textTransform: "capitalize",
-            }}
-          >
-            Total Visits: {totalVisits}
-          </div>
-          <div
-            style={{
-              fontWeight: "600",
-              fontSize: isMobile ? "0.9rem" : "1rem",
-              color: "#fff",
-              background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-              padding: isMobile ? "5px 10px" : "5px 15px",
-              borderRadius: "20px",
-              boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
-              display: "inline-block",
-              textAlign: "center",
-              width: "auto",
-              textTransform: "capitalize",
-            }}
-          >
-            Monthly Visits: {monthlyVisits}
-          </div>
-        </div>
-        <div
-          className="table-container"
-          style={{
-            width: "100%",
-            height: isMobile ? "auto" : "75vh",
-            margin: "0 auto",
-            overflowX: isMobile ? "visible" : "hidden",
-            boxShadow: isMobile ? "none" : "0 6px 18px rgba(0, 0, 0, 0.1)",
-            borderRadius: isMobile ? "0" : "15px",
-            marginTop: "20px",
-            backgroundColor: "#fff",
-            padding: isMobile ? "10px" : "0",
-          }}
-        >
-          {isMobile ? (
-            <div
-              className="card-scroll-container"
-              style={{
-                maxHeight: "75vh",
-                overflowY: "auto",
-                overflowX: "hidden",
-                padding: "10px",
-                scrollBehavior: "smooth",
-                WebkitOverflowScrolling: "touch",
-                position: "relative",
-              }}
-            >
-              {filteredData.length === 0 ? (
-                <div
-                  style={{
-                    height: "100%",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    fontSize: "1.2rem",
-                    color: "#666",
-                    fontWeight: "bold",
-                    textAlign: "center",
-                    padding: "20px",
-                  }}
-                >
-                  No Entries Available
-                </div>
-              ) : (
-                <FixedSizeList
-                  height={window.innerHeight * 0.75} // Match maxHeight: 75vh
-                  width="100%"
-                  itemCount={filteredData.length}
-                  itemSize={280} // Estimated card height (adjust if needed)
-                  overscanCount={5}
-                >
-                  {renderMobileCard}
-                </FixedSizeList>
-              )}
-              {/* Sticky Action Bar */}
-              <div
-                style={{
-                  position: "sticky",
-                  bottom: 0,
-
-                  backdropFilter: "blur(8px)",
-                  padding: "10px",
-                  boxShadow: "0 -2px 4px rgba(0, 0, 0, 0.1)",
-                  display: "flex",
-                  justifyContent: "center",
-                  gap: "12px",
-                  zIndex: 10,
-                }}
-              >
-                <motion.button
-                  onClick={() => setIsAddModalOpen(true)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  style={{
-                    padding: "10px 20px",
-                    background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-                    color: "white",
-                    borderRadius: "12px",
-                    cursor: "pointer",
-                    fontWeight: "bold",
-                    border: "none",
-                    fontSize: "0.9rem",
-                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                  }}
-                >
-                  <FaPlus size={16} />
-                  Add New
-                </motion.button>
-                <motion.label
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  style={{
-                    padding: "10px 20px",
-                    background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-                    color: "white",
-                    borderRadius: "12px",
-                    cursor: "pointer",
-                    fontWeight: "bold",
-                    border: "none",
-                    fontSize: "0.9rem",
-                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                  }}
-                >
-                  <FaUpload size={16} />
-                  Bulk Upload
-                  <input
-                    type="file"
-                    onChange={handleFileUpload}
-                    accept=".xlsx, .xls"
-                    style={{ display: "none" }}
-                  />
-                </motion.label>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div
-                className="table-header"
-                style={{
+            {[
+              { label: "Total Results", value: filteredData.length },
+              { label: "Total Visits", value: totalVisits },
+              { label: "Monthly Visits", value: monthlyVisits },
+            ].map((stat) => (
+              <Box
+                key={stat.label}
+                sx={{
                   background: "linear-gradient(135deg, #2575fc, #6a11cb)",
                   color: "white",
-                  fontSize: "1.1rem",
-                  padding: "15px 20px",
-                  textAlign: "center",
-                  position: "sticky",
-                  top: 0,
-                  zIndex: 2,
-                  display: "grid",
-                  gridTemplateColumns: "115px repeat(8, 1fr) 150px",
-                  fontWeight: "bold",
-                  borderBottom: "2px solid #ddd",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  padding: isMobile ? "8px 12px" : "10px 15px",
+                  borderRadius: "20px",
+                  boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
+                  fontWeight: "600",
+                  fontSize: isMobile ? "0.9rem" : "1rem",
+                  textTransform: "capitalize",
                 }}
               >
-                <div>SNo.</div>
-                <div style={{ alignItems: "center", justifyContent: "center" }}>
-                  Date
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  Customer
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  Mobile
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  Address
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  City
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  State
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  Organization
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  Users
-                </div>
+                {stat.label}: {stat.value}
+              </Box>
+            ))}
+          </Box>
 
-                <div
-                  style={{
+          {/* Data Table/Cards */}
+          <Box
+            sx={{
+              backgroundColor: "#fff",
+              borderRadius: "15px",
+              boxShadow: "0 6px 18px rgba(0, 0, 0, 0.1)",
+              overflow: "hidden",
+              height: isMobile ? "auto" : "75vh",
+            }}
+          >
+            {isMobile ? (
+              <Box
+                sx={{
+                  maxHeight: "75vh",
+                  overflowY: "auto",
+                  overflowX: "hidden",
+                  p: 2,
+                  scrollBehavior: "smooth",
+                  WebkitOverflowScrolling: "touch",
+                }}
+              >
+                {filteredData.length === 0 ? (
+                  <Box
+                    sx={{
+                      height: "100%",
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      fontSize: "1.2rem",
+                      color: "#666",
+                      fontWeight: "bold",
+                      textAlign: "center",
+                      p: 4,
+                    }}
+                  >
+                    No Entries Available
+                  </Box>
+                ) : (
+                  <FixedSizeList
+                    height={window.innerHeight * 0.75}
+                    width="100%"
+                    itemCount={filteredData.length}
+                    itemSize={280}
+                    overscanCount={5}
+                  >
+                    {renderMobileCard}
+                  </FixedSizeList>
+                )}
+                <Box
+                  sx={{
+                    position: "sticky",
+                    bottom: 0,
+                    background: "rgba(255, 255, 255, 0.9)",
+                    backdropFilter: "blur(8px)",
+                    p: 2,
+                    boxShadow: "0 -2px 4px rgba(0, 0, 0, 0.1)",
                     display: "flex",
-                    alignItems: "center",
+                    flexWrap: "wrap",
                     justifyContent: "center",
+                    gap: 2,
+                    zIndex: 10,
                   }}
                 >
-                  Actions
-                </div>
-              </div>
-              {filteredData.length === 0 ? (
-                <div
-                  style={{
-                    height: "calc(100% - 60px)",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    fontSize: "1.2rem",
-                    color: "#666",
-                    fontWeight: "bold",
-                  }}
-                >
-                  No Entries Available
-                </div>
-              ) : (
-                <AutoSizer>
-                  {({ height, width }) => (
-                    <List
-                      height={height - 60}
-                      rowCount={filteredData.length}
-                      rowHeight={60}
-                      rowRenderer={rowRenderer}
-                      width={width}
-                      overscanRowCount={10}
+                  <motion.button
+                    onClick={() => setIsAddModalOpen(true)}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    style={actionButtonStyle}
+                  >
+                    <FaPlus size={16} />
+                    Add New
+                  </motion.button>
+                  <motion.label
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    style={actionButtonStyle}
+                  >
+                    <FaUpload size={16} />
+                    Bulk Upload
+                    <input
+                      type="file"
+                      onChange={handleFileUpload}
+                      accept=".xlsx, .xls"
+                      style={{ display: "none" }}
                     />
+                  </motion.label>
+                  {(role === "superadmin" || role === "admin") && (
+                    <motion.button
+                      onClick={() => setIsDrawerOpen(true)}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      style={actionButtonStyle}
+                    >
+                      <FaClock size={16} />
+                      Attendance
+                    </motion.button>
                   )}
-                </AutoSizer>
-              )}
-            </>
-          )}
-        </div>
-      </div>
+                </Box>
+              </Box>
+            ) : (
+              <>
+                <Box
+                  sx={{
+                    background: "linear-gradient(135deg, #2575fc, #6a11cb)",
+                    color: "white",
+                    fontSize: "1.1rem",
+                    p: "15px 20px",
+                    position: "sticky",
+                    top: 0,
+                    zIndex: 2,
+                    display: "grid",
+                    gridTemplateColumns: "115px repeat(8, 1fr) 150px",
+                    fontWeight: "bold",
+                    borderBottom: "2px solid #ddd",
+                    alignItems: "center",
+                    textAlign: "center",
+                  }}
+                >
+                  <div>SNo.</div>
+                  <div>Date</div>
+                  <div>Customer</div>
+                  <div>Mobile</div>
+                  <div>Address</div>
+                  <div>City</div>
+                  <div>State</div>
+                  <div>Organization</div>
+                  <div>Users</div>
+                  <div>Actions</div>
+                </Box>
+                {filteredData.length === 0 ? (
+                  <Box
+                    sx={{
+                      height: "calc(100% - 60px)",
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      fontSize: "1.2rem",
+                      color: "#666",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    No Entries Available
+                  </Box>
+                ) : (
+                  <AutoSizer>
+                    {({ height, width }) => (
+                      <List
+                        height={height - 60}
+                        rowCount={filteredData.length}
+                        rowHeight={60}
+                        rowRenderer={rowRenderer}
+                        width={width}
+                        overscanRowCount={10}
+                      />
+                    )}
+                  </AutoSizer>
+                )}
+              </>
+            )}
+          </Box>
+        </Box>
 
-      <AddEntry
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onEntryAdded={handleEntryAdded}
-      />
-      <EditEntry
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        entry={entryToEdit}
-        onEntryUpdated={handleEntryUpdated}
-      />
-      <DeleteModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        itemId={itemIdToDelete}
-        itemIds={itemIdsToDelete}
-        onDelete={handleDelete}
-      />
-      <ViewEntry
-        isOpen={isViewModalOpen}
-        onClose={() => setIsViewModalOpen(false)}
-        entry={entryToView}
-        role={role}
-      />
-      {(role === "superadmin" || role === "admin") && (
-        <>
-          <TeamBuilder
-            isOpen={isTeamBuilderOpen}
-            onClose={() => setIsTeamBuilderOpen(false)}
-            userRole={role}
-            userId={userId}
-          />
-          <AdminDrawer
-            entries={entries}
-            isOpen={isAnalyticsOpen}
-            onClose={() => setIsAnalyticsOpen(false)}
-            role={role}
-            userId={userId}
-            dateRange={dateRange} // Pass dateRange prop
-          />
-          <ValueAnalyticsDrawer
-            entries={entries}
-            isOpen={isValueAnalyticsOpen}
-            onClose={() => setIsValueAnalyticsOpen(false)}
-            role={role}
-            userId={userId}
-            dateRange={dateRange} // Pass dateRange prop
-          />
-          {role === "superadmin" && (
-            <TeamAnalyticsDrawer
+        {/* Modals and Drawers */}
+        <AddEntry
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onEntryAdded={handleEntryAdded}
+        />
+        <EditEntry
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          entry={entryToEdit}
+          onEntryUpdated={handleEntryUpdated}
+        />
+        <DeleteModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          itemId={itemIdToDelete}
+          itemIds={itemIdsToDelete}
+          onDelete={handleDelete}
+        />
+        <ViewEntry
+          isOpen={isViewModalOpen}
+          onClose={() => setIsViewModalOpen(false)}
+          entry={entryToView}
+          role={role}
+        />
+        {(role === "superadmin" || role === "admin") && (
+          <>
+            <TeamBuilder
+              isOpen={isTeamBuilderOpen}
+              onClose={() => setIsTeamBuilderOpen(false)}
+              userRole={role}
+              userId={userId}
+            />
+            <AdminDrawer
               entries={entries}
-              isOpen={isTeamAnalyticsOpen}
-              onClose={() => setIsTeamAnalyticsOpen(false)}
+              isOpen={isAnalyticsOpen}
+              onClose={() => setIsAnalyticsOpen(false)}
               role={role}
               userId={userId}
               dateRange={dateRange}
             />
-          )}
-          <AttendanceTracker
-            open={isDrawerOpen}
-            onClose={() => setIsDrawerOpen(false)}
-            userId={userId}
-            role={role}
-          />
-        </>
-      )}
-      {isAnalyticsModalOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(0, 0, 0, 0.6)",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: 1000,
-          }}
-          onClick={() => setIsAnalyticsModalOpen(false)}
-        >
+            <ValueAnalyticsDrawer
+              entries={entries}
+              isOpen={isValueAnalyticsOpen}
+              onClose={() => setIsValueAnalyticsOpen(false)}
+              role={role}
+              userId={userId}
+              dateRange={dateRange}
+            />
+            {role === "superadmin" && (
+              <TeamAnalyticsDrawer
+                entries={entries}
+                isOpen={isTeamAnalyticsOpen}
+                onClose={() => setIsTeamAnalyticsOpen(false)}
+                role={role}
+                userId={userId}
+                dateRange={dateRange}
+              />
+            )}
+            <AttendanceTracker
+              open={isDrawerOpen}
+              onClose={() => setIsDrawerOpen(false)}
+              userId={userId}
+              role={role}
+            />
+          </>
+        )}
+
+        {/* Analytics Modal */}
+        {isAnalyticsModalOpen && (
           <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.8, opacity: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
             style={{
-              background: "white",
-              borderRadius: "16px",
-              width: isMobile ? "90%" : "400px",
-              maxWidth: "400px",
-              boxShadow: "0px 8px 24px rgba(0, 0, 0, 0.2)",
-              position: "relative",
-              overflow: "hidden",
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: "rgba(0, 0, 0, 0.6)",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 1000,
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={() => setIsAnalyticsModalOpen(false)}
           >
-            <div
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ duration: 0.3 }}
               style={{
-                padding: isMobile ? "15px" : "20px",
-                borderBottom: "1px solid #e0e0e0",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
+                background: "white",
+                borderRadius: "16px",
+                width: isMobile ? "90%" : "400px",
+                maxWidth: "400px",
+                boxShadow: "0px 8px 24px rgba(0, 0, 0, 0.2)",
+                position: "relative",
+                overflow: "hidden",
               }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <h3
-                style={{
-                  margin: 0,
-                  fontSize: isMobile ? "1.2rem" : "1.5rem",
-                  fontWeight: "600",
-                  color: "#333",
-                }}
-              >
-                Analytics Options
-              </h3>
-              <button
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  fontSize: "1.2rem",
-                  color: "#666",
-                  transition: "color 0.2s ease",
-                }}
-                onClick={() => setIsAnalyticsModalOpen(false)}
-                onMouseEnter={(e) => (e.target.style.color = "#2575fc")}
-                onMouseLeave={(e) => (e.target.style.color = "#666")}
-              >
-                ✕
-              </button>
-            </div>
-            <div
-              style={{
-                padding: isMobile ? "15px" : "20px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "15px",
-              }}
-            >
-              <button
-                className="action-button"
-                onClick={() => {
-                  setIsAnalyticsOpen(true);
-                  setIsAnalyticsModalOpen(false);
-                }}
-                style={{
-                  padding: isMobile ? "10px 15px" : "12px 20px",
-                  background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-                  color: "white",
-                  borderRadius: "12px",
-                  cursor: "pointer",
-                  fontWeight: "bold",
-                  border: "none",
-                  fontSize: isMobile ? "0.9rem" : "1rem",
-                  boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
-                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+              <Box
+                sx={{
+                  p: isMobile ? 2 : 3,
+                  borderBottom: "1px solid #e0e0e0",
                   display: "flex",
+                  justifyContent: "space-between",
                   alignItems: "center",
-                  justifyContent: "center",
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = "translateY(-2px)";
-                  e.target.style.boxShadow = "0px 6px 12px rgba(0, 0, 0, 0.2)";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = "translateY(0)";
-                  e.target.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.1)";
                 }}
               >
-                <FaChartBar style={{ marginRight: "8px" }} />
-                Team Analytics
-              </button>
-              <button
-                className="action-button"
-                onClick={() => {
-                  setIsValueAnalyticsOpen(true);
-                  setIsAnalyticsModalOpen(false);
-                }}
-                style={{
-                  padding: isMobile ? "10px 15px" : "12px 20px",
-                  background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-                  color: "white",
-                  borderRadius: "12px",
-                  cursor: "pointer",
-                  fontWeight: "bold",
-                  border: "none",
-                  fontSize: isMobile ? "0.9rem" : "1rem",
-                  boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
-                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = "translateY(-2px)";
-                  e.target.style.boxShadow = "0px 6px 12px rgba(0, 0, 0, 0.2)";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = "translateY(0)";
-                  e.target.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.1)";
-                }}
-              >
-                <FaChartBar style={{ marginRight: "8px" }} />
-                Value Analytics
-              </button>
-              {role === "superadmin" && (
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: "600", color: "#333" }}
+                >
+                  Analytics Options
+                </Typography>
                 <button
-                  className="action-button"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "1.2rem",
+                    color: "#666",
+                    transition: "color 0.2s ease",
+                  }}
+                  onClick={() => setIsAnalyticsModalOpen(false)}
+                  onMouseEnter={(e) => (e.target.style.color = "#2575fc")}
+                  onMouseLeave={(e) => (e.target.style.color = "#666")}
+                >
+                  ✕
+                </button>
+              </Box>
+              <Box
+                sx={{
+                  p: isMobile ? 2 : 3,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2,
+                }}
+              >
+                <motion.button
                   onClick={() => {
-                    setIsTeamAnalyticsOpen(true);
+                    setIsAnalyticsOpen(true);
                     setIsAnalyticsModalOpen(false);
                   }}
-                  style={{
-                    padding: isMobile ? "10px 15px" : "12px 20px",
-                    background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-                    color: "white",
-                    borderRadius: "12px",
-                    cursor: "pointer",
-                    fontWeight: "bold",
-                    border: "none",
-                    fontSize: isMobile ? "0.9rem" : "1rem",
-                    boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
-                    transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.transform = "translateY(-2px)";
-                    e.target.style.boxShadow =
-                      "0px 6px 12px rgba(0, 0, 0, 0.2)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.transform = "translateY(0)";
-                    e.target.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.1)";
-                  }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  style={actionButtonStyle}
                 >
-                  <FaChartBar style={{ marginRight: "8px" }} />
-                  Team-Wise Analytics
-                </button>
-              )}
-            </div>
+                  <FaChartBar size={16} />
+                  Team Analytics
+                </motion.button>
+                <motion.button
+                  onClick={() => {
+                    setIsValueAnalyticsOpen(true);
+                    setIsAnalyticsModalOpen(false);
+                  }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  style={actionButtonStyle}
+                >
+                  <FaChartBar size={16} />
+                  Value Analytics
+                </motion.button>
+                {role === "superadmin" && (
+                  <motion.button
+                    onClick={() => {
+                      setIsTeamAnalyticsOpen(true);
+                      setIsAnalyticsModalOpen(false);
+                    }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    style={actionButtonStyle}
+                  >
+                    <FaChartBar size={16} />
+                    Team-Wise Analytics
+                  </motion.button>
+                )}
+              </Box>
+            </motion.div>
           </motion.div>
-        </motion.div>
-      )}
+        )}
+      </Box>
+      {/* Footer */}
       <footer className="footer-container">
         <p style={{ marginTop: "10px", color: "white", height: "10px" }}>
           © 2025 CRM. All rights reserved.
