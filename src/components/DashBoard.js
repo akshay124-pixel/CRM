@@ -2025,9 +2025,9 @@ function DashBoard() {
           sx={{
             display: "flex",
             flexWrap: "wrap",
-            gap: 2,
-
-            justifyContent: "space-between",
+            gap: "15px",
+            marginBottom: "20px",
+            alignItems: "center",
           }}
         >
           <Box sx={{ flex: isMobile ? "1 1 100%" : "1 1 auto" }}>
