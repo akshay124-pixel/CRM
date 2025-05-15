@@ -15,7 +15,7 @@ import { FaClock, FaFileExcel } from "react-icons/fa";
 import axios from "axios";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
-import { useNavigate } from "react-router-dom";
+
 const AttendanceTracker = ({ open, onClose, userId, role }) => {
   const [attendance, setAttendance] = useState([]);
   const [remarks, setRemarks] = useState("");
@@ -25,56 +25,42 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      if (!token) throw new Error("No token found");
       const response = await axios.get(
         "https://crm-server-amz7.onrender.com/api/attendance",
         {
           headers: { Authorization: `Bearer ${token}` },
-          timeout: 10000,
         }
       );
-      setAttendance(response.data.data || []);
+      setAttendance(response.data.data);
     } catch (error) {
-      if (error.response?.status === 401) {
-        toast.error("Session expired. Please log in again.");
-        localStorage.clear();
-        navigate("/login");
-      } else {
-        toast.error(
-          error.response?.data?.message || "Failed to fetch attendance!"
-        );
-      }
+      toast.error("Failed to fetch attendance!");
     } finally {
       setLoading(false);
     }
-  }, [navigate]);
+  }, []);
+
   useEffect(() => {
     if (open) {
       fetchAttendance();
     }
-  }, [open, fetchAttendance, navigate]);
+  }, [open, fetchAttendance]);
 
   const handleCheckIn = async () => {
     try {
       const token = localStorage.getItem("token");
-      if (!token) throw new Error("No token found");
-      const response = await axios.post(
+      await axios.post(
         "https://crm-server-amz7.onrender.com/api/attendance/check-in",
         { remarks },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      if (response.status === 201) {
-        toast.success("Checked in successfully!");
-        setRemarks("");
-        fetchAttendance();
-      } else {
-        throw new Error("Unexpected response status");
-      }
+      toast.success("Checked in successfully!");
+      setRemarks("");
+      fetchAttendance();
     } catch (error) {
-      console.error("Check-in error:", error.message);
       toast.error(error.response?.data?.message || "Failed to check in!");
     }
   };
+
   const handleCheckOut = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -90,7 +76,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
       toast.error(error.response?.data?.message || "Failed to check out!");
     }
   };
-  const navigate = useNavigate();
+
   const handleExport = () => {
     const exportData = attendance.map((record) => ({
       Date: new Date(record.date).toLocaleDateString(),
