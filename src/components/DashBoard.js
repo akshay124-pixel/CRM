@@ -1476,6 +1476,17 @@ function DashBoard() {
                 <FaChartBar style={{ marginRight: "8px" }} />
                 Analytics
               </button>
+              {(role === "superadmin" || role === "admin") && (
+                <button
+                  onClick={() => setIsDrawerOpen(true)}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  style={actionButtonStyle}
+                >
+                  <FaClock size={16} />
+                  Attendance
+                </button>
+              )}
               <button
                 className="action-button"
                 onClick={handleExport}
@@ -1507,17 +1518,6 @@ function DashBoard() {
                 />
                 Export To Excel
               </button>
-              {(role === "superadmin" || role === "admin") && (
-                <motion.button
-                  onClick={() => setIsDrawerOpen(true)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  style={actionButtonStyle}
-                >
-                  <FaClock size={16} />
-                  Attendance
-                </motion.button>
-              )}
             </>
           )}
           {(role === "superadmin" || role === "admin") &&
