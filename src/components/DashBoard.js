@@ -2185,6 +2185,7 @@ function DashBoard() {
           selectedCategory={dashboardFilter}
           userId={userId}
           selectedUsername={selectedUsername}
+          dateRange={dateRange} // ✅ ADD THIS LINE
         />
 
         {/* Action Buttons */}
