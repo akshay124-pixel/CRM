@@ -15,7 +15,7 @@ import { FaClock, FaFileExcel } from "react-icons/fa";
 import axios from "axios";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
-
+import { useNavigate } from "react-router-dom";
 const AttendanceTracker = ({ open, onClose, userId, role }) => {
   const [attendance, setAttendance] = useState([]);
   const [remarks, setRemarks] = useState("");
@@ -90,7 +90,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
       toast.error(error.response?.data?.message || "Failed to check out!");
     }
   };
-
+  const navigate = useNavigate();
   const handleExport = () => {
     const exportData = attendance.map((record) => ({
       Date: new Date(record.date).toLocaleDateString(),
