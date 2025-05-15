@@ -43,7 +43,14 @@ const useCachedApi = (url, token) => {
       const response = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setData(response.data);
+      // Normalize user data
+      const normalizedData = response.data.map((user) => ({
+        ...user,
+        _id: user._id?.$oid || user._id,
+        role: user.role?.$oid || user.role,
+        assignedAdmin: user.assignedAdmin?.$oid || user.assignedAdmin,
+      }));
+      setData(normalizedData);
       setError(null);
     } catch (err) {
       setError(
@@ -127,31 +134,32 @@ const TeamAnalyticsDrawer = ({
       return [];
     }
 
-    // Log users for debugging
-    console.log("Users:", users);
+    // Log raw users for debugging
+    console.log("Raw Users:", users);
 
     // Filter admins (case-insensitive)
     const admins = users
-      .filter((user) => user.role?.toLowerCase() === "admin")
+      .filter((user) => {
+        const userRole =
+          typeof user.role === "string" ? user.role : user.role?.$oid || "";
+        return userRole.toLowerCase() === "admin";
+      })
       .map((admin) => {
+        const adminId = admin._id?.$oid || admin._id;
         const teamMembers = users
           .filter((u) => {
-            if (u.role?.toLowerCase() !== "others") return false;
-            const assignedAdmin = u.assignedAdmin;
-            const adminId = admin._id;
-            return (
-              assignedAdmin === adminId ||
-              (assignedAdmin?.$oid && assignedAdmin.$oid === adminId) ||
-              (typeof assignedAdmin === "object" &&
-                assignedAdmin._id === adminId)
-            );
+            const userRole =
+              typeof u.role === "string" ? u.role : u.role?.$oid || "";
+            if (userRole.toLowerCase() !== "others") return false;
+            const assignedAdmin = u.assignedAdmin?.$oid || u.assignedAdmin;
+            return assignedAdmin === adminId;
           })
           .map((u) => ({
-            _id: u._id,
+            _id: u._id?.$oid || u._id,
             username: DOMPurify.sanitize(u.username),
           }));
         return {
-          _id: admin._id,
+          _id: adminId,
           username: DOMPurify.sanitize(admin.username),
           teamMembers,
         };
@@ -194,19 +202,24 @@ const TeamAnalyticsDrawer = ({
       // Handle createdBy as ID, object, or $oid
       const creatorId =
         entry.createdBy?._id || entry.createdBy?.$oid || entry.createdBy;
-      const creator = users.find((user) => user._id === creatorId);
+      const creator = users.find((user) => {
+        const userId = user._id?.$oid || user._id;
+        return userId === creatorId;
+      });
       if (!creator) {
         console.warn(`Creator not found for entry:`, entry);
         return;
       }
 
       // Determine adminId
+      const creatorRole =
+        typeof creator.role === "string"
+          ? creator.role
+          : creator.role?.$oid || "";
       const adminId =
-        creator.role?.toLowerCase() === "admin"
-          ? creator._id
-          : typeof creator.assignedAdmin === "string"
-          ? creator.assignedAdmin
-          : creator.assignedAdmin?._id || creator.assignedAdmin?.$oid || null;
+        creatorRole.toLowerCase() === "admin"
+          ? creator._id?.$oid || creator._id
+          : creator.assignedAdmin?.$oid || creator.assignedAdmin || null;
 
       const admin = admins.find((a) => a._id === adminId);
       if (!admin || !adminId) {
@@ -242,11 +255,11 @@ const TeamAnalyticsDrawer = ({
         };
       }
 
-      const memberId = creator._id;
+      const memberId = creator._id?.$oid || creator._id;
       const memberName = creator.username;
       let targetAnalytics;
 
-      if (creator.role?.toLowerCase() === "admin") {
+      if (creatorRole.toLowerCase() === "admin") {
         targetAnalytics = statsMap[adminId].adminAnalytics;
       } else {
         if (!statsMap[adminId].membersAnalytics[memberId]) {
