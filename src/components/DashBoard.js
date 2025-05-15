@@ -6,6 +6,7 @@ import { DateRangePicker } from "react-date-range";
 import "react-date-range/dist/styles.css";
 import TeamAnalyticsDrawer from "./TeamAnalyticsDrawer.js";
 import "react-date-range/dist/theme/default.css";
+import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import {
   Popover,
@@ -17,7 +18,9 @@ import {
   Card,
   CardContent,
 } from "@mui/material";
+import AttendanceTracker from "./AttendanceTracker";
 import {
+  FaClock,
   FaEye,
   FaPlus,
   FaFileExcel,
@@ -218,6 +221,7 @@ const CallTrackingDashboard = ({
 
 function DashBoard() {
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const [entries, setEntries] = useState([]);
   const [role, setRole] = useState(localStorage.getItem("role") || "");
   const [userId, setUserId] = useState(localStorage.getItem("userId") || "");
@@ -249,6 +253,7 @@ function DashBoard() {
     { startDate: null, endDate: null, key: "selection" },
   ]);
   const [selectedEntries, setSelectedEntries] = useState([]);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [doubleClickInitiated, setDoubleClickInitiated] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -1486,6 +1491,17 @@ function DashBoard() {
                 />
                 Export To Excel
               </button>
+              {(role === "superadmin" || role === "admin") && (
+                <motion.button
+                  onClick={() => setIsDrawerOpen(true)}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  style={actionButtonStyle}
+                >
+                  <FaClock size={16} />
+                  Attendance
+                </motion.button>
+              )}
             </>
           )}
           {(role === "superadmin" || role === "admin") &&
@@ -1968,6 +1984,12 @@ function DashBoard() {
               dateRange={dateRange}
             />
           )}
+          <AttendanceTracker
+            open={isDrawerOpen}
+            onClose={() => setIsDrawerOpen(false)}
+            userId={userId}
+            role={role}
+          />
         </>
       )}
       {isAnalyticsModalOpen && (
