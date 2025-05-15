@@ -100,6 +100,15 @@ const ActionButton = ({
   );
 };
 
+// Logout handler
+const handleLogout = (navigate) => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("userId");
+  localStorage.removeItem("role");
+  localStorage.removeItem("user");
+  navigate("/login");
+};
+
 // Call Tracking Dashboard Component
 const CallTrackingDashboard = ({
   entries,
@@ -1493,7 +1502,6 @@ function DashBoard() {
     }
   };
 
-  const navigate = useNavigate();
   const fetchUserRole = useCallback(async () => {
     try {
       const token = localStorage.getItem("token");
@@ -1955,17 +1963,16 @@ function DashBoard() {
   if (error) return <Typography color="error">{error}</Typography>;
 
   return (
-    <>
-      <Box
-        sx={{
-          width: isMobile ? "100%" : "90%",
-          margin: "auto",
-          padding: isMobile ? "10px" : "20px",
-        }}
-      >
-        {/* Inline CSS for loading animation */}
-        <style>
-          {`
+    <Box
+      sx={{
+        width: isMobile ? "100%" : "90%",
+        margin: "auto",
+        padding: isMobile ? "10px" : "20px",
+      }}
+    >
+      {/* Inline CSS for loading animation */}
+      <style>
+        {`
           .loading-wave {
             display: flex;
             justify-content: center;
@@ -2018,651 +2025,679 @@ function DashBoard() {
             justify-content: center;
           }
         `}
-        </style>
+      </style>
 
-        {/* Search and Filters */}
-
-        <div className="enhanced-search-bar-container">
+      {/* Search and Filters */}
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 2,
+          mb: 3,
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <Box sx={{ flex: isMobile ? "1 1 100%" : "1 1 auto" }}>
           <input
             type="text"
             className="enhanced-search-bar"
             placeholder="🔍 Search..."
             onChange={(e) => debouncedSearchChange(e.target.value)}
-          />
-          {(role === "superadmin" || role === "admin") && (
-            <select
-              className="enhanced-filter-dropdown"
-              value={selectedUsername}
-              onChange={(e) => setSelectedUsername(e.target.value)}
-            >
-              <option value="">-- Select User --</option>
-              {usernames
-                .slice() // create a shallow copy to avoid mutating the original array
-                .sort((a, b) => a.localeCompare(b))
-                .map((username) => (
-                  <option key={username} value={username}>
-                    {username}
-                  </option>
-                ))}
-            </select>
-          )}
-
-          <div>
-            <input
-              type="text"
-              style={{ borderRadius: "9999px" }}
-              onClick={(e) => setAnchorEl(e.currentTarget)}
-              value={
-                dateRange[0]?.startDate && dateRange[0]?.endDate
-                  ? `${dateRange[0].startDate.toLocaleDateString()} - ${dateRange[0].endDate.toLocaleDateString()}`
-                  : ""
-              }
-              placeholder="-- Select date range --"
-              readOnly
-              className="cursor-pointer border p-2"
-              aria-label="Select date range"
-            />
-            <Popover
-              open={Boolean(anchorEl)}
-              anchorEl={anchorEl}
-              onClose={() => setAnchorEl(null)}
-              anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-              transformOrigin={{ vertical: "top", horizontal: "left" }}
-              PaperProps={{
-                sx: {
-                  maxWidth: isMobile ? "95vw" : "600px",
-                  maxHeight: isMobile ? "80vh" : "auto",
-                  overflowY: isMobile ? "auto" : "visible",
-                  overflowX: "visible",
-                  padding: isMobile ? "10px" : "0",
-                  boxSizing: "border-box",
-                },
-              }}
-            >
-              <DateRangePicker
-                ranges={dateRange}
-                onChange={(item) => setDateRange([item.selection])}
-                moveRangeOnFirstSelection={false}
-                showSelectionPreview={true}
-                rangeColors={["#2575fc"]}
-                editableDateInputs={true}
-                months={1}
-                direction="vertical"
-                className={isMobile ? "mobile-date-picker" : ""}
-                calendarFocus="forwards"
-              />
-            </Popover>
-          </div>
-          <select
-            className="enhanced-filter-dropdown"
-            value={selectedState}
-            onChange={(e) => {
-              setSelectedState(e.target.value);
-              setSelectedCity("");
+            style={{
+              width: "100%",
+              padding: "10px 15px",
+              borderRadius: "20px",
+              border: "1px solid #ddd",
+              fontSize: "1rem",
             }}
-          >
-            <option value="">-- Select State --</option>
-            {Object.keys(statesAndCities).map((state) => (
-              <option key={state} value={state}>
-                {state}
-              </option>
-            ))}
-          </select>
+            aria-label="Search entries"
+          />
+        </Box>
+        {(role === "superadmin" || role === "admin") && (
           <select
             className="enhanced-filter-dropdown"
-            value={selectedCity}
-            onChange={(e) => setSelectedCity(e.target.value)}
-            disabled={!selectedState}
+            value={selectedUsername}
+            onChange={(e) => setSelectedUsername(e.target.value)}
+            style={{
+              padding: "10px",
+              borderRadius: "20px",
+              border: "1px solid #ddd",
+              fontSize: "1rem",
+              minWidth: isMobile ? "100%" : "150px",
+            }}
+            aria-label="Select user"
           >
-            <option value="">-- Select City --</option>
-            {selectedState &&
-              statesAndCities[selectedState].map((city) => (
-                <option key={city} value={city}>
-                  {city}
+            <option value="">-- Select User --</option>
+            {usernames
+              .slice()
+              .sort((a, b) => a.localeCompare(b))
+              .map((username) => (
+                <option key={username} value={username}>
+                  {username}
                 </option>
               ))}
           </select>
-          <button
-            className="reset adapts-button"
-            onClick={handleReset}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              padding: "8px 16px",
-              borderRadius: "20px",
-              backgroundColor: "#007bff",
-              color: "#fff",
-              border: "none",
-              cursor: "pointer",
-              fontSize: "16px",
-              transition: "all 0.3s ease",
-            }}
-          >
-            <span style={{ fontWeight: "bold" }}>Reset</span>
-            <span
-              className="rounded-arrow"
-              style={{
-                marginLeft: "8px",
-                display: "inline-flex",
-                alignItems: "center",
-                transition: "transform 0.3s ease",
-              }}
-            >
-              →
-            </span>
-          </button>
-        </div>
-
-        {/* Call Tracking Dashboard */}
-        <CallTrackingDashboard
-          entries={entries}
-          role={role}
-          onFilterChange={setDashboardFilter}
-          selectedCategory={dashboardFilter}
-          userId={userId}
-          selectedUsername={selectedUsername}
-          dateRange={dateRange} // ✅ ADD THIS LINE
-        />
-
-        {/* Action Buttons */}
+        )}
         <Box
-          sx={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 2,
-            justifyContent: "center",
-            mb: 3,
-          }}
+          sx={{ position: "relative", minWidth: isMobile ? "100%" : "200px" }}
         >
-          <motion.label
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <input
+            type="text"
+            value={
+              dateRange[0]?.startDate && dateRange[0]?.endDate
+                ? `${dateRange[0].startDate.toLocaleDateString()} - ${dateRange[0].endDate.toLocaleDateString()}`
+                : ""
+            }
+            placeholder="-- Select date range --"
+            readOnly
+            onClick={(e) => setAnchorEl(e.currentTarget)}
             style={{
-              display: "flex",
-              alignItems: "center",
+              width: "100%",
+              padding: "10px 15px",
+              borderRadius: "20px",
+              border: "1px solid #ddd",
+              fontSize: "1rem",
               cursor: "pointer",
             }}
-          >
-            <ActionButton
-              icon={<FaUpload />}
-              label="Bulk Upload"
-              ariaLabel="Bulk upload via Excel"
-            />
-            <input
-              type="file"
-              onChange={handleFileUpload}
-              accept=".xlsx, .xls"
-              style={{ display: "none" }}
-              aria-hidden="true"
-            />
-          </motion.label>
-          <ActionButton
-            onClick={() => setIsAddModalOpen(true)}
-            icon={<FaPlus />}
-            label="Add New Entry"
-            ariaLabel="Add new entry"
+            aria-label="Select date range"
           />
-          {(role === "superadmin" || role === "admin") && (
-            <>
-              <ActionButton
-                onClick={() => setIsTeamBuilderOpen(true)}
-                icon={<FaUsers />}
-                label="Team Builder"
-                ariaLabel="Open team builder"
-              />
-              <ActionButton
-                onClick={() => setIsAnalyticsModalOpen(true)}
-                icon={<FaChartBar />}
-                label="Analytics"
-                ariaLabel="View analytics"
-              />
-              <ActionButton
-                onClick={handleExport}
-                icon={<FaFileExcel />}
-                label="Export To Excel"
-                ariaLabel="Export to Excel"
-              />
-            </>
-          )}
-          {(userRole === "superadmin" || userRole === "admin") && (
-            <ActionButton
-              onClick={() => setIsDrawerOpen(true)}
-              icon={<FaClock />}
-              label="Attendance"
-              ariaLabel="View attendance"
+          <Popover
+            open={Boolean(anchorEl)}
+            anchorEl={anchorEl}
+            onClose={() => setAnchorEl(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+            transformOrigin={{ vertical: "top", horizontal: "left" }}
+            PaperProps={{
+              sx: {
+                maxWidth: isMobile ? "95vw" : "600px",
+                maxHeight: isMobile ? "80vh" : "auto",
+                overflowY: isMobile ? "auto" : "visible",
+                padding: isMobile ? "10px" : "0",
+              },
+            }}
+          >
+            <DateRangePicker
+              ranges={dateRange}
+              onChange={(item) => setDateRange([item.selection])}
+              moveRangeOnFirstSelection={false}
+              showSelectionPreview={true}
+              rangeColors={["#2575fc"]}
+              editableDateInputs={true}
+              months={1}
+              direction="vertical"
+              className={isMobile ? "mobile-date-picker" : ""}
+              calendarFocus="forwards"
             />
-          )}
+          </Popover>
         </Box>
+        <select
+          className="enhanced-filter-dropdown"
+          value={selectedState}
+          onChange={(e) => {
+            setSelectedState(e.target.value);
+            setSelectedCity("");
+          }}
+          style={{
+            padding: "10px",
+            borderRadius: "20px",
+            border: "1px solid #ddd",
+            fontSize: "1rem",
+            minWidth: isMobile ? "100%" : "150px",
+          }}
+          aria-label="Select state"
+        >
+          <option value="">-- Select State --</option>
+          {Object.keys(statesAndCities).map((state) => (
+            <option key={state} value={state}>
+              {state}
+            </option>
+          ))}
+        </select>
+        <select
+          className="enhanced-filter-dropdown"
+          value={selectedCity}
+          onChange={(e) => setSelectedCity(e.target.value)}
+          disabled={!selectedState}
+          style={{
+            padding: "10px",
+            borderRadius: "20px",
+            border: "1px solid #ddd",
+            fontSize: "1rem",
+            minWidth: isMobile ? "100%" : "150px",
+          }}
+          aria-label="Select city"
+        >
+          <option value="">-- Select City --</option>
+          {selectedState &&
+            statesAndCities[selectedState]?.map((city) => (
+              <option key={city} value={city}>
+                {city}
+              </option>
+            ))}
+        </select>
+        <ActionButton
+          onClick={handleReset}
+          label="Reset"
+          icon={<span style={{ fontSize: "1.2rem" }}>↺</span>}
+          ariaLabel="Reset filters"
+        />
+      </Box>
 
-        {/* Selection Actions */}
-        {(role === "superadmin" || role === "admin") &&
-          filteredData.length > 0 && (
-            <Box
-              sx={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 2,
-                justifyContent: "center",
-                mb: 3,
-              }}
-            >
-              {isSelectionMode && (
-                <ActionButton
-                  onClick={handleSelectAll}
-                  label="Select All"
-                  ariaLabel="Select all entries"
-                />
-              )}
-              {selectedEntries.length > 0 && (
-                <>
-                  <ActionButton
-                    onClick={handleCopySelected}
-                    label={`Copy Selected (${selectedEntries.length})`}
-                    ariaLabel="Copy selected entries"
-                  />
-                  <ActionButton
-                    onClick={handleDeleteSelected}
-                    label={`Delete Selected (${selectedEntries.length})`}
-                    variant="danger"
-                    ariaLabel="Delete selected entries"
-                  />
-                </>
-              )}
-            </Box>
-          )}
+      {/* Call Tracking Dashboard */}
+      <CallTrackingDashboard
+        entries={entries}
+        role={role}
+        onFilterChange={setDashboardFilter}
+        selectedCategory={dashboardFilter}
+        userId={userId}
+        selectedUsername={selectedUsername}
+      />
 
-        {/* Metrics */}
-        <Box
-          sx={{
+      {/* Action Buttons */}
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 2,
+          justifyContent: "center",
+          mb: 3,
+        }}
+      >
+        <motion.label
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          style={{
             display: "flex",
-            flexWrap: "wrap",
-            gap: 2,
-
-            mb: 3,
+            alignItems: "center",
+            cursor: "pointer",
           }}
         >
-          <Box
-            sx={{
-              fontWeight: "600",
-              fontSize: isMobile ? "0.9rem" : "1rem",
-              color: "#fff",
-              background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-              padding: isMobile ? "5px 10px" : "5px 15px",
-              borderRadius: "20px",
-              boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
-              textAlign: "center",
-              textTransform: "capitalize",
-            }}
-          >
-            Total Results: {filteredData.length}
-          </Box>
-          <Box
-            sx={{
-              fontWeight: "600",
-              fontSize: isMobile ? "0.9rem" : "1rem",
-              color: "#fff",
-              background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-              padding: isMobile ? "5px 10px" : "5px 15px",
-              borderRadius: "20px",
-              boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
-              textAlign: "center",
-              textTransform: "capitalize",
-            }}
-          >
-            Total Visits: {totalVisits}
-          </Box>
-          <Box
-            sx={{
-              fontWeight: "600",
-              fontSize: isMobile ? "0.9rem" : "1rem",
-              color: "#fff",
-              background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-              padding: isMobile ? "5px 10px" : "5px 15px",
-              borderRadius: "20px",
-              boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
-              textAlign: "center",
-              textTransform: "capitalize",
-            }}
-          >
-            Monthly Visits: {monthlyVisits}
-          </Box>
-        </Box>
-
-        {/* Data Table / Cards */}
-        <Box
-          sx={{
-            width: "100%",
-            height: isMobile ? "auto" : "75vh",
-            overflowX: isMobile ? "visible" : "hidden",
-            boxShadow: isMobile ? "none" : "0 6px 18px rgba(0, 0, 0, 0.1)",
-            borderRadius: isMobile ? "0" : "15px",
-            backgroundColor: "#fff",
-            padding: isMobile ? "10px" : "0",
-          }}
-        >
-          {isMobile ? (
-            <Box
-              sx={{
-                maxHeight: "75vh",
-                overflowY: "auto",
-                padding: "10px",
-                scrollBehavior: "smooth",
-                WebkitOverflowScrolling: "touch",
-                position: "relative",
-              }}
-            >
-              {filteredData.length === 0 ? (
-                <Box
-                  sx={{
-                    height: "100%",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    fontSize: "1.2rem",
-                    color: "#666",
-                    fontWeight: "bold",
-                    textAlign: "center",
-                    padding: "20px",
-                  }}
-                >
-                  No Entries Available
-                </Box>
-              ) : (
-                <FixedSizeList
-                  height={window.innerHeight * 0.75}
-                  width="100%"
-                  itemCount={filteredData.length}
-                  itemSize={280}
-                  overscanCount={5}
-                >
-                  {renderMobileCard}
-                </FixedSizeList>
-              )}
-              <Box
-                sx={{
-                  position: "sticky",
-                  bottom: 0,
-                  backdropFilter: "blur(8px)",
-                  padding: "10px",
-                  boxShadow: "0 -2px 4px rgba(0, 0, 0, 0.1)",
-                  display: "flex",
-                  justifyContent: "center",
-                  gap: "12px",
-                  zIndex: 10,
-                }}
-              >
-                <ActionButton
-                  onClick={() => setIsAddModalOpen(true)}
-                  icon={<FaPlus />}
-                  label="Add New"
-                  ariaLabel="Add new entry"
-                />
-                <motion.label
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    cursor: "pointer",
-                  }}
-                >
-                  <ActionButton
-                    icon={<FaUpload />}
-                    label="Bulk Upload"
-                    ariaLabel="Bulk upload via Excel"
-                  />
-                  <input
-                    type="file"
-                    onChange={handleFileUpload}
-                    accept=".xlsx, .xls"
-                    style={{ display: "none" }}
-                    aria-hidden="true"
-                  />
-                </motion.label>
-              </Box>
-            </Box>
-          ) : (
-            <>
-              <Box
-                sx={{
-                  background: "linear-gradient(135deg, #2575fc, #6a11cb)",
-                  color: "white",
-                  fontSize: "1.1rem",
-                  padding: "15px 20px",
-                  textAlign: "center",
-                  position: "sticky",
-                  top: 0,
-                  zIndex: 2,
-                  display: "grid",
-                  gridTemplateColumns: "115px repeat(8, 1fr) 150px",
-                  fontWeight: "bold",
-                  borderBottom: "2px solid #ddd",
-                  alignItems: "center",
-                }}
-              >
-                <Box>SNo.</Box>
-                <Box>Date</Box>
-                <Box>Customer</Box>
-                <Box>Mobile</Box>
-                <Box>Address</Box>
-                <Box>City</Box>
-                <Box>State</Box>
-                <Box>Organization</Box>
-                <Box>Users</Box>
-                <Box>Actions</Box>
-              </Box>
-              {filteredData.length === 0 ? (
-                <Box
-                  sx={{
-                    height: "calc(100% - 60px)",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    fontSize: "1.2rem",
-                    color: "#666",
-                    fontWeight: "bold",
-                  }}
-                >
-                  No Entries Available
-                </Box>
-              ) : (
-                <AutoSizer>
-                  {({ height, width }) => (
-                    <List
-                      height={height - 60}
-                      rowCount={filteredData.length}
-                      rowHeight={60}
-                      rowRenderer={rowRenderer}
-                      width={width}
-                      overscanRowCount={10}
-                    />
-                  )}
-                </AutoSizer>
-              )}
-            </>
-          )}
-        </Box>
-
-        {/* Modals and Drawers */}
-        <AddEntry
-          isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
-          onEntryAdded={handleEntryAdded}
-        />
-        <EditEntry
-          isOpen={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
-          entry={entryToEdit}
-          onEntryUpdated={handleEntryUpdated}
-        />
-        <DeleteModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          itemId={itemIdToDelete}
-          itemIds={itemIdsToDelete}
-          onDelete={handleDelete}
-        />
-        <ViewEntry
-          isOpen={isViewModalOpen}
-          onClose={() => setIsViewModalOpen(false)}
-          entry={entryToView}
-          role={role}
+          <ActionButton
+            icon={<FaUpload />}
+            label="Bulk Upload"
+            ariaLabel="Bulk upload via Excel"
+          />
+          <input
+            type="file"
+            onChange={handleFileUpload}
+            accept=".xlsx, .xls"
+            style={{ display: "none" }}
+            aria-hidden="true"
+          />
+        </motion.label>
+        <ActionButton
+          onClick={() => setIsAddModalOpen(true)}
+          icon={<FaPlus />}
+          label="Add New Entry"
+          ariaLabel="Add new entry"
         />
         {(role === "superadmin" || role === "admin") && (
           <>
-            <TeamBuilder
-              isOpen={isTeamBuilderOpen}
-              onClose={() => setIsTeamBuilderOpen(false)}
-              userRole={role}
-              userId={userId}
+            <ActionButton
+              onClick={() => setIsTeamBuilderOpen(true)}
+              icon={<FaUsers />}
+              label="Team Builder"
+              ariaLabel="Open team builder"
             />
-            <AdminDrawer
-              entries={entries}
-              isOpen={isAnalyticsOpen}
-              onClose={() => setIsAnalyticsOpen(false)}
-              role={role}
-              userId={userId}
-              dateRange={dateRange}
+            <ActionButton
+              onClick={() => setIsAnalyticsModalOpen(true)}
+              icon={<FaChartBar />}
+              label="Analytics"
+              ariaLabel="View analytics"
             />
-            <ValueAnalyticsDrawer
-              entries={entries}
-              isOpen={isValueAnalyticsOpen}
-              onClose={() => setIsValueAnalyticsOpen(false)}
-              role={role}
-              userId={userId}
-              dateRange={dateRange}
+            <ActionButton
+              onClick={handleExport}
+              icon={<FaFileExcel />}
+              label="Export To Excel"
+              ariaLabel="Export to Excel"
             />
-            {role === "superadmin" && (
-              <TeamAnalyticsDrawer
-                entries={entries}
-                isOpen={isTeamAnalyticsOpen}
-                onClose={() => setIsTeamAnalyticsOpen(false)}
-                role={role}
-                userId={userId}
-                dateRange={dateRange}
+          </>
+        )}
+        {(userRole === "superadmin" || userRole === "admin") && (
+          <ActionButton
+            onClick={() => setIsDrawerOpen(true)}
+            icon={<FaClock />}
+            label="Attendance"
+            ariaLabel="View attendance"
+          />
+        )}
+        <ActionButton
+          onClick={() => handleLogout(navigate)}
+          icon={<FaSignOutAlt />}
+          label="Logout"
+          ariaLabel="Log out"
+        />
+      </Box>
+
+      {/* Selection Actions */}
+      {(role === "superadmin" || role === "admin") &&
+        filteredData.length > 0 && (
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 2,
+              justifyContent: "center",
+              mb: 3,
+            }}
+          >
+            {isSelectionMode && (
+              <ActionButton
+                onClick={handleSelectAll}
+                label="Select All"
+                ariaLabel="Select all entries"
               />
+            )}
+            {selectedEntries.length > 0 && (
+              <>
+                <ActionButton
+                  onClick={handleCopySelected}
+                  label={`Copy Selected (${selectedEntries.length})`}
+                  ariaLabel="Copy selected entries"
+                />
+                <ActionButton
+                  onClick={handleDeleteSelected}
+                  label={`Delete Selected (${selectedEntries.length})`}
+                  variant="danger"
+                  ariaLabel="Delete selected entries"
+                />
+              </>
+            )}
+          </Box>
+        )}
+
+      {/* Metrics */}
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 2,
+          justifyContent: "center",
+          mb: 3,
+        }}
+      >
+        <Box
+          sx={{
+            fontWeight: "600",
+            fontSize: isMobile ? "0.9rem" : "1rem",
+            color: "#fff",
+            background: "linear-gradient(135deg, #2575fc, #6a11cb)",
+            padding: isMobile ? "5px 10px" : "5px 15px",
+            borderRadius: "20px",
+            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
+            textAlign: "center",
+            textTransform: "capitalize",
+          }}
+        >
+          Total Results: {filteredData.length}
+        </Box>
+        <Box
+          sx={{
+            fontWeight: "600",
+            fontSize: isMobile ? "0.9rem" : "1rem",
+            color: "#fff",
+            background: "linear-gradient(135deg, #2575fc, #6a11cb)",
+            padding: isMobile ? "5px 10px" : "5px 15px",
+            borderRadius: "20px",
+            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
+            textAlign: "center",
+            textTransform: "capitalize",
+          }}
+        >
+          Total Visits: {totalVisits}
+        </Box>
+        <Box
+          sx={{
+            fontWeight: "600",
+            fontSize: isMobile ? "0.9rem" : "1rem",
+            color: "#fff",
+            background: "linear-gradient(135deg, #2575fc, #6a11cb)",
+            padding: isMobile ? "5px 10px" : "5px 15px",
+            borderRadius: "20px",
+            boxShadow: "0 2px 5px rgba(0, 0, 0, 0.2)",
+            textAlign: "center",
+            textTransform: "capitalize",
+          }}
+        >
+          Monthly Visits: {monthlyVisits}
+        </Box>
+      </Box>
+
+      {/* Data Table / Cards */}
+      <Box
+        sx={{
+          width: "100%",
+          height: isMobile ? "auto" : "75vh",
+          overflowX: isMobile ? "visible" : "hidden",
+          boxShadow: isMobile ? "none" : "0 6px 18px rgba(0, 0, 0, 0.1)",
+          borderRadius: isMobile ? "0" : "15px",
+          backgroundColor: "#fff",
+          padding: isMobile ? "10px" : "0",
+        }}
+      >
+        {isMobile ? (
+          <Box
+            sx={{
+              maxHeight: "75vh",
+              overflowY: "auto",
+              padding: "10px",
+              scrollBehavior: "smooth",
+              WebkitOverflowScrolling: "touch",
+              position: "relative",
+            }}
+          >
+            {filteredData.length === 0 ? (
+              <Box
+                sx={{
+                  height: "100%",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  fontSize: "1.2rem",
+                  color: "#666",
+                  fontWeight: "bold",
+                  textAlign: "center",
+                  padding: "20px",
+                }}
+              >
+                No Entries Available
+              </Box>
+            ) : (
+              <FixedSizeList
+                height={window.innerHeight * 0.75}
+                width="100%"
+                itemCount={filteredData.length}
+                itemSize={280}
+                overscanCount={5}
+              >
+                {renderMobileCard}
+              </FixedSizeList>
+            )}
+            <Box
+              sx={{
+                position: "sticky",
+                bottom: 0,
+                backdropFilter: "blur(8px)",
+                padding: "10px",
+                boxShadow: "0 -2px 4px rgba(0, 0, 0, 0.1)",
+                display: "flex",
+                justifyContent: "center",
+                gap: "12px",
+                zIndex: 10,
+              }}
+            >
+              <ActionButton
+                onClick={() => setIsAddModalOpen(true)}
+                icon={<FaPlus />}
+                label="Add New"
+                ariaLabel="Add new entry"
+              />
+              <motion.label
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  cursor: "pointer",
+                }}
+              >
+                <ActionButton
+                  icon={<FaUpload />}
+                  label="Bulk Upload"
+                  ariaLabel="Bulk upload via Excel"
+                />
+                <input
+                  type="file"
+                  onChange={handleFileUpload}
+                  accept=".xlsx, .xls"
+                  style={{ display: "none" }}
+                  aria-hidden="true"
+                />
+              </motion.label>
+            </Box>
+          </Box>
+        ) : (
+          <>
+            <Box
+              sx={{
+                background: "linear-gradient(135deg, #2575fc, #6a11cb)",
+                color: "white",
+                fontSize: "1.1rem",
+                padding: "15px 20px",
+                textAlign: "center",
+                position: "sticky",
+                top: 0,
+                zIndex: 2,
+                display: "grid",
+                gridTemplateColumns: "115px repeat(8, 1fr) 150px",
+                fontWeight: "bold",
+                borderBottom: "2px solid #ddd",
+                alignItems: "center",
+              }}
+            >
+              <Box>SNo.</Box>
+              <Box>Date</Box>
+              <Box>Customer</Box>
+              <Box>Mobile</Box>
+              <Box>Address</Box>
+              <Box>City</Box>
+              <Box>State</Box>
+              <Box>Organization</Box>
+              <Box>Users</Box>
+              <Box>Actions</Box>
+            </Box>
+            {filteredData.length === 0 ? (
+              <Box
+                sx={{
+                  height: "calc(100% - 60px)",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  fontSize: "1.2rem",
+                  color: "#666",
+                  fontWeight: "bold",
+                }}
+              >
+                No Entries Available
+              </Box>
+            ) : (
+              <AutoSizer>
+                {({ height, width }) => (
+                  <List
+                    height={height - 60}
+                    rowCount={filteredData.length}
+                    rowHeight={60}
+                    rowRenderer={rowRenderer}
+                    width={width}
+                    overscanRowCount={10}
+                  />
+                )}
+              </AutoSizer>
             )}
           </>
         )}
-        {isAnalyticsModalOpen && (
+      </Box>
+
+      {/* Modals and Drawers */}
+      <AddEntry
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onEntryAdded={handleEntryAdded}
+      />
+      <EditEntry
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        entry={entryToEdit}
+        onEntryUpdated={handleEntryUpdated}
+      />
+      <DeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        itemId={itemIdToDelete}
+        itemIds={itemIdsToDelete}
+        onDelete={handleDelete}
+      />
+      <ViewEntry
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        entry={entryToView}
+        role={role}
+      />
+      {(role === "superadmin" || role === "admin") && (
+        <>
+          <TeamBuilder
+            isOpen={isTeamBuilderOpen}
+            onClose={() => setIsTeamBuilderOpen(false)}
+            userRole={role}
+            userId={userId}
+          />
+          <AdminDrawer
+            entries={entries}
+            isOpen={isAnalyticsOpen}
+            onClose={() => setIsAnalyticsOpen(false)}
+            role={role}
+            userId={userId}
+            dateRange={dateRange}
+          />
+          <ValueAnalyticsDrawer
+            entries={entries}
+            isOpen={isValueAnalyticsOpen}
+            onClose={() => setIsValueAnalyticsOpen(false)}
+            role={role}
+            userId={userId}
+            dateRange={dateRange}
+          />
+          {role === "superadmin" && (
+            <TeamAnalyticsDrawer
+              entries={entries}
+              isOpen={isTeamAnalyticsOpen}
+              onClose={() => setIsTeamAnalyticsOpen(false)}
+              role={role}
+              userId={userId}
+              dateRange={dateRange}
+            />
+          )}
+        </>
+      )}
+      {isAnalyticsModalOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.6)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => setIsAnalyticsModalOpen(false)}
+        >
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.8, opacity: 0 }}
             transition={{ duration: 0.3 }}
             style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: "rgba(0, 0, 0, 0.6)",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              zIndex: 1000,
+              background: "white",
+              borderRadius: "16px",
+              width: isMobile ? "90%" : "400px",
+              maxWidth: "400px",
+              boxShadow: "0px 8px 24px rgba(0, 0, 0, 0.2)",
+              position: "relative",
+              overflow: "hidden",
             }}
-            onClick={() => setIsAnalyticsModalOpen(false)}
+            onClick={(e) => e.stopPropagation()}
           >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              style={{
-                background: "white",
-                borderRadius: "16px",
-                width: isMobile ? "90%" : "400px",
-                maxWidth: "400px",
-                boxShadow: "0px 8px 24px rgba(0, 0, 0, 0.2)",
-                position: "relative",
-                overflow: "hidden",
+            <Box
+              sx={{
+                padding: isMobile ? "15px" : "20px",
+                borderBottom: "1px solid #e0e0e0",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
               }}
-              onClick={(e) => e.stopPropagation()}
             >
-              <Box
+              <Typography
+                variant="h6"
                 sx={{
-                  padding: isMobile ? "15px" : "20px",
-                  borderBottom: "1px solid #e0e0e0",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
+                  fontSize: isMobile ? "1.2rem" : "1.5rem",
+                  fontWeight: "600",
+                  color: "#333",
                 }}
               >
-                <Typography
-                  variant="h6"
-                  sx={{
-                    fontSize: isMobile ? "1.2rem" : "1.5rem",
-                    fontWeight: "600",
-                    color: "#333",
-                  }}
-                >
-                  Analytics Options
-                </Typography>
-                <button
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: "1.2rem",
-                    color: "#666",
-                    transition: "color 0.2s ease",
-                    padding: "5px",
-                  }}
-                  onClick={() => setIsAnalyticsModalOpen(false)}
-                  aria-label="Close analytics modal"
-                >
-                  ✕
-                </button>
-              </Box>
-              <Box
-                sx={{
-                  padding: isMobile ? "15px" : "20px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "15px",
+                Analytics Options
+              </Typography>
+              <button
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: "1.2rem",
+                  color: "#666",
+                  transition: "color 0.2s ease",
+                  padding: "5px",
                 }}
+                onClick={() => setIsAnalyticsModalOpen(false)}
+                aria-label="Close analytics modal"
               >
+                ✕
+              </button>
+            </Box>
+            <Box
+              sx={{
+                padding: isMobile ? "15px" : "20px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "15px",
+              }}
+            >
+              <ActionButton
+                onClick={() => {
+                  setIsAnalyticsOpen(true);
+                  setIsAnalyticsModalOpen(false);
+                }}
+                icon={<FaChartBar />}
+                label="Team Analytics"
+                ariaLabel="View team analytics"
+              />
+              <ActionButton
+                onClick={() => {
+                  setIsValueAnalyticsOpen(true);
+                  setIsAnalyticsModalOpen(false);
+                }}
+                icon={<FaChartBar />}
+                label="Value Analytics"
+                ariaLabel="View value analytics"
+              />
+              {role === "superadmin" && (
                 <ActionButton
                   onClick={() => {
-                    setIsAnalyticsOpen(true);
+                    setIsTeamAnalyticsOpen(true);
                     setIsAnalyticsModalOpen(false);
                   }}
                   icon={<FaChartBar />}
-                  label="Team Analytics"
-                  ariaLabel="View team analytics"
+                  label="Team-Wise Analytics"
+                  ariaLabel="View team-wise analytics"
                 />
-                <ActionButton
-                  onClick={() => {
-                    setIsValueAnalyticsOpen(true);
-                    setIsAnalyticsModalOpen(false);
-                  }}
-                  icon={<FaChartBar />}
-                  label="Value Analytics"
-                  ariaLabel="View value analytics"
-                />
-                {role === "superadmin" && (
-                  <ActionButton
-                    onClick={() => {
-                      setIsTeamAnalyticsOpen(true);
-                      setIsAnalyticsModalOpen(false);
-                    }}
-                    icon={<FaChartBar />}
-                    label="Team-Wise Analytics"
-                    ariaLabel="View team-wise analytics"
-                  />
-                )}
-              </Box>
-            </motion.div>
+              )}
+            </Box>
           </motion.div>
-        )}
-        <AttendanceTracker
-          open={isDrawerOpen}
-          onClose={() => setIsDrawerOpen(false)}
-          userId={userId}
-          role={userRole}
-        />
-      </Box>
+        </motion.div>
+      )}
+      <AttendanceTracker
+        open={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        userId={userId}
+        role={userRole}
+      />
       <Box
         component="footer"
         sx={{
@@ -2677,7 +2712,7 @@ function DashBoard() {
           © 2025 CRM. All rights reserved.
         </Typography>
       </Box>
-    </>
+    </Box>
   );
 }
 
