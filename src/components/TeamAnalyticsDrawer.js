@@ -1,10 +1,106 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Drawer, Box, Typography, IconButton, Collapse } from "@mui/material";
-import { FaTimes, FaUsers, FaChevronDown, FaChevronUp } from "react-icons/fa";
+import {
+  Drawer,
+  Box,
+  Typography,
+  IconButton,
+  Collapse,
+  Button,
+  Skeleton,
+  Switch,
+  FormControlLabel,
+} from "@mui/material";
+import { DataGrid } from "@mui/x-data-grid";
+import {
+  FaTimes,
+  FaUsers,
+  FaChevronDown,
+  FaChevronUp,
+  FaDownload,
+} from "react-icons/fa";
 import axios from "axios";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
+import DOMPurify from "dompurify";
+import { FixedSizeList } from "react-window";
+
+// Custom hook for cached API calls
+const useCachedApi = (url, token) => {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+
+  const fetchData = useCallback(async () => {
+    if (!token) {
+      setError("No authentication token found");
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setData(response.data);
+      setError(null);
+    } catch (err) {
+      setError(
+        err.response
+          ? `API error: ${err.response.status} ${err.response.statusText}`
+          : `Network error: ${err.message}`
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [url, token]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData, retryCount]);
+
+  return {
+    data,
+    error,
+    loading,
+    retry: () => setRetryCount((prev) => prev + 1),
+  };
+};
+
+// Reusable StatCard component
+const StatCard = ({ label, value, color }) => (
+  <Box
+    sx={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      background: "rgba(255, 255, 255, 0.05)",
+      borderRadius: "6px",
+      px: 2,
+      py: 1,
+    }}
+  >
+    <Typography
+      sx={{
+        fontSize: "0.9rem",
+        fontWeight: 500,
+        color: "rgba(255, 255, 255, 0.9)",
+        textTransform: "uppercase",
+      }}
+    >
+      {label}
+    </Typography>
+    <Typography
+      sx={{
+        fontSize: "0.95rem",
+        fontWeight: 600,
+        color,
+      }}
+    >
+      {value}
+    </Typography>
+  </Box>
+);
 
 const TeamAnalyticsDrawer = ({
   entries,
@@ -15,218 +111,201 @@ const TeamAnalyticsDrawer = ({
   dateRange,
 }) => {
   const [teamStats, setTeamStats] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [expandedTeams, setExpandedTeams] = useState({});
+  const [showZeroEntries, setShowZeroEntries] = useState(true);
+
+  // API hook
+  const {
+    data: users,
+    error,
+    loading,
+    retry,
+  } = useCachedApi(
+    `${process.env.REACT_APP_API_URL}/api/users`,
+    localStorage.getItem("token")
+  );
+
+  // Calculate team stats
+  const teamStatsMemo = useMemo(() => {
+    if (role !== "superadmin" || !users || !Array.isArray(users)) return [];
+
+    const admins = users
+      .filter((user) => user.role === "admin")
+      .map((admin) => ({
+        _id: admin._id,
+        username: DOMPurify.sanitize(admin.username),
+        teamMembers: users
+          .filter(
+            (u) =>
+              u.role === "others" &&
+              (typeof u.assignedAdmin === "string"
+                ? u.assignedAdmin === admin._id
+                : u.assignedAdmin?.$oid === admin._id)
+          )
+          .map((u) => ({
+            _id: u._id,
+            username: DOMPurify.sanitize(u.username),
+          })),
+      }));
+
+    const statsMap = {};
+    const filteredEntries = entries.filter((entry) => {
+      const createdAt = new Date(entry.createdAt);
+      return (
+        !dateRange[0]?.startDate ||
+        !dateRange[0]?.endDate ||
+        (createdAt >= new Date(dateRange[0].startDate) &&
+          createdAt <= new Date(dateRange[0].endDate))
+      );
+    });
+
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    filteredEntries.forEach((entry) => {
+      const creator = users.find((user) => user._id === entry.createdBy?._id);
+      if (!creator) return;
+
+      const adminId =
+        creator.role === "admin"
+          ? creator._id
+          : typeof creator.assignedAdmin === "string"
+          ? creator.assignedAdmin
+          : creator.assignedAdmin?.$oid;
+      const admin = admins.find((a) => a._id === adminId);
+
+      if (admin) {
+        const adminKey = adminId;
+        if (!statsMap[adminKey]) {
+          statsMap[adminKey] = {
+            adminId,
+            adminName: admin.username,
+            teamMembers: admin.teamMembers,
+            adminAnalytics: {
+              username: admin.username,
+              allTimeEntries: 0,
+              monthEntries: 0,
+              cold: 0,
+              warm: 0,
+              hot: 0,
+              closedWon: 0,
+              closedLost: 0,
+            },
+            membersAnalytics: {},
+            teamTotal: {
+              username: "",
+              allTimeEntries: 0,
+              monthEntries: 0,
+              cold: 0,
+              warm: 0,
+              hot: 0,
+              closedWon: 0,
+              closedLost: 0,
+            },
+          };
+        }
+
+        const memberId = creator._id;
+        const memberName = creator.username;
+        let targetAnalytics;
+
+        if (creator.role === "admin") {
+          targetAnalytics = statsMap[adminKey].adminAnalytics;
+        } else {
+          if (!statsMap[adminKey].membersAnalytics[memberId]) {
+            statsMap[adminKey].membersAnalytics[memberId] = {
+              username: memberName,
+              allTimeEntries: 0,
+              monthEntries: 0,
+              cold: 0,
+              warm: 0,
+              hot: 0,
+              closedWon: 0,
+              closedLost: 0,
+            };
+          }
+          targetAnalytics = statsMap[adminKey].membersAnalytics[memberId];
+        }
+
+        targetAnalytics.allTimeEntries += 1;
+        statsMap[adminKey].teamTotal.allTimeEntries += 1;
+
+        const entryDate = new Date(entry.createdAt);
+        if (
+          entryDate.getMonth() === currentMonth &&
+          entryDate.getFullYear() === currentYear
+        ) {
+          targetAnalytics.monthEntries += 1;
+          statsMap[adminKey].teamTotal.monthEntries += 1;
+        }
+
+        switch (entry.status) {
+          case "Not Interested":
+            targetAnalytics.cold += 1;
+            statsMap[adminKey].teamTotal.cold += 1;
+            break;
+          case "Maybe":
+            targetAnalytics.warm += 1;
+            statsMap[adminKey].teamTotal.warm += 1;
+            break;
+          case "Interested":
+            targetAnalytics.hot += 1;
+            statsMap[adminKey].teamTotal.hot += 1;
+            break;
+          case "Closed":
+            if (entry.closetype === "Closed Won") {
+              targetAnalytics.closedWon += 1;
+              statsMap[adminKey].teamTotal.closedWon += 1;
+            } else if (entry.closetype === "Closed Lost") {
+              targetAnalytics.closedLost += 1;
+              statsMap[adminKey].teamTotal.closedLost += 1;
+            }
+            break;
+          default:
+            break;
+        }
+      }
+    });
+
+    return admins.map((admin) => ({
+      adminId: admin._id,
+      adminName: admin.username,
+      teamMembers: admin.teamMembers,
+      adminAnalytics: statsMap[admin._id]?.adminAnalytics || {
+        username: admin.username,
+        allTimeEntries: 0,
+        monthEntries: 0,
+        cold: 0,
+        warm: 0,
+        hot: 0,
+        closedWon: 0,
+        closedLost: 0,
+      },
+      membersAnalytics: statsMap[admin._id]?.membersAnalytics
+        ? Object.values(statsMap[admin._id].membersAnalytics)
+        : [],
+      teamTotal: statsMap[admin._id]?.teamTotal || {
+        username: "",
+        allTimeEntries: 0,
+        monthEntries: 0,
+        cold: 0,
+        warm: 0,
+        hot: 0,
+        closedWon: 0,
+        closedLost: 0,
+      },
+    }));
+  }, [users, entries, role, dateRange]);
 
   useEffect(() => {
-    const fetchTeamStats = async () => {
-      if (role !== "superadmin") {
-        console.log("Access denied: User is not superadmin, role:", role);
-        toast.error("Access restricted to superadmins only");
-        return;
-      }
-      setLoading(true);
-      try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          throw new Error("No authentication token found");
-        }
-
-        const [usersResponse] = await Promise.all([
-          axios.get("https://crm-server-amz7.onrender.com/api/users", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-        ]);
-        const users = usersResponse.data;
-        console.log("Fetched users:", users.length, users);
-
-        if (!users || users.length === 0) {
-          throw new Error("No users returned from API");
-        }
-
-        // Build admin list with team members
-        const admins = users
-          .filter((user) => user.role === "admin")
-          .map((admin) => ({
-            _id: admin._id,
-            username: admin.username,
-            teamMembers: users
-              .filter(
-                (u) =>
-                  u.role === "others" && u.assignedAdmin?.$oid === admin._id
-              )
-              .map((u) => ({ _id: u._id, username: u.username })),
-          }));
-        console.log("Admins:", admins);
-
-        if (admins.length === 0) {
-          console.warn("No admins found in user data");
-        }
-
-        const statsMap = {};
-        const filteredEntries = entries.filter((entry) => {
-          const createdAt = new Date(entry.createdAt);
-          return (
-            !dateRange[0].startDate ||
-            !dateRange[0].endDate ||
-            (createdAt >= new Date(dateRange[0].startDate) &&
-              createdAt <= new Date(dateRange[0].endDate))
-          );
-        });
-        console.log("Filtered entries:", filteredEntries.length);
-
-        const now = new Date();
-        const currentMonth = now.getMonth();
-        const currentYear = now.getFullYear();
-
-        filteredEntries.forEach((entry) => {
-          const creator = users.find(
-            (user) => user._id === entry.createdBy?._id
-          );
-          if (!creator) {
-            console.warn("Creator not found for entry:", entry._id);
-            return;
-          }
-
-          const adminId =
-            creator.role === "admin"
-              ? creator._id
-              : creator.assignedAdmin?.$oid;
-          const admin = admins.find((a) => a._id === adminId);
-
-          if (admin) {
-            const adminKey = adminId;
-            if (!statsMap[adminKey]) {
-              statsMap[adminKey] = {
-                adminId,
-                adminName: admin.username,
-                teamMembers: admin.teamMembers,
-                adminAnalytics: {
-                  username: admin.username,
-                  allTimeEntries: 0,
-                  monthEntries: 0,
-                  cold: 0,
-                  warm: 0,
-                  hot: 0,
-                  closedWon: 0,
-                  closedLost: 0,
-                },
-                membersAnalytics: {},
-                teamTotal: {
-                  allTimeEntries: 0,
-                  monthEntries: 0,
-                  cold: 0,
-                  warm: 0,
-                  hot: 0,
-                  closedWon: 0,
-                  closedLost: 0,
-                },
-              };
-            }
-
-            const memberId = creator._id;
-            const memberName = creator.username;
-            let targetAnalytics;
-
-            if (creator.role === "admin") {
-              targetAnalytics = statsMap[adminKey].adminAnalytics;
-            } else {
-              if (!statsMap[adminKey].membersAnalytics[memberId]) {
-                statsMap[adminKey].membersAnalytics[memberId] = {
-                  username: memberName,
-                  allTimeEntries: 0,
-                  monthEntries: 0,
-                  cold: 0,
-                  warm: 0,
-                  hot: 0,
-                  closedWon: 0,
-                  closedLost: 0,
-                };
-              }
-              targetAnalytics = statsMap[adminKey].membersAnalytics[memberId];
-            }
-
-            targetAnalytics.allTimeEntries += 1;
-            statsMap[adminKey].teamTotal.allTimeEntries += 1;
-
-            const entryDate = new Date(entry.createdAt);
-            if (
-              entryDate.getMonth() === currentMonth &&
-              entryDate.getFullYear() === currentYear
-            ) {
-              targetAnalytics.monthEntries += 1;
-              statsMap[adminKey].teamTotal.monthEntries += 1;
-            }
-
-            switch (entry.status) {
-              case "Not Interested":
-                targetAnalytics.cold += 1;
-                statsMap[adminKey].teamTotal.cold += 1;
-                break;
-              case "Maybe":
-                targetAnalytics.warm += 1;
-                statsMap[adminKey].teamTotal.warm += 1;
-                break;
-              case "Interested":
-                targetAnalytics.hot += 1;
-                statsMap[adminKey].teamTotal.hot += 1;
-                break;
-              case "Closed":
-                if (entry.closetype === "Closed Won") {
-                  targetAnalytics.closedWon += 1;
-                  statsMap[adminKey].teamTotal.closedWon += 1;
-                } else if (entry.closetype === "Closed Lost") {
-                  targetAnalytics.closedLost += 1;
-                  statsMap[adminKey].teamTotal.closedLost += 1;
-                }
-                break;
-              default:
-                break;
-            }
-          }
-        });
-
-        // Ensure all admins are included
-        const finalStats = admins.map((admin) => ({
-          adminId: admin._id,
-          adminName: admin.username,
-          teamMembers: admin.teamMembers,
-          adminAnalytics: statsMap[admin._id]?.adminAnalytics || {
-            username: admin.username,
-            allTimeEntries: 0,
-            monthEntries: 0,
-            cold: 0,
-            warm: 0,
-            hot: 0,
-            closedWon: 0,
-            closedLost: 0,
-          },
-          membersAnalytics: statsMap[admin._id]?.membersAnalytics
-            ? Object.values(statsMap[admin._id].membersAnalytics)
-            : [],
-          teamTotal: statsMap[admin._id]?.teamTotal || {
-            allTimeEntries: 0,
-            monthEntries: 0,
-            cold: 0,
-            warm: 0,
-            hot: 0,
-            closedWon: 0,
-            closedLost: 0,
-          },
-        }));
-        console.log("Final stats:", finalStats);
-
-        setTeamStats(finalStats);
-      } catch (error) {
-        console.error("Error fetching team analytics:", error.message);
-        toast.error(`Failed to load team analytics: ${error.message}`);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (isOpen) fetchTeamStats();
-  }, [entries, isOpen, role, dateRange]);
+    if (isOpen && role === "superadmin") {
+      setTeamStats(teamStatsMemo);
+    } else if (isOpen && role !== "superadmin") {
+      toast.error("Access restricted to superadmins only");
+      onClose();
+    }
+  }, [isOpen, role, teamStatsMemo, onClose]);
 
   const overallStats = useMemo(
     () =>
@@ -253,7 +332,7 @@ const TeamAnalyticsDrawer = ({
     [teamStats]
   );
 
-  const handleExport = () => {
+  const handleExport = useCallback(() => {
     try {
       const exportData = [
         {
@@ -269,19 +348,6 @@ const TeamAnalyticsDrawer = ({
           Won: overallStats.closedWon,
           Lost: overallStats.closedLost,
         },
-        {
-          Section: "",
-          Team: "",
-          "Team Leader": "",
-          Member: "",
-          "Total Entries": "",
-          "This Month": "",
-          Hot: "",
-          Cold: "",
-          Warm: "",
-          Won: "",
-          Lost: "",
-        },
         ...teamStats.flatMap((team) => [
           {
             Section: "Admin Statistics",
@@ -296,36 +362,20 @@ const TeamAnalyticsDrawer = ({
             Won: team.adminAnalytics.closedWon,
             Lost: team.adminAnalytics.closedLost,
           },
-          ...team.membersAnalytics.map((member) => ({
-            Section: "Member Statistics",
-            Team: team.adminName,
-            "Team Leader": team.adminName,
-            Member: member.username,
-            "Total Entries": member.allTimeEntries,
-            "This Month": member.monthEntries,
-            Hot: member.hot,
-            Cold: member.cold,
-            Warm: member.warm,
-            Won: member.closedWon,
-            Lost: member.closedLost,
-          })),
-          ...team.teamMembers
-            .filter(
-              (m) =>
-                !team.membersAnalytics.some((ma) => ma.username === m.username)
-            )
+          ...team.membersAnalytics
+            .filter((m) => showZeroEntries || m.allTimeEntries > 0)
             .map((member) => ({
-              Section: "Team Members (No Entries)",
+              Section: "Member Statistics",
               Team: team.adminName,
               "Team Leader": team.adminName,
               Member: member.username,
-              "Total Entries": 0,
-              "This Month": 0,
-              Hot: 0,
-              Cold: 0,
-              Warm: 0,
-              Won: 0,
-              Lost: 0,
+              "Total Entries": member.allTimeEntries,
+              "This Month": member.monthEntries,
+              Hot: member.hot,
+              Cold: member.cold,
+              Warm: member.warm,
+              Won: member.closedWon,
+              Lost: member.closedLost,
             })),
           {
             Section: "Team Total",
@@ -347,31 +397,116 @@ const TeamAnalyticsDrawer = ({
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Team Analytics");
 
-      const colWidths = Object.keys(exportData[0]).map((key) => {
-        const maxLength = Math.max(
-          key.length,
-          ...exportData.map((row) => String(row[key] || "").length)
-        );
-        return { wch: Math.min(maxLength + 2, 50) };
-      });
-      worksheet["!cols"] = colWidths;
+      worksheet["!cols"] = Object.keys(exportData[0]).map((key) => ({
+        wch: Math.min(Math.max(key.length, 15) + 2, 50),
+      }));
 
-      XLSX.writeFile(
-        workbook,
-        `team_analytics_${new Date().toISOString().slice(0, 10)}.xlsx`
-      );
+      const dateStr = dateRange[0]?.startDate
+        ? `${new Date(dateRange[0].startDate)
+            .toISOString()
+            .slice(0, 10)}_to_${new Date(dateRange[0].endDate)
+            .toISOString()
+            .slice(0, 10)}`
+        : new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(workbook, `team_analytics_${dateStr}.xlsx`);
       toast.success("Team analytics exported successfully!");
     } catch (error) {
-      console.error("Error exporting team analytics:", error);
       toast.error("Failed to export team analytics!");
     }
-  };
+  }, [teamStats, overallStats, dateRange, showZeroEntries]);
 
-  const toggleTeamMembers = (adminId) => {
+  const toggleTeamMembers = useCallback((adminId) => {
     setExpandedTeams((prev) => ({
       ...prev,
       [adminId]: !prev[adminId],
     }));
+  }, []);
+
+  const handleKeyDown = useCallback(
+    (event) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    },
+    [onClose]
+  );
+
+  // DataGrid columns for summary table
+  const summaryColumns = [
+    { field: "adminName", headerName: "Team", width: 150 },
+    { field: "totalEntries", headerName: "Total Entries", width: 120 },
+    { field: "monthEntries", headerName: "This Month", width: 120 },
+    { field: "hot", headerName: "Hot", width: 100 },
+    { field: "cold", headerName: "Cold", width: 100 },
+    { field: "warm", headerName: "Warm", width: 100 },
+    { field: "closedWon", headerName: "Won", width: 100 },
+    { field: "closedLost", headerName: "Lost", width: 100 },
+  ];
+
+  const summaryRows = teamStats.map((team) => ({
+    id: team.adminId,
+    adminName: team.adminName,
+    totalEntries: team.teamTotal.allTimeEntries,
+    monthEntries: team.teamTotal.monthEntries,
+    hot: team.teamTotal.hot,
+    cold: team.teamTotal.cold,
+    warm: team.teamTotal.warm,
+    closedWon: team.teamTotal.closedWon,
+    closedLost: team.teamTotal.closedLost,
+  }));
+
+  // Lazy-loaded team member list
+  const MemberRow = ({ index, style, data }) => {
+    const member = data.members[index];
+    if (!member) return null;
+    return (
+      <Box style={style} sx={{ pl: 2, mb: 2 }}>
+        <Typography
+          sx={{
+            fontSize: "1rem",
+            fontWeight: 600,
+            color: "rgba(255, 255, 255, 0.95)",
+            mb: 1,
+          }}
+        >
+          {member.username} {member.allTimeEntries === 0 && "(No Entries)"}
+        </Typography>
+        {member.allTimeEntries > 0 && (
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
+              gap: 1,
+            }}
+          >
+            {[
+              {
+                label: "Total Entries",
+                value: member.allTimeEntries,
+                color: "lightgreen",
+              },
+              {
+                label: "This Month",
+                value: member.monthEntries,
+                color: "yellow",
+              },
+              { label: "Cold", value: member.cold, color: "orange" },
+              { label: "Warm", value: member.warm, color: "lightgreen" },
+              { label: "Hot", value: member.hot, color: "yellow" },
+              { label: "Won", value: member.closedWon, color: "lightgrey" },
+              { label: "Lost", value: member.closedLost, color: "#e91e63" },
+            ].map((stat) => (
+              <StatCard
+                key={stat.label}
+                label={stat.label}
+                value={stat.value}
+                color={stat.color}
+              />
+            ))}
+          </Box>
+        )}
+      </Box>
+    );
   };
 
   return (
@@ -379,6 +514,7 @@ const TeamAnalyticsDrawer = ({
       anchor="bottom"
       open={isOpen}
       onClose={onClose}
+      onKeyDown={handleKeyDown}
       PaperProps={{
         sx: {
           width: "100%",
@@ -391,37 +527,35 @@ const TeamAnalyticsDrawer = ({
           flexDirection: "column",
           overflow: "hidden",
         },
+        role: "dialog",
+        "aria-label": "Team Analytics Dashboard",
       }}
     >
       <Box
         sx={{
-          padding: "24px",
+          padding: 3,
           background: "rgba(255, 255, 255, 0.1)",
           borderBottom: "1px solid rgba(255, 255, 255, 0.2)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
         }}
       >
         <Typography
           variant="h5"
           sx={{
-            fontWeight: "700",
+            fontWeight: 700,
             fontSize: "1.6rem",
             letterSpacing: "1.2px",
             textTransform: "uppercase",
-            textShadow: "0 2px 4px rgba(0, 0, 0, 0.3)",
           }}
         >
           Team Analytics
         </Typography>
         <IconButton
           onClick={onClose}
-          sx={{
-            color: "white",
-            "&:hover": { background: "rgba(255, 255, 255, 0.2)" },
-          }}
+          sx={{ color: "white" }}
+          aria-label="Close analytics dashboard"
         >
           <FaTimes size={22} />
         </IconButton>
@@ -429,79 +563,78 @@ const TeamAnalyticsDrawer = ({
 
       <Box sx={{ flex: 1, overflowY: "auto", px: 3, py: 4 }}>
         {loading ? (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {[...Array(3)].map((_, i) => (
+              <Skeleton
+                key={i}
+                variant="rectangular"
+                height={100}
+                sx={{ borderRadius: 2 }}
+              />
+            ))}
+          </Box>
+        ) : error ? (
           <Box
             sx={{
               display: "flex",
-              justifyContent: "center",
+              flexDirection: "column",
               alignItems: "center",
-              height: "100%",
+              gap: 2,
+              py: 4,
             }}
           >
-            <Typography
-              sx={{
-                fontSize: "1.2rem",
-                fontWeight: "400",
-                fontStyle: "italic",
-                textAlign: "center",
-                borderRadius: "8px",
-                padding: "16px",
-                background: "rgba(255, 255, 255, 0.1)",
-              }}
-            >
-              Loading Analytics...
+            <Typography sx={{ color: "rgba(255, 255, 255, 0.7)" }}>
+              {error}
             </Typography>
+            <Button
+              onClick={retry}
+              variant="contained"
+              sx={{ backgroundColor: "#34d399" }}
+            >
+              Retry
+            </Button>
           </Box>
+        ) : !users || users.length === 0 ? (
+          <Typography
+            sx={{
+              color: "rgba(255, 255, 255, 0.7)",
+              fontSize: "1.2rem",
+              textAlign: "center",
+              py: 4,
+            }}
+          >
+            No user data available. Please check the API or contact support.
+          </Typography>
         ) : teamStats.length === 0 ? (
-          <Box
+          <Typography
             sx={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              height: "100%",
+              color: "rgba(255, 255, 255, 0.7)",
+              fontSize: "1.2rem",
+              textAlign: "center",
+              py: 4,
             }}
           >
-            <Typography
-              sx={{
-                color: "rgba(255, 255, 255, 0.7)",
-                fontSize: "1.2rem",
-                fontWeight: "400",
-                fontStyle: "italic",
-                textAlign: "center",
-                background: "rgba(255, 255, 255, 0.05)",
-                borderRadius: "8px",
-                padding: "16px",
-                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
-              }}
-            >
-              No Admin Data Available. Please check user roles or contact
-              support.
-            </Typography>
-          </Box>
+            No team data available. Ensure admins are assigned and entries
+            exist.
+          </Typography>
         ) : (
           <>
             <Box sx={{ mb: 4 }}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
+                transition={{ duration: 0.5 }}
                 sx={{
-                  background:
-                    "linear-gradient(135deg, rgba(37, 117, 252, 0.9), rgba(106, 17, 203, 0.9))",
+                  background: "rgba(255, 255, 255, 0.1)",
                   borderRadius: "16px",
                   p: 3,
                   boxShadow: "0 8px 24px rgba(0, 0, 0, 0.3)",
-                  backdropFilter: "blur(8px)",
                 }}
               >
                 <Typography
                   sx={{
                     fontSize: "1.6rem",
-                    fontWeight: "700",
-                    background: "linear-gradient(135deg, #ffffff, #e0e7ff)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                    letterSpacing: "0.5px",
-                    textShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
+                    fontWeight: 700,
                     mb: 2.5,
                     textAlign: "center",
                   }}
@@ -513,11 +646,9 @@ const TeamAnalyticsDrawer = ({
                     display: "grid",
                     gridTemplateColumns: {
                       xs: "repeat(2, 1fr)",
-                      sm: "repeat(3, 1fr)",
+                      sm: "repeat(4, 1fr)",
                     },
-                    gap: "12px",
-                    justifyItems: "center",
-                    alignItems: "stretch",
+                    gap: 1,
                   }}
                 >
                   {[
@@ -552,52 +683,48 @@ const TeamAnalyticsDrawer = ({
                       value: overallStats.closedLost,
                       color: "#e91e63",
                     },
-                  ].map((stat, index) => (
-                    <motion.div
+                  ].map((stat) => (
+                    <StatCard
                       key={stat.label}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: index * 0.1, duration: 0.3 }}
-                      sx={{
-                        width: "100%",
-                        background: "rgba(255, 255, 255, 0.1)",
-                        borderRadius: "8px",
-                        p: 1.5,
-                        textAlign: "center",
-                        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
-                        minHeight: "80px",
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Typography
-                        sx={{
-                          fontSize: "0.9rem",
-                          fontWeight: "600",
-                          color: "rgba(255, 255, 255, 0.9)",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.6px",
-                          mb: 0.5,
-                        }}
-                      >
-                        {stat.label}
-                      </Typography>
-                      <Typography
-                        sx={{
-                          fontSize: "1.3rem",
-                          fontWeight: "700",
-                          color: stat.color,
-                          textShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
-                        }}
-                      >
-                        {stat.value}
-                      </Typography>
-                    </motion.div>
+                      label={stat.label}
+                      value={stat.value}
+                      color={stat.color}
+                    />
                   ))}
                 </Box>
               </motion.div>
             </Box>
+
+            <Box sx={{ mb: 4 }}>
+              <Typography sx={{ fontSize: "1.4rem", fontWeight: 700, mb: 2 }}>
+                Team Summary
+              </Typography>
+              <Box sx={{ height: 300, width: "100%" }}>
+                <DataGrid
+                  rows={summaryRows}
+                  columns={summaryColumns}
+                  pageSizeOptions={[5, 10]}
+                  sx={{
+                    background: "rgba(255, 255, 255, 0.1)",
+                    color: "white",
+                    "& .MuiDataGrid-cell": { color: "white" },
+                    "& .MuiDataGrid-columnHeader": { color: "white" },
+                  }}
+                />
+              </Box>
+            </Box>
+
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showZeroEntries}
+                  onChange={() => setShowZeroEntries((prev) => !prev)}
+                  color="primary"
+                />
+              }
+              label="Show Zero-Entry Members"
+              sx={{ mb: 2, color: "rgba(255, 255, 255, 0.9)" }}
+            />
 
             {teamStats.map((team, index) => (
               <Box key={team.adminId} sx={{ mb: 3 }}>
@@ -610,11 +737,6 @@ const TeamAnalyticsDrawer = ({
                     borderRadius: "12px",
                     p: 3,
                     boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-                    "&:hover": {
-                      background: "rgba(255, 255, 255, 0.2)",
-                      transform: "translateY(-2px)",
-                      transition: "all 0.2s ease",
-                    },
                   }}
                 >
                   <Box
@@ -628,28 +750,22 @@ const TeamAnalyticsDrawer = ({
                     <Typography
                       sx={{
                         fontSize: "1.5rem",
-                        fontWeight: "700",
-                        letterSpacing: "0.4px",
+                        fontWeight: 700,
                         textTransform: "capitalize",
-                        textShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
                       }}
                     >
                       {team.adminName}
                     </Typography>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <Typography
-                        sx={{
-                          fontSize: "1.1rem",
-                          fontWeight: "600",
-                          color: "lightgreen",
-                          textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
-                        }}
+                        sx={{ fontSize: "1.1rem", color: "lightgreen" }}
                       >
                         Total: {team.teamTotal.allTimeEntries}
                       </Typography>
                       <IconButton
                         onClick={() => toggleTeamMembers(team.adminId)}
-                        sx={{ color: "white", p: 0.5 }}
+                        sx={{ color: "white" }}
+                        aria-label={`Toggle team members for ${team.adminName}`}
                       >
                         {expandedTeams[team.adminId] ? (
                           <FaChevronUp size={16} />
@@ -708,40 +824,12 @@ const TeamAnalyticsDrawer = ({
                           color: "#e91e63",
                         },
                       ].map((stat) => (
-                        <Box
+                        <StatCard
                           key={stat.label}
-                          sx={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            background: "rgba(255, 255, 255, 0.05)",
-                            borderRadius: "6px",
-                            px: 2,
-                            py: 1,
-                          }}
-                        >
-                          <Typography
-                            sx={{
-                              fontSize: "0.9rem",
-                              fontWeight: "500",
-                              color: "rgba(255, 255, 255, 0.9)",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.5px",
-                            }}
-                          >
-                            {stat.label}
-                          </Typography>
-                          <Typography
-                            sx={{
-                              fontSize: "0.95rem",
-                              fontWeight: "600",
-                              color: stat.color,
-                              textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
-                            }}
-                          >
-                            {stat.value}
-                          </Typography>
-                        </Box>
+                          label={stat.label}
+                          value={stat.value}
+                          color={stat.color}
+                        />
                       ))}
                     </Box>
                   </Box>
@@ -751,7 +839,7 @@ const TeamAnalyticsDrawer = ({
                       <Typography
                         sx={{
                           fontSize: "1.1rem",
-                          fontWeight: "500",
+                          fontWeight: 500,
                           color: "rgba(255, 255, 255, 0.9)",
                           mb: 2,
                           display: "flex",
@@ -772,124 +860,29 @@ const TeamAnalyticsDrawer = ({
                           </Typography>
                         )}
                       </Typography>
-                      {team.membersAnalytics.map((member, mIndex) => (
-                        <Box key={mIndex} sx={{ mb: 2, ml: 2 }}>
-                          <Typography
-                            sx={{
-                              fontSize: "1rem",
-                              fontWeight: "600",
-                              color: "rgba(255, 255, 255, 0.95)",
-                              mb: 1,
-                            }}
-                          >
-                            {member.username}
-                          </Typography>
-                          <Box
-                            sx={{
-                              display: "grid",
-                              gridTemplateColumns: {
-                                xs: "1fr",
-                                sm: "repeat(2, 1fr)",
-                              },
-                              gap: 1,
-                            }}
-                          >
-                            {[
-                              {
-                                label: "Total Entries",
-                                value: member.allTimeEntries,
-                                color: "lightgreen",
-                              },
-                              {
-                                label: "This Month",
-                                value: member.monthEntries,
-                                color: "yellow",
-                              },
-                              {
-                                label: "Cold",
-                                value: member.cold,
-                                color: "orange",
-                              },
-                              {
-                                label: "Warm",
-                                value: member.warm,
-                                color: "lightgreen",
-                              },
-                              {
-                                label: "Hot",
-                                value: member.hot,
-                                color: "yellow",
-                              },
-                              {
-                                label: "Won",
-                                value: member.closedWon,
-                                color: "lightgrey",
-                              },
-                              {
-                                label: "Lost",
-                                value: member.closedLost,
-                                color: "#e91e63",
-                              },
-                            ].map((stat) => (
-                              <Box
-                                key={stat.label}
-                                sx={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  alignItems: "center",
-                                  background: "rgba(255, 255, 255, 0.05)",
-                                  borderRadius: "6px",
-                                  px: 2,
-                                  py: 1,
-                                }}
-                              >
-                                <Typography
-                                  sx={{
-                                    fontSize: "0.9rem",
-                                    fontWeight: "500",
-                                    color: "rgba(255, 255, 255, 0.9)",
-                                    textTransform: "uppercase",
-                                    letterSpacing: "0.5px",
-                                  }}
-                                >
-                                  {stat.label}
-                                </Typography>
-                                <Typography
-                                  sx={{
-                                    fontSize: "0.95rem",
-                                    fontWeight: "600",
-                                    color: stat.color,
-                                    textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
-                                  }}
-                                >
-                                  {stat.value}
-                                </Typography>
-                              </Box>
-                            ))}
-                          </Box>
-                        </Box>
-                      ))}
-                      {team.teamMembers
-                        .filter(
-                          (m) =>
-                            !team.membersAnalytics.some(
-                              (ma) => ma.username === m.username
-                            )
-                        )
-                        .map((member) => (
-                          <Box key={member._id} sx={{ mb: 2, ml: 2 }}>
-                            <Typography
-                              sx={{
-                                fontSize: "1rem",
-                                fontWeight: "600",
-                                color: "rgba(255, 255, 255, 0.95)",
-                                mb: 1,
-                              }}
-                            >
-                              {member.username} (No Entries)
-                            </Typography>
-                          </Box>
-                        ))}
+                      {team.teamMembers.length > 0 ? (
+                        <FixedSizeList
+                          height={Math.min(team.teamMembers.length * 150, 300)}
+                          width="100%"
+                          itemCount={
+                            showZeroEntries
+                              ? team.membersAnalytics.length
+                              : team.membersAnalytics.filter(
+                                  (m) => m.allTimeEntries > 0
+                                ).length
+                          }
+                          itemSize={150}
+                          itemData={{
+                            members: showZeroEntries
+                              ? team.membersAnalytics
+                              : team.membersAnalytics.filter(
+                                  (m) => m.allTimeEntries > 0
+                                ),
+                          }}
+                        >
+                          {MemberRow}
+                        </FixedSizeList>
+                      ) : null}
                     </Box>
                   </Collapse>
                 </motion.div>
@@ -918,11 +911,8 @@ const TeamAnalyticsDrawer = ({
             borderRadius: "8px",
             border: "none",
             fontSize: "1.1rem",
-            fontWeight: "600",
+            fontWeight: 600,
             cursor: "pointer",
-            transition: "all 0.3s ease",
-            letterSpacing: "0.5px",
-            textTransform: "uppercase",
             marginBottom: "12px",
             display: "flex",
             alignItems: "center",
@@ -930,7 +920,7 @@ const TeamAnalyticsDrawer = ({
             gap: "8px",
           }}
         >
-          <span style={{ fontSize: "1.2rem" }}>⬇</span> Export Analytics
+          <FaDownload size={16} /> Export Analytics
         </motion.button>
         <motion.button
           whileHover={{ scale: 1.02 }}
@@ -944,11 +934,8 @@ const TeamAnalyticsDrawer = ({
             borderRadius: "8px",
             border: "none",
             fontSize: "1.1rem",
-            fontWeight: "600",
+            fontWeight: 600,
             cursor: "pointer",
-            transition: "all 0.3s ease",
-            letterSpacing: "0.5px",
-            textTransform: "uppercase",
           }}
         >
           Close Dashboard
