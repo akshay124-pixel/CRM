@@ -49,7 +49,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
     try {
       const token = localStorage.getItem("token");
       await axios.post(
-        "https://crm-server-amz7.onrender.com/api/attendance/check-in",
+        "https://crm-server-amz7.onrender.com/api/check-in",
         { remarks },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -65,7 +65,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
     try {
       const token = localStorage.getItem("token");
       await axios.post(
-        "https://crm-server-amz7.onrender.com/api/attendance/check-out",
+        "https://crm-server-amz7.onrender.com/api/check-out",
         { remarks },
         { headers: { Authorization: `Bearer ${token}` } }
       );
