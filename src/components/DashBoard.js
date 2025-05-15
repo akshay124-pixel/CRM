@@ -7,6 +7,7 @@ import "react-date-range/dist/styles.css";
 import TeamAnalyticsDrawer from "./TeamAnalyticsDrawer.js";
 import "react-date-range/dist/theme/default.css";
 import { jwtDecode } from "jwt-decode";
+import { useNavigate } from "react-router-dom";
 import {
   Popover,
   Typography,
@@ -58,6 +59,13 @@ const useIsMobile = () => {
   }, []);
 
   return isMobile;
+};
+const handleLogout = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("userId");
+  localStorage.removeItem("role");
+  localStorage.removeItem("user");
+  navigate("/login");
 };
 
 const CallTrackingDashboard = ({
