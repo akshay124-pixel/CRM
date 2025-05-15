@@ -270,7 +270,7 @@ const CallTrackingDashboard = ({
 
 function DashBoard() {
   const isMobile = useIsMobile();
-  const navigate = useNavigate();
+
   const [entries, setEntries] = useState([]);
   const [role, setRole] = useState(localStorage.getItem("role") || "");
   const [userId, setUserId] = useState(localStorage.getItem("userId") || "");
@@ -1502,6 +1502,7 @@ function DashBoard() {
     }
   };
 
+  const navigate = useNavigate();
   const fetchUserRole = useCallback(async () => {
     try {
       const token = localStorage.getItem("token");
