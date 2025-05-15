@@ -107,6 +107,7 @@ const TeamAnalyticsDrawer = ({
   const [teamStats, setTeamStats] = useState([]);
   const [expandedTeams, setExpandedTeams] = useState({});
   const [showZeroEntries, setShowZeroEntries] = useState(true);
+  const [debugInfo, setDebugInfo] = useState(null);
 
   // Fetch users from API
   const {
@@ -122,57 +123,96 @@ const TeamAnalyticsDrawer = ({
   // Calculate team stats
   const teamStatsMemo = useMemo(() => {
     if (role !== "superadmin" || !Array.isArray(users) || users.length === 0) {
+      setDebugInfo("No superadmin role or no users found");
       return [];
     }
 
-    // Filter admins
+    // Log users for debugging
+    console.log("Users:", users);
+
+    // Filter admins (case-insensitive)
     const admins = users
-      .filter((user) => user.role === "admin")
-      .map((admin) => ({
-        _id: admin._id,
-        username: DOMPurify.sanitize(admin.username),
-        teamMembers: users
-          .filter(
-            (u) =>
-              u.role === "others" &&
-              (typeof u.assignedAdmin === "string"
-                ? u.assignedAdmin === admin._id
-                : u.assignedAdmin?.$oid === admin._id)
-          )
+      .filter((user) => user.role?.toLowerCase() === "admin")
+      .map((admin) => {
+        const teamMembers = users
+          .filter((u) => {
+            if (u.role?.toLowerCase() !== "others") return false;
+            const assignedAdmin = u.assignedAdmin;
+            const adminId = admin._id;
+            return (
+              assignedAdmin === adminId ||
+              (assignedAdmin?.$oid && assignedAdmin.$oid === adminId) ||
+              (typeof assignedAdmin === "object" &&
+                assignedAdmin._id === adminId)
+            );
+          })
           .map((u) => ({
             _id: u._id,
             username: DOMPurify.sanitize(u.username),
-          })),
-      }));
+          }));
+        return {
+          _id: admin._id,
+          username: DOMPurify.sanitize(admin.username),
+          teamMembers,
+        };
+      });
+
+    // Log admins for debugging
+    console.log("Admins:", admins);
+
+    if (admins.length === 0) {
+      setDebugInfo("No users with 'admin' role found");
+      return [];
+    }
 
     const statsMap = {};
     const filteredEntries = entries.filter((entry) => {
       const createdAt = new Date(entry.createdAt);
-      return (
-        !dateRange[0]?.startDate ||
-        !dateRange[0]?.endDate ||
-        (createdAt >= new Date(dateRange[0].startDate) &&
-          createdAt <= new Date(dateRange[0].endDate))
-      );
+      // Temporarily bypass date range for debugging
+      return true;
+      // Original date range filter
+      // const isWithinDateRange =
+      //   !dateRange[0]?.startDate ||
+      //   !dateRange[0]?.endDate ||
+      //   (createdAt >= new Date(dateRange[0].startDate) &&
+      //     createdAt <= new Date(dateRange[0].endDate));
+      // return isWithinDateRange;
     });
+
+    // Log entries for debugging
+    console.log("Filtered Entries:", filteredEntries);
+
+    if (filteredEntries.length === 0) {
+      setDebugInfo("No entries found; displaying admins without entries");
+    }
 
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
     filteredEntries.forEach((entry) => {
-      const creator = users.find((user) => user._id === entry.createdBy?._id);
-      if (!creator) return;
+      // Handle createdBy as ID, object, or $oid
+      const creatorId =
+        entry.createdBy?._id || entry.createdBy?.$oid || entry.createdBy;
+      const creator = users.find((user) => user._id === creatorId);
+      if (!creator) {
+        console.warn(`Creator not found for entry:`, entry);
+        return;
+      }
 
+      // Determine adminId
       const adminId =
-        creator.role === "admin"
+        creator.role?.toLowerCase() === "admin"
           ? creator._id
           : typeof creator.assignedAdmin === "string"
           ? creator.assignedAdmin
-          : creator.assignedAdmin?.$oid;
-      const admin = admins.find((a) => a._id === adminId);
+          : creator.assignedAdmin?._id || creator.assignedAdmin?.$oid || null;
 
-      if (!admin || !adminId) return;
+      const admin = admins.find((a) => a._id === adminId);
+      if (!admin || !adminId) {
+        console.warn(`Admin not found for creator:`, creator);
+        return;
+      }
 
       if (!statsMap[adminId]) {
         statsMap[adminId] = {
@@ -206,7 +246,7 @@ const TeamAnalyticsDrawer = ({
       const memberName = creator.username;
       let targetAnalytics;
 
-      if (creator.role === "admin") {
+      if (creator.role?.toLowerCase() === "admin") {
         targetAnalytics = statsMap[adminId].adminAnalytics;
       } else {
         if (!statsMap[adminId].membersAnalytics[memberId]) {
@@ -263,7 +303,10 @@ const TeamAnalyticsDrawer = ({
       }
     });
 
-    return admins.map((admin) => ({
+    // Log statsMap for debugging
+    console.log("Stats Map:", statsMap);
+
+    const result = admins.map((admin) => ({
       adminId: admin._id,
       adminName: admin.username,
       teamMembers: admin.teamMembers,
@@ -290,6 +333,14 @@ const TeamAnalyticsDrawer = ({
         closedLost: 0,
       },
     }));
+
+    if (result.length === 0) {
+      setDebugInfo(
+        "No team stats generated; check admin assignments or entries"
+      );
+    }
+
+    return result;
   }, [users, entries, role, dateRange]);
 
   useEffect(() => {
@@ -636,9 +687,16 @@ const TeamAnalyticsDrawer = ({
                 textAlign: "center",
               }}
             >
-              No team data available. Ensure users with 'admin' role exist and
-              entries are created.
+              {debugInfo ||
+                "No team data available. Ensure entries exist and are linked to valid users."}
             </Typography>
+            <Button
+              onClick={retry}
+              variant="contained"
+              sx={{ backgroundColor: "#34d399" }}
+            >
+              Refresh Data
+            </Button>
           </Box>
         ) : (
           <>
