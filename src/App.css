@@ -904,3 +904,10 @@ background: linear-gradient(135deg, #2575fc, #6a11cb);
         margin: 5px 0 !important;
     }
 }
+.MuiDrawer-paper {
+    transition: transform 0.3s ease-in-out !important;
+}
+
+.attendance-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2); }

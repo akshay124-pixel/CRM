@@ -333,7 +333,7 @@ const ValueAnalyticsDrawer = ({
                       textTransform: "uppercase",
                     }}
                   >
-                    Total Closing Amount:
+                    Total Closure:
                   </Typography>
                   <Typography
                     sx={{

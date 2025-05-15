@@ -38,21 +38,7 @@ const AppContent = () => {
     localStorage.setItem("token", token);
     localStorage.setItem("userId", userId);
     localStorage.setItem("role", role);
-
-    // Store user object if provided
-    if (user) {
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          role: user.role,
-          assignedAdmin: user.assignedAdmin || null,
-        })
-      );
-    }
-
+    localStorage.setItem("user", JSON.stringify(user));
     setIsAuthenticated(true);
     window.dispatchEvent(new Event("authChange"));
     navigate("/dashboard");
@@ -70,15 +56,8 @@ const AppContent = () => {
   useEffect(() => {
     const token = localStorage.getItem("token");
     const role = localStorage.getItem("role");
-
     if (token && ["superadmin", "admin", "others"].includes(role)) {
       setIsAuthenticated(true);
-      if (
-        window.location.pathname === "/login" ||
-        window.location.pathname === "/signup"
-      ) {
-        navigate("/dashboard");
-      }
     } else {
       setIsAuthenticated(false);
       if (window.location.pathname !== "/signup") {

@@ -16,8 +16,12 @@ import {
   Chip,
   Card,
   CardContent,
+  useMediaQuery,
 } from "@mui/material";
+import AttendanceTracker from "./AttendanceTracker";
 import {
+  FaSignOutAlt,
+  FaClock,
   FaEye,
   FaPlus,
   FaFileExcel,
@@ -252,6 +256,10 @@ function DashBoard() {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [doubleClickInitiated, setDoubleClickInitiated] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [userRole, setUserRole] = useState("");
+
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const navigate = useNavigate();
 
   const debouncedSearchChange = useMemo(
     () => debounce((value) => setSearchTerm(value), 300),
@@ -1510,7 +1518,26 @@ function DashBoard() {
       );
     }
   };
+  const fetchUserRole = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get(
+        "https://crm-server-amz7.onrender.com/api/user-role",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setUserRole(response.data.role);
+      setUserId(response.data.id);
+    } catch (error) {
+      toast.error("Failed to fetch user role!");
+      navigate("/login");
+    }
+  }, [navigate]);
 
+  useEffect(() => {
+    fetchUserRole();
+  }, [fetchUserRole]);
   const handleSelectAll = () => {
     if (isSelectionMode && (role === "superadmin" || role === "admin")) {
       const allFilteredIds = filteredData.map((entry) => entry._id);
@@ -2963,6 +2990,50 @@ function DashBoard() {
           </motion.div>
         </motion.div>
       )}
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h4" gutterBottom>
+          Dashboard
+        </Typography>
+        <Grid container spacing={3}>
+          <Grid item xs={12}>
+            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+              {(userRole === "superadmin" || userRole === "admin") && (
+                <Button
+                  variant="contained"
+                  startIcon={<FaClock />}
+                  onClick={() => setIsDrawerOpen(true)}
+                  sx={{
+                    background: "linear-gradient(135deg, #2575fc, #6a11cb)",
+                    color: "white",
+                    borderRadius: "12px",
+                    fontWeight: "bold",
+                    p: isMobile ? "8px 12px" : "10px 20px",
+                    "&:hover": {
+                      transform: "translateY(-2px)",
+                      boxShadow: "0 6px 12px rgba(0,0,0,0.2)",
+                    },
+                  }}
+                >
+                  Attendance
+                </Button>
+              )}
+              <Button
+                variant="contained"
+                startIcon={<FaSignOutAlt />}
+                onClick={handleLogout}
+              >
+                Logout
+              </Button>
+            </Box>
+          </Grid>
+        </Grid>
+        <AttendanceTracker
+          open={isDrawerOpen}
+          onClose={() => setIsDrawerOpen(false)}
+          userId={userId}
+          role={userRole}
+        />
+      </Box>
       <footer className="footer-container">
         <p style={{ marginTop: "10px", color: "white", height: "10px" }}>
           © 2025 CRM. All rights reserved.
