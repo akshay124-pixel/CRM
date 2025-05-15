@@ -67,7 +67,7 @@ const handleLogout = () => {
   localStorage.removeItem("user");
   navigate("/login");
 };
-
+const navigate = useNavigate();
 const CallTrackingDashboard = ({
   entries,
   role,
