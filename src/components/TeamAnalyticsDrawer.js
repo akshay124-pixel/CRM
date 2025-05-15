@@ -42,14 +42,21 @@ const useCachedApi = (url, token) => {
     try {
       const response = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` },
+        params: { limit: 1000 }, // Fetch all users to avoid pagination
       });
+      console.log("API Response:", response.data); // Debug raw API response
       // Normalize user data
       const normalizedData = response.data.map((user) => ({
         ...user,
-        _id: user._id?.$oid || user._id,
-        role: user.role?.$oid || user.role,
-        assignedAdmin: user.assignedAdmin?.$oid || user.assignedAdmin,
+        _id: user._id?.$oid || user._id || user.id,
+        role: user.role?.$oid || user.role || "",
+        assignedAdmin:
+          user.assignedAdmin?.$oid ||
+          (typeof user.assignedAdmin === "object" && user.assignedAdmin?._id) ||
+          user.assignedAdmin ||
+          null,
       }));
+      console.log("Normalized Users:", normalizedData); // Debug normalized data
       setData(normalizedData);
       setError(null);
     } catch (err) {
@@ -127,6 +134,13 @@ const TeamAnalyticsDrawer = ({
     localStorage.getItem("token")
   );
 
+  // Log props for debugging
+  useEffect(() => {
+    if (isOpen) {
+      console.log("Props:", { role, entries, dateRange });
+    }
+  }, [isOpen, role, entries, dateRange]);
+
   // Calculate team stats
   const teamStatsMemo = useMemo(() => {
     if (role !== "superadmin" || !Array.isArray(users) || users.length === 0) {
@@ -134,28 +148,25 @@ const TeamAnalyticsDrawer = ({
       return [];
     }
 
-    // Log raw users for debugging
-    console.log("Raw Users:", users);
-
     // Filter admins (case-insensitive)
     const admins = users
       .filter((user) => {
         const userRole =
-          typeof user.role === "string" ? user.role : user.role?.$oid || "";
+          typeof user.role === "string" ? user.role : user.role || "";
+        console.log(`User: ${user.username}, Role: ${userRole}`); // Debug role
         return userRole.toLowerCase() === "admin";
       })
       .map((admin) => {
-        const adminId = admin._id?.$oid || admin._id;
+        const adminId = admin._id;
         const teamMembers = users
           .filter((u) => {
-            const userRole =
-              typeof u.role === "string" ? u.role : u.role?.$oid || "";
+            const userRole = typeof u.role === "string" ? u.role : u.role || "";
             if (userRole.toLowerCase() !== "others") return false;
-            const assignedAdmin = u.assignedAdmin?.$oid || u.assignedAdmin;
+            const assignedAdmin = u.assignedAdmin;
             return assignedAdmin === adminId;
           })
           .map((u) => ({
-            _id: u._id?.$oid || u._id,
+            _id: u._id,
             username: DOMPurify.sanitize(u.username),
           }));
         return {
@@ -165,8 +176,7 @@ const TeamAnalyticsDrawer = ({
         };
       });
 
-    // Log admins for debugging
-    console.log("Admins:", admins);
+    console.log("Admins:", admins); // Debug admins
 
     if (admins.length === 0) {
       setDebugInfo("No users with 'admin' role found");
@@ -178,17 +188,9 @@ const TeamAnalyticsDrawer = ({
       const createdAt = new Date(entry.createdAt);
       // Temporarily bypass date range for debugging
       return true;
-      // Original date range filter
-      // const isWithinDateRange =
-      //   !dateRange[0]?.startDate ||
-      //   !dateRange[0]?.endDate ||
-      //   (createdAt >= new Date(dateRange[0].startDate) &&
-      //     createdAt <= new Date(dateRange[0].endDate));
-      // return isWithinDateRange;
     });
 
-    // Log entries for debugging
-    console.log("Filtered Entries:", filteredEntries);
+    console.log("Filtered Entries:", filteredEntries); // Debug entries
 
     if (filteredEntries.length === 0) {
       setDebugInfo("No entries found; displaying admins without entries");
@@ -199,27 +201,23 @@ const TeamAnalyticsDrawer = ({
     const currentYear = now.getFullYear();
 
     filteredEntries.forEach((entry) => {
-      // Handle createdBy as ID, object, or $oid
       const creatorId =
-        entry.createdBy?._id || entry.createdBy?.$oid || entry.createdBy;
-      const creator = users.find((user) => {
-        const userId = user._id?.$oid || user._id;
-        return userId === creatorId;
-      });
+        entry.createdBy?._id ||
+        entry.createdBy?.$oid ||
+        entry.createdBy ||
+        null;
+      const creator = users.find((user) => user._id === creatorId);
       if (!creator) {
         console.warn(`Creator not found for entry:`, entry);
         return;
       }
 
-      // Determine adminId
       const creatorRole =
-        typeof creator.role === "string"
-          ? creator.role
-          : creator.role?.$oid || "";
+        typeof creator.role === "string" ? creator.role : creator.role || "";
       const adminId =
         creatorRole.toLowerCase() === "admin"
-          ? creator._id?.$oid || creator._id
-          : creator.assignedAdmin?.$oid || creator.assignedAdmin || null;
+          ? creator._id
+          : creator.assignedAdmin || null;
 
       const admin = admins.find((a) => a._id === adminId);
       if (!admin || !adminId) {
@@ -255,7 +253,7 @@ const TeamAnalyticsDrawer = ({
         };
       }
 
-      const memberId = creator._id?.$oid || creator._id;
+      const memberId = creator._id;
       const memberName = creator.username;
       let targetAnalytics;
 
@@ -316,7 +314,6 @@ const TeamAnalyticsDrawer = ({
       }
     });
 
-    // Log statsMap for debugging
     console.log("Stats Map:", statsMap);
 
     const result = admins.map((admin) => ({
@@ -351,10 +348,12 @@ const TeamAnalyticsDrawer = ({
       setDebugInfo(
         "No team stats generated; check admin assignments or entries"
       );
+    } else {
+      setDebugInfo(`Found ${result.length} admin teams`);
     }
 
     return result;
-  }, [users, entries, role, dateRange]);
+  }, [users, entries, role]);
 
   useEffect(() => {
     if (isOpen) {
@@ -701,7 +700,7 @@ const TeamAnalyticsDrawer = ({
               }}
             >
               {debugInfo ||
-                "No team data available. Ensure entries exist and are linked to valid users."}
+                "No team data available. Check console logs for details."}
             </Typography>
             <Button
               onClick={retry}
