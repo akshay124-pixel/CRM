@@ -31,7 +31,7 @@ const useCachedApi = (url, token) => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  const url = "https://crm-server-amz7.onrender.com/api/users";
+
   const fetchData = useCallback(async () => {
     if (!token) {
       setError("No authentication token found");
@@ -75,7 +75,7 @@ const StatCard = ({ label, value, color }) => (
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
-      background: "rgba(255, 255, 255, 0.05)",
+      background: "rgba(255, 255, 255, 0.08)",
       borderRadius: "6px",
       px: 2,
       py: 1,
@@ -114,12 +114,16 @@ const TeamAnalyticsDrawer = ({
     error,
     loading,
     retry,
-  } = useCachedApi("/api/users", localStorage.getItem("token"));
+  } = useCachedApi(
+    "https://crm-server-amz7.onrender.com/api/users",
+    localStorage.getItem("token")
+  );
 
   // Calculate team stats
   const teamStatsMemo = useMemo(() => {
-    if (role !== "superadmin" || !Array.isArray(users) || users.length === 0)
+    if (role !== "superadmin" || !Array.isArray(users) || users.length === 0) {
       return [];
+    }
 
     // Filter admins
     const admins = users
@@ -289,11 +293,13 @@ const TeamAnalyticsDrawer = ({
   }, [users, entries, role, dateRange]);
 
   useEffect(() => {
-    if (isOpen && role === "superadmin") {
-      setTeamStats(teamStatsMemo);
-    } else if (isOpen && role !== "superadmin") {
-      toast.error("Access restricted to superadmins only");
-      onClose();
+    if (isOpen) {
+      if (role !== "superadmin") {
+        toast.error("Access restricted to superadmins only");
+        onClose();
+      } else {
+        setTeamStats(teamStatsMemo);
+      }
     }
   }, [isOpen, role, teamStatsMemo, onClose]);
 
@@ -546,7 +552,7 @@ const TeamAnalyticsDrawer = ({
         </Typography>
         <IconButton
           onClick={onClose}
-          sx={{ color: "white" }}
+          sx={{ color: "white", "&:hover": { color: "#ff8e53" } }}
           aria-label="Close analytics dashboard"
         >
           <FaTimes size={22} />
@@ -575,7 +581,13 @@ const TeamAnalyticsDrawer = ({
               py: 4,
             }}
           >
-            <Typography sx={{ color: "rgba(255, 255, 255, 0.7)" }}>
+            <Typography
+              sx={{
+                color: "rgba(255, 255, 255, 0.7)",
+                fontSize: "1.2rem",
+                textAlign: "center",
+              }}
+            >
               {error}
             </Typography>
             <Button
@@ -603,8 +615,8 @@ const TeamAnalyticsDrawer = ({
                 textAlign: "center",
               }}
             >
-              No user data available. Please check the API endpoint (/api/users)
-              or contact support.
+              No user data available. Please check the API endpoint or contact
+              support.
             </Typography>
           </Box>
         ) : teamStats.length === 0 ? (
@@ -648,6 +660,7 @@ const TeamAnalyticsDrawer = ({
                     fontWeight: 700,
                     mb: 2.5,
                     textAlign: "center",
+                    textTransform: "uppercase",
                   }}
                 >
                   📊 Overall Statistics
@@ -707,7 +720,14 @@ const TeamAnalyticsDrawer = ({
             </Box>
 
             <Box sx={{ mb: 4 }}>
-              <Typography sx={{ fontSize: "1.4rem", fontWeight: 700, mb: 2 }}>
+              <Typography
+                sx={{
+                  fontSize: "1.4rem",
+                  fontWeight: 700,
+                  mb: 2,
+                  textTransform: "uppercase",
+                }}
+              >
                 Team Summary
               </Typography>
               <Box sx={{ height: 300, width: "100%" }}>
@@ -720,6 +740,7 @@ const TeamAnalyticsDrawer = ({
                     color: "white",
                     "& .MuiDataGrid-cell": { color: "white" },
                     "& .MuiDataGrid-columnHeader": { color: "white" },
+                    "& .MuiDataGrid-columnHeaderTitle": { fontWeight: 600 },
                   }}
                 />
               </Box>
@@ -748,6 +769,7 @@ const TeamAnalyticsDrawer = ({
                     borderRadius: "12px",
                     p: 3,
                     boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                    "&:hover": { background: "rgba(255, 255, 255, 0.18)" },
                   }}
                 >
                   <Box
@@ -775,7 +797,7 @@ const TeamAnalyticsDrawer = ({
                       </Typography>
                       <IconButton
                         onClick={() => toggleTeamMembers(team.adminId)}
-                        sx={{ color: "white" }}
+                        sx={{ color: "white", "&:hover": { color: "#ff8e53" } }}
                         aria-label={`Toggle team members for ${team.adminName}`}
                       >
                         {expandedTeams[team.adminId] ? (
@@ -929,6 +951,7 @@ const TeamAnalyticsDrawer = ({
             alignItems: "center",
             justifyContent: "center",
             gap: "8px",
+            textTransform: "uppercase",
           }}
         >
           <FaDownload size={16} /> Export Analytics
@@ -947,6 +970,7 @@ const TeamAnalyticsDrawer = ({
             fontSize: "1.1rem",
             fontWeight: 600,
             cursor: "pointer",
+            textTransform: "uppercase",
           }}
         >
           Close Dashboard
