@@ -2021,48 +2021,23 @@ function DashBoard() {
         </style>
 
         {/* Search and Filters */}
-        <Box
-          sx={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "15px",
-            marginBottom: "20px",
-            alignItems: "center",
-          }}
-        >
-          <Box sx={{ flex: isMobile ? "1 1 100%" : "1 1 auto" }}>
-            <input
-              type="text"
-              className="enhanced-search-bar"
-              placeholder="🔍 Search..."
-              onChange={(e) => debouncedSearchChange(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "10px 15px",
-                borderRadius: "20px",
-                border: "1px solid #ddd",
-                fontSize: "1rem",
-              }}
-              aria-label="Search entries"
-            />
-          </Box>
+
+        <div className="enhanced-search-bar-container">
+          <input
+            type="text"
+            className="enhanced-search-bar"
+            placeholder="🔍 Search..."
+            onChange={(e) => debouncedSearchChange(e.target.value)}
+          />
           {(role === "superadmin" || role === "admin") && (
             <select
               className="enhanced-filter-dropdown"
               value={selectedUsername}
               onChange={(e) => setSelectedUsername(e.target.value)}
-              style={{
-                padding: "10px",
-                borderRadius: "20px",
-                border: "1px solid #ddd",
-                fontSize: "1rem",
-                minWidth: isMobile ? "100%" : "150px",
-              }}
-              aria-label="Select user"
             >
               <option value="">-- Select User --</option>
               {usernames
-                .slice()
+                .slice() // create a shallow copy to avoid mutating the original array
                 .sort((a, b) => a.localeCompare(b))
                 .map((username) => (
                   <option key={username} value={username}>
@@ -2071,11 +2046,12 @@ function DashBoard() {
                 ))}
             </select>
           )}
-          <Box
-            sx={{ position: "relative", minWidth: isMobile ? "100%" : "200px" }}
-          >
+
+          <div>
             <input
               type="text"
+              style={{ borderRadius: "9999px" }}
+              onClick={(e) => setAnchorEl(e.currentTarget)}
               value={
                 dateRange[0]?.startDate && dateRange[0]?.endDate
                   ? `${dateRange[0].startDate.toLocaleDateString()} - ${dateRange[0].endDate.toLocaleDateString()}`
@@ -2083,15 +2059,7 @@ function DashBoard() {
               }
               placeholder="-- Select date range --"
               readOnly
-              onClick={(e) => setAnchorEl(e.currentTarget)}
-              style={{
-                width: "100%",
-                padding: "10px 15px",
-                borderRadius: "20px",
-                border: "1px solid #ddd",
-                fontSize: "1rem",
-                cursor: "pointer",
-              }}
+              className="cursor-pointer border p-2"
               aria-label="Select date range"
             />
             <Popover
@@ -2105,7 +2073,9 @@ function DashBoard() {
                   maxWidth: isMobile ? "95vw" : "600px",
                   maxHeight: isMobile ? "80vh" : "auto",
                   overflowY: isMobile ? "auto" : "visible",
+                  overflowX: "visible",
                   padding: isMobile ? "10px" : "0",
+                  boxSizing: "border-box",
                 },
               }}
             >
@@ -2122,7 +2092,7 @@ function DashBoard() {
                 calendarFocus="forwards"
               />
             </Popover>
-          </Box>
+          </div>
           <select
             className="enhanced-filter-dropdown"
             value={selectedState}
@@ -2130,14 +2100,6 @@ function DashBoard() {
               setSelectedState(e.target.value);
               setSelectedCity("");
             }}
-            style={{
-              padding: "10px",
-              borderRadius: "20px",
-              border: "1px solid #ddd",
-              fontSize: "1rem",
-              minWidth: isMobile ? "100%" : "150px",
-            }}
-            aria-label="Select state"
           >
             <option value="">-- Select State --</option>
             {Object.keys(statesAndCities).map((state) => (
@@ -2151,30 +2113,45 @@ function DashBoard() {
             value={selectedCity}
             onChange={(e) => setSelectedCity(e.target.value)}
             disabled={!selectedState}
-            style={{
-              padding: "10px",
-              borderRadius: "20px",
-              border: "1px solid #ddd",
-              fontSize: "1rem",
-              minWidth: isMobile ? "100%" : "150px",
-            }}
-            aria-label="Select city"
           >
             <option value="">-- Select City --</option>
             {selectedState &&
-              statesAndCities[selectedState]?.map((city) => (
+              statesAndCities[selectedState].map((city) => (
                 <option key={city} value={city}>
                   {city}
                 </option>
               ))}
           </select>
-          <ActionButton
+          <button
+            className="reset adapts-button"
             onClick={handleReset}
-            label="Reset"
-            icon={<span style={{ fontSize: "1.2rem" }}>↺</span>}
-            ariaLabel="Reset filters"
-          />
-        </Box>
+            style={{
+              display: "flex",
+              alignItems: "center",
+              padding: "8px 16px",
+              borderRadius: "20px",
+              backgroundColor: "#007bff",
+              color: "#fff",
+              border: "none",
+              cursor: "pointer",
+              fontSize: "16px",
+              transition: "all 0.3s ease",
+            }}
+          >
+            <span style={{ fontWeight: "bold" }}>Reset</span>
+            <span
+              className="rounded-arrow"
+              style={{
+                marginLeft: "8px",
+                display: "inline-flex",
+                alignItems: "center",
+                transition: "transform 0.3s ease",
+              }}
+            >
+              →
+            </span>
+          </button>
+        </div>
 
         {/* Call Tracking Dashboard */}
         <CallTrackingDashboard
