@@ -25,7 +25,7 @@ import * as XLSX from "xlsx";
 import DOMPurify from "dompurify";
 import { FixedSizeList } from "react-window";
 
-// Custom hook for API calls with caching
+// Custom hook for API calls with pagination
 const useCachedApi = (url, token) => {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -40,24 +40,46 @@ const useCachedApi = (url, token) => {
     }
     setLoading(true);
     try {
-      const response = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { limit: 1000 }, // Fetch all users to avoid pagination
-      });
-      console.log("API Response:", response.data); // Debug raw API response
-      // Normalize user data
-      const normalizedData = response.data.map((user) => ({
-        ...user,
-        _id: user._id?.$oid || user._id || user.id,
-        role: user.role?.$oid || user.role || "",
-        assignedAdmin:
-          user.assignedAdmin?.$oid ||
-          (typeof user.assignedAdmin === "object" && user.assignedAdmin?._id) ||
-          user.assignedAdmin ||
-          null,
-      }));
-      console.log("Normalized Users:", normalizedData); // Debug normalized data
-      setData(normalizedData);
+      let allUsers = [];
+      let page = 1;
+      let hasMore = true;
+
+      // Fetch all users, handling pagination
+      while (hasMore) {
+        const response = await axios.get(url, {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { limit: 100, page },
+        });
+        console.log(`API Response (Page ${page}):`, response.data);
+        // Log one admin user for clarity
+        const adminSample = response.data.find(
+          (user) => user.username === "Abhayjit Sekhon"
+        );
+        console.log("Sample Admin User:", adminSample);
+
+        // Normalize user data
+        const normalizedPage = response.data.map((user) => ({
+          ...user,
+          _id: user._id?.$oid || user._id || user.id || "",
+          role:
+            user.role?.$oid || user.role || user.Role || user.userRole || "",
+          assignedAdmin:
+            user.assignedAdmin?.$oid ||
+            (typeof user.assignedAdmin === "object" &&
+              user.assignedAdmin?._id) ||
+            user.assignedAdmin ||
+            null,
+        }));
+
+        allUsers = [...allUsers, ...normalizedPage];
+        // Check if more pages exist (adjust based on API response)
+        hasMore = response.data.length === 100;
+        page += 1;
+      }
+
+      console.log("Normalized Users:", allUsers);
+      console.log(`Total Users Fetched: ${allUsers.length}`);
+      setData(allUsers);
       setError(null);
     } catch (err) {
       setError(
@@ -148,13 +170,18 @@ const TeamAnalyticsDrawer = ({
       return [];
     }
 
-    // Filter admins (case-insensitive)
+    // Filter admins by role
     const admins = users
       .filter((user) => {
         const userRole =
           typeof user.role === "string" ? user.role : user.role || "";
-        console.log(`User: ${user.username}, Role: ${userRole}`); // Debug role
-        return userRole.toLowerCase() === "admin";
+        console.log(
+          `User: ${user.username}, Role: ${userRole}, ID: ${user._id}`
+        );
+        return (
+          userRole.toLowerCase() === "admin" ||
+          userRole.toLowerCase() === "Admin"
+        );
       })
       .map((admin) => {
         const adminId = admin._id;
@@ -176,21 +203,22 @@ const TeamAnalyticsDrawer = ({
         };
       });
 
-    console.log("Admins:", admins); // Debug admins
+    console.log("Admins:", admins);
 
     if (admins.length === 0) {
-      setDebugInfo("No users with 'admin' role found");
+      setDebugInfo(
+        "No users with 'admin' role found. Check API response for role field."
+      );
       return [];
     }
 
     const statsMap = {};
     const filteredEntries = entries.filter((entry) => {
       const createdAt = new Date(entry.createdAt);
-      // Temporarily bypass date range for debugging
-      return true;
+      return true; // Bypassing date range for debugging
     });
 
-    console.log("Filtered Entries:", filteredEntries); // Debug entries
+    console.log("Filtered Entries:", filteredEntries);
 
     if (filteredEntries.length === 0) {
       setDebugInfo("No entries found; displaying admins without entries");
@@ -344,13 +372,8 @@ const TeamAnalyticsDrawer = ({
       },
     }));
 
-    if (result.length === 0) {
-      setDebugInfo(
-        "No team stats generated; check admin assignments or entries"
-      );
-    } else {
-      setDebugInfo(`Found ${result.length} admin teams`);
-    }
+    setDebugInfo(`Found ${result.length} admin teams`);
+    console.log("Team Stats Result:", result);
 
     return result;
   }, [users, entries, role]);
