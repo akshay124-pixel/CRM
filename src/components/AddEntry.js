@@ -281,11 +281,6 @@ const productOptions = [
     specifications: ["N/A"],
   },
   {
-    name: "Audio-Visual Solutions",
-    sizes: ["N/A"],
-    specifications: ["N/A"],
-  },
-  {
     name: "Kiosk",
     sizes: ["32 inch", "43 inch", "55 inch", "65 inch"],
     specifications: ["Touch Andriod 13/4/32", "Non-Touch Andriod 13/4/32"],
@@ -1738,7 +1733,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
       "Sector 10",
       "Sector 11",
       "Sector 12",
-      "Sector 13", // Note: Sector 13 does not exist in Chandigarh.
       "Sector 14",
       "Sector 15",
       "Sector 16",
@@ -1773,6 +1767,16 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
       "Sector 45",
       "Sector 46",
       "Sector 47",
+      "Sector 48",
+      "Sector 49",
+      "Sector 50",
+      "Sector 51",
+      "Sector 52",
+      "Sector 53",
+      "Sector 54",
+      "Sector 55",
+      "Sector 56",
+      "Sector 63",
     ],
     "Dadra and Nagar Haveli and Daman and Diu": [
       "Daman",
@@ -2149,13 +2153,15 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 required
               >
                 <option value="">Select organization type</option>
-                <option value="School/Society">School/Society</option>
-                <option value="Institute/College/University">
-                  Institute/College/University
-                </option>
-                <option value="Organization/Partner/NGO">
-                  Organization/Partner/NGO
-                </option>
+                <option value="Hospital">Hospital</option>
+                <option value="Govt department">Govt department</option>
+                <option value="Corporate">Corporate</option>
+                <option value="Private school">Private school</option>
+                <option value="Govt school">Govt school</option>
+                <option value="Govt college">Govt college</option>
+                <option value="Govt aided college">Govt aided college</option>
+                <option value="Ngo">Ngo</option>
+                <option value="Dealer/partner">Dealer/partner</option>
                 <option value="Others">Others</option>
               </Form.Select>
             </Form.Group>

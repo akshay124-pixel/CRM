@@ -2203,6 +2203,16 @@ function DashBoard() {
               justifyContent: "center",
             }}
           >
+            {" "}
+            <motion.button
+              onClick={() => setIsDrawerOpen(true)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              style={actionButtonStyle}
+            >
+              <FaClock size={16} />
+              Attendance
+            </motion.button>
             <motion.label
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -2255,17 +2265,6 @@ function DashBoard() {
                   <FaFileExcel size={16} />
                   Export to Excel
                 </motion.button>
-                {(role === "superadmin" || role === "admin") && (
-                  <motion.button
-                    onClick={() => setIsDrawerOpen(true)}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    style={actionButtonStyle}
-                  >
-                    <FaClock size={16} />
-                    Attendance
-                  </motion.button>
-                )}
               </>
             )}
           </Box>
@@ -2431,6 +2430,16 @@ function DashBoard() {
                     zIndex: 10,
                   }}
                 >
+                  {" "}
+                  <motion.button
+                    onClick={() => setIsDrawerOpen(true)}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    style={actionButtonStyle}
+                  >
+                    <FaClock size={16} />
+                    Attendance
+                  </motion.button>
                   <motion.button
                     onClick={() => setIsAddModalOpen(true)}
                     whileHover={{ scale: 1.05 }}
@@ -2454,17 +2463,6 @@ function DashBoard() {
                       style={{ display: "none" }}
                     />
                   </motion.label>
-                  {(role === "superadmin" || role === "admin") && (
-                    <motion.button
-                      onClick={() => setIsDrawerOpen(true)}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      style={actionButtonStyle}
-                    >
-                      <FaClock size={16} />
-                      Attendance
-                    </motion.button>
-                  )}
                 </Box>
               </Box>
             ) : (
@@ -2529,7 +2527,6 @@ function DashBoard() {
             )}
           </Box>
         </Box>
-
         {/* Modals and Drawers */}
         <AddEntry
           isOpen={isAddModalOpen}
@@ -2553,6 +2550,12 @@ function DashBoard() {
           isOpen={isViewModalOpen}
           onClose={() => setIsViewModalOpen(false)}
           entry={entryToView}
+          role={role}
+        />{" "}
+        <AttendanceTracker
+          open={isDrawerOpen}
+          onClose={() => setIsDrawerOpen(false)}
+          userId={userId}
           role={role}
         />
         {(role === "superadmin" || role === "admin") && (
@@ -2589,15 +2592,8 @@ function DashBoard() {
                 dateRange={dateRange}
               />
             )}
-            <AttendanceTracker
-              open={isDrawerOpen}
-              onClose={() => setIsDrawerOpen(false)}
-              userId={userId}
-              role={role}
-            />
           </>
         )}
-
         {/* Analytics Modal */}
         {isAnalyticsModalOpen && (
           <motion.div
