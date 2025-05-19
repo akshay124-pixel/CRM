@@ -1197,13 +1197,20 @@ function DashBoard() {
     return entries
       .filter((row) => {
         const createdAt = new Date(row.createdAt);
+
+        // Check if any product name matches the searchTerm
+        const productNameMatch = row.products?.some((product) =>
+          product.name?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
         return (
           (!searchTerm ||
             row.customerName
               ?.toLowerCase()
               .includes(searchTerm.toLowerCase()) ||
             row.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            row.mobileNumber?.includes(searchTerm)) &&
+            row.mobileNumber?.includes(searchTerm) ||
+            productNameMatch) &&
           (!selectedUsername ||
             row.createdBy?.username === selectedUsername ||
             row.assignedTo?.username === selectedUsername) &&
