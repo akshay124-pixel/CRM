@@ -245,7 +245,7 @@ const Navbar = () => {
             alt="Company Logo"
             className="logo-image"
             style={{
-              width: "130px",
+              width: "110px",
               height: "auto",
               marginLeft: "20px",
               transition: "transform 0.3s ease",
