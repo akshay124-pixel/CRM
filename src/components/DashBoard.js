@@ -1346,6 +1346,7 @@ function DashBoard() {
         City: entry.city || "",
         Organization: entry.organization || "",
         Category: entry.category || "",
+        createdBy: entry.createdBy?.username || "",
         Created_At: entry.createdAt
           ? new Date(entry.createdAt).toLocaleDateString()
           : "",
