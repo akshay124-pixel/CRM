@@ -281,6 +281,12 @@ const productOptions = [
     specifications: ["N/A"],
   },
   {
+    name: "Audio-Visual Solutions",
+    sizes: ["N/A"],
+    specifications: ["N/A"],
+  },
+  ,
+  {
     name: "Kiosk",
     sizes: ["32 inch", "43 inch", "55 inch", "65 inch"],
     specifications: ["Touch Andriod 13/4/32", "Non-Touch Andriod 13/4/32"],
