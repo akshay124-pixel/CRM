@@ -285,7 +285,7 @@ const productOptions = [
     sizes: ["N/A"],
     specifications: ["N/A"],
   },
-  ,
+
   {
     name: "Kiosk",
     sizes: ["32 inch", "43 inch", "55 inch", "65 inch"],
