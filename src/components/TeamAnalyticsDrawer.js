@@ -44,16 +44,22 @@ const useCachedApi = (url, token) => {
       let page = 1;
       let hasMore = true;
 
-      // Fetch all users, handling pagination
       while (hasMore) {
         const response = await axios.get(url, {
           headers: { Authorization: `Bearer ${token}` },
           params: { limit: 100, page },
         });
         console.log(`API Response (Page ${page}):`, response.data);
-        // Log one admin user for clarity
+
+        // Log unique role values
+        const roles = [
+          ...new Set(response.data.map((user) => user.role || "undefined")),
+        ];
+        console.log("Unique Roles in Response:", roles);
+
+        // Log sample admin user
         const adminSample = response.data.find(
-          (user) => user.username === "Abhayjit Sekhon"
+          (user) => (user.role || "").toLowerCase() === "admin"
         );
         console.log("Sample Admin User:", adminSample);
 
@@ -62,7 +68,7 @@ const useCachedApi = (url, token) => {
           ...user,
           _id: user._id?.$oid || user._id || user.id || "",
           role:
-            user.role?.$oid || user.role || user.Role || user.userRole || "",
+            typeof user.role === "string" ? user.role.toLowerCase() : "unknown",
           assignedAdmin:
             user.assignedAdmin?.$oid ||
             (typeof user.assignedAdmin === "object" &&
@@ -72,7 +78,6 @@ const useCachedApi = (url, token) => {
         }));
 
         allUsers = [...allUsers, ...normalizedPage];
-        // Check if more pages exist (adjust based on API response)
         hasMore = response.data.length === 100;
         page += 1;
       }
@@ -174,22 +179,23 @@ const TeamAnalyticsDrawer = ({
     const admins = users
       .filter((user) => {
         const userRole =
-          typeof user.role === "string" ? user.role : user.role || "";
+          typeof user.role === "string" ? user.role.toLowerCase() : "unknown";
         console.log(
           `User: ${user.username}, Role: ${userRole}, ID: ${user._id}`
         );
-        return (
-          userRole.toLowerCase() === "admin" ||
-          userRole.toLowerCase() === "Admin"
-        );
+        return userRole === "admin";
       })
       .map((admin) => {
         const adminId = admin._id;
         const teamMembers = users
           .filter((u) => {
-            const userRole = typeof u.role === "string" ? u.role : u.role || "";
-            if (userRole.toLowerCase() !== "others") return false;
+            const userRole =
+              typeof u.role === "string" ? u.role.toLowerCase() : "unknown";
+            if (userRole !== "others") return false;
             const assignedAdmin = u.assignedAdmin;
+            console.log(
+              `Checking team member: ${u.username}, AssignedAdmin: ${assignedAdmin}, AdminId: ${adminId}`
+            );
             return assignedAdmin === adminId;
           })
           .map((u) => ({
@@ -203,11 +209,11 @@ const TeamAnalyticsDrawer = ({
         };
       });
 
-    console.log("Admins:", admins);
+    console.log("Admins with Team Members:", admins);
 
     if (admins.length === 0) {
       setDebugInfo(
-        "No users with 'admin' role found. Check API response for role field."
+        "No users with 'admin' role found. Please ensure admin users exist in the database."
       );
       return [];
     }
@@ -221,7 +227,9 @@ const TeamAnalyticsDrawer = ({
     console.log("Filtered Entries:", filteredEntries);
 
     if (filteredEntries.length === 0) {
-      setDebugInfo("No entries found; displaying admins without entries");
+      setDebugInfo(
+        "No entries found; displaying admins and their teams without entries"
+      );
     }
 
     const now = new Date();
@@ -241,11 +249,11 @@ const TeamAnalyticsDrawer = ({
       }
 
       const creatorRole =
-        typeof creator.role === "string" ? creator.role : creator.role || "";
+        typeof creator.role === "string"
+          ? creator.role.toLowerCase()
+          : "unknown";
       const adminId =
-        creatorRole.toLowerCase() === "admin"
-          ? creator._id
-          : creator.assignedAdmin || null;
+        creatorRole === "admin" ? creator._id : creator.assignedAdmin || null;
 
       const admin = admins.find((a) => a._id === adminId);
       if (!admin || !adminId) {
@@ -285,7 +293,7 @@ const TeamAnalyticsDrawer = ({
       const memberName = creator.username;
       let targetAnalytics;
 
-      if (creatorRole.toLowerCase() === "admin") {
+      if (creatorRole === "admin") {
         targetAnalytics = statsMap[adminId].adminAnalytics;
       } else {
         if (!statsMap[adminId].membersAnalytics[memberId]) {
@@ -348,6 +356,7 @@ const TeamAnalyticsDrawer = ({
       adminId: admin._id,
       adminName: admin.username,
       teamMembers: admin.teamMembers,
+      teamMembersCount: admin.teamMembers.length, // Added for clarity
       adminAnalytics: statsMap[admin._id]?.adminAnalytics || {
         username: admin.username,
         allTimeEntries: 0,
@@ -372,22 +381,31 @@ const TeamAnalyticsDrawer = ({
       },
     }));
 
-    setDebugInfo(`Found ${result.length} admin teams`);
+    setDebugInfo(
+      `Found ${result.length} admin teams with ${users.length} total users`
+    );
     console.log("Team Stats Result:", result);
 
     return result;
   }, [users, entries, role]);
 
+  // Modified useEffect to prevent multiple openings
   useEffect(() => {
-    if (isOpen) {
+    let isMounted = true;
+
+    if (isOpen && isMounted) {
       if (role !== "superadmin") {
         toast.error("Access restricted to superadmins only");
         onClose();
-      } else {
-        setTeamStats(teamStatsMemo);
+      } else if (teamStatsMemo.length > 0) {
+        setTeamStats(teamStatsMemo); // Update state only if data is available
       }
     }
-  }, [isOpen, role, teamStatsMemo, onClose]);
+
+    return () => {
+      isMounted = false; // Cleanup to prevent state updates after unmount
+    };
+  }, [isOpen, role, onClose]); // Removed teamStatsMemo from dependencies
 
   // Calculate overall stats
   const overallStats = useMemo(
@@ -544,7 +562,7 @@ const TeamAnalyticsDrawer = ({
     const member = data.members[index];
     if (!member) return null;
     return (
-      <Box style={style} sx={{ pl: 2, mb: 2 }}>
+      <Box style={{ ...style, boxSizing: "border-box" }} sx={{ pl: 2, mb: 2 }}>
         <Typography
           sx={{
             fontSize: "1rem",
@@ -602,7 +620,7 @@ const TeamAnalyticsDrawer = ({
       PaperProps={{
         sx: {
           width: "100%",
-          maxHeight: "80vh",
+          maxHeight: "90vh",
           background: "linear-gradient(135deg, #2575fc, #6a11cb)",
           color: "white",
           borderRadius: "20px 20px 0 0",
@@ -701,8 +719,7 @@ const TeamAnalyticsDrawer = ({
                 textAlign: "center",
               }}
             >
-              No user data available. Please check the API endpoint or contact
-              support.
+              No users found in the system. Please contact support.
             </Typography>
           </Box>
         ) : teamStats.length === 0 ? (
@@ -722,8 +739,8 @@ const TeamAnalyticsDrawer = ({
                 textAlign: "center",
               }}
             >
-              {debugInfo ||
-                "No team data available. Check console logs for details."}
+              No admin teams found. Ensure users with the 'admin' role exist and
+              have assigned team members.
             </Typography>
             <Button
               onClick={retry}
@@ -832,7 +849,10 @@ const TeamAnalyticsDrawer = ({
                     background: "rgba(255, 255, 255, 0.1)",
                     color: "white",
                     "& .MuiDataGrid-cell": { color: "white" },
-                    "& .MuiDataGrid-columnHeader": { color: "white" },
+                    "& .MuiDataGrid-columnHeader": {
+                      color: "Black",
+                      backgroundColor: "rgba(255, 255, 255, 0.2)", // Solid background for header
+                    },
                     "& .MuiDataGrid-columnHeaderTitle": { fontWeight: 600 },
                   }}
                 />
@@ -880,13 +900,14 @@ const TeamAnalyticsDrawer = ({
                         textTransform: "capitalize",
                       }}
                     >
-                      {team.adminName}
+                      {team.adminName} (Admin)
                     </Typography>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <Typography
                         sx={{ fontSize: "1.1rem", color: "lightgreen" }}
                       >
-                        Total: {team.teamTotal.allTimeEntries}
+                        Total: {team.teamTotal.allTimeEntries} | Members:{" "}
+                        {team.teamMembersCount}
                       </Typography>
                       <IconButton
                         onClick={() => toggleTeamMembers(team.adminId)}
@@ -903,6 +924,16 @@ const TeamAnalyticsDrawer = ({
                   </Box>
 
                   <Box sx={{ mb: 2 }}>
+                    <Typography
+                      sx={{
+                        fontSize: "1.2rem",
+                        fontWeight: 600,
+                        mb: 1,
+                        color: "rgba(255, 255, 255, 0.9)",
+                      }}
+                    >
+                      Admin Analytics
+                    </Typography>
                     <Box
                       sx={{
                         display: "grid",
@@ -982,13 +1013,14 @@ const TeamAnalyticsDrawer = ({
                               ml: 1,
                             }}
                           >
-                            (None Assigned)
+                            (No Team Members Assigned)
                           </Typography>
                         )}
                       </Typography>
+
                       {team.teamMembers.length > 0 ? (
                         <FixedSizeList
-                          height={Math.min(team.teamMembers.length * 150, 300)}
+                          height={Math.min(team.teamMembers.length * 200, 400)} // Increased height to accommodate content
                           width="100%"
                           itemCount={
                             showZeroEntries
@@ -997,7 +1029,7 @@ const TeamAnalyticsDrawer = ({
                                   (m) => m.allTimeEntries > 0
                                 ).length
                           }
-                          itemSize={150}
+                          itemSize={220} // Increased itemSize to prevent overlap
                           itemData={{
                             members: showZeroEntries
                               ? team.membersAnalytics
