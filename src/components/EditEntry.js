@@ -2188,7 +2188,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           </Form.Control.Feedback>
         </Form.Group>
 
-        <Form.Group controlId="organization">
+        <Form.Group controlId="formOrganization" className="mb-3">
           <Form.Label>🏢 Organization</Form.Label>
           <Form.Select
             {...register("organization", {
@@ -2196,15 +2196,19 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
             })}
             isInvalid={!!errors.organization}
             aria-label="Organization"
+            name="organization"
+            disabled={loading}
           >
             <option value="">Select organization type</option>
-            <option value="School/Society">School/Society</option>
-            <option value="Institute/College/University">
-              Institute/College/University
-            </option>
-            <option value="Organization/Partner/NGO">
-              Organization/Partner/NGO
-            </option>
+            <option value="Hospital">Hospital</option>
+            <option value="Govt department">Govt department</option>
+            <option value="Corporate">Corporate</option>
+            <option value="Private school">Private school</option>
+            <option value="Govt school">Govt school</option>
+            <option value="Govt college">Govt college</option>
+            <option value="Govt aided college">Govt aided college</option>
+            <option value="Ngo">Ngo</option>
+            <option value="Dealer/partner">Dealer/partner</option>
             <option value="Others">Others</option>
           </Form.Select>
           <Form.Control.Feedback type="invalid">
