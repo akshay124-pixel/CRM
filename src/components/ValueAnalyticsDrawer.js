@@ -28,6 +28,7 @@ const ValueAnalyticsDrawer = ({
         let relevantUserIds = [];
 
         if (role === "superadmin") {
+          // Superadmin sees all users
           const response = await axios.get(
             "https://crm-server-amz7.onrender.com/api/users",
             {
@@ -39,14 +40,8 @@ const ValueAnalyticsDrawer = ({
             username: user.username,
             role: user.role,
           }));
-          if (!relevantUserIds.some((user) => user._id === userId)) {
-            relevantUserIds.push({
-              _id: userId,
-              username: "Superadmin",
-              role: "superadmin",
-            });
-          }
         } else if (role === "admin") {
+          // Admin sees their own data and assigned users' data
           const response = await axios.get(
             "https://crm-server-amz7.onrender.com/api/users",
             {
@@ -54,12 +49,17 @@ const ValueAnalyticsDrawer = ({
             }
           );
           relevantUserIds = response.data
-            .filter((user) => user.assignedAdmin === userId)
+            .filter(
+              (user) => user.assignedAdmin === userId || user._id === userId
+            )
             .map((user) => ({
               _id: user._id,
               username: user.username,
               role: user.role,
             }));
+        } else {
+          // Role 'others' sees only their own data
+          relevantUserIds = [{ _id: userId, username: "Self", role: "others" }];
         }
 
         const statsMap = {};
@@ -80,8 +80,7 @@ const ValueAnalyticsDrawer = ({
                 (user) =>
                   user._id === entry.createdBy?._id ||
                   user._id === entry.assignedTo?._id
-              ) ||
-              entry.createdBy?._id === userId)
+              ))
           );
         });
 
@@ -94,8 +93,7 @@ const ValueAnalyticsDrawer = ({
 
           if (
             (role === "superadmin" && uId !== "unknown") ||
-            (role === "admin" &&
-              (relevantUserIds.some((u) => u._id === uId) || uId === userId))
+            relevantUserIds.some((u) => u._id === uId)
           ) {
             if (!statsMap[uId]) {
               let displayName = username;

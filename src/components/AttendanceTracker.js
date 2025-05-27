@@ -12,6 +12,7 @@ import {
   TextField,
   CircularProgress,
   Alert,
+  Pagination,
 } from "@mui/material";
 import { FaClock, FaFileExcel } from "react-icons/fa";
 import axios from "axios";
@@ -21,13 +22,17 @@ import { useNavigate } from "react-router-dom";
 
 const AttendanceTracker = ({ open, onClose, userId, role }) => {
   const [auth, setAuth] = useState({
-    status: "idle", // idle, loading, authenticated, unauthenticated
+    status: "idle",
     error: null,
   });
   const [attendance, setAttendance] = useState([]);
   const [remarks, setRemarks] = useState("");
-  const [loadingAction, setLoadingAction] = useState(null); // null, fetch, check-in, check-out
-  const [locationStatus, setLocationStatus] = useState("idle"); // idle, fetching, fetched, error
+  const [loadingAction, setLoadingAction] = useState(null);
+  const [locationStatus, setLocationStatus] = useState("idle");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [limit] = useState(10); // Records per page
   const navigate = useNavigate();
 
   const apiUrl =
@@ -75,6 +80,16 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
     localStorage.setItem("token", newToken);
     return newToken;
   };
+
+  // Clear error after 5 seconds
+  useEffect(() => {
+    if (auth.error) {
+      const timer = setTimeout(() => {
+        setAuth((prev) => ({ ...prev, error: null }));
+      }, 5000); // Match toast autoClose duration
+      return () => clearTimeout(timer);
+    }
+  }, [auth.error]);
 
   const checkAuthStatus = useCallback(async () => {
     setAuth((prev) => ({ ...prev, status: "loading", error: null }));
@@ -186,6 +201,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
         axios.get(`${apiUrl}/attendance`, {
           headers: { Authorization: `Bearer ${token}` },
           timeout: 5000,
+          params: { page: currentPage, limit },
         })
       ).catch(async (error) => {
         if (error.response?.status === 401) {
@@ -194,6 +210,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
             axios.get(`${apiUrl}/attendance`, {
               headers: { Authorization: `Bearer ${newToken}` },
               timeout: 5000,
+              params: { page: currentPage, limit },
             })
           );
         }
@@ -204,7 +221,14 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
         throw new Error(response.data.message || "Failed to fetch attendance");
       }
 
-      setAttendance(response.data.data || []);
+      // Sort attendance by date in descending order (newest first)
+      const sortedAttendance = (response.data.data || []).sort((a, b) => {
+        return new Date(b.date) - new Date(a.date);
+      });
+
+      setAttendance(sortedAttendance);
+      setTotalPages(response.data.pagination.totalPages || 1);
+      setTotalRecords(response.data.pagination.totalRecords || 0);
     } catch (error) {
       const errorMessage = error.message || "Failed to fetch attendance";
       setAuth((prev) => ({ ...prev, error: errorMessage }));
@@ -212,13 +236,13 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
     } finally {
       setLoadingAction(null);
     }
-  }, [auth.status]);
+  }, [auth.status, currentPage, limit]);
 
   useEffect(() => {
     if (open && auth.status === "authenticated") {
       fetchAttendance();
     }
-  }, [open, auth.status, fetchAttendance]);
+  }, [open, auth.status, fetchAttendance, currentPage]);
 
   const handleAction = async (type) => {
     if (auth.status !== "authenticated") {
@@ -229,6 +253,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
     }
 
     setLoadingAction(type);
+    setAuth((prev) => ({ ...prev, error: null })); // Clear previous error
     try {
       const token = localStorage.getItem("token");
       if (!token) {
@@ -287,6 +312,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
       );
       setRemarks("");
       setLocationStatus("idle");
+      setAuth((prev) => ({ ...prev, error: null })); // Clear error on success
       await fetchAttendance();
     } catch (error) {
       const errorMessage =
@@ -306,6 +332,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
       return;
     }
 
+    setAuth((prev) => ({ ...prev, error: null })); // Clear previous error
     try {
       const exportData = attendance.map((record) => ({
         Date: new Date(record.date).toLocaleDateString(),
@@ -328,8 +355,6 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
         { wch: 15 },
         { wch: 10 },
         { wch: 30 },
-        { wch: 20 },
-        { wch: 20 },
       ];
 
       const workbook = XLSX.utils.book_new();
@@ -339,6 +364,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
         `Attendance_${new Date().toISOString().split("T")[0]}.xlsx`
       );
       toast.success("Attendance exported successfully!", { autoClose: 3000 });
+      setAuth((prev) => ({ ...prev, error: null })); // Clear error on success
     } catch (error) {
       const errorMessage = "Failed to export attendance";
       setAuth((prev) => ({ ...prev, error: errorMessage }));
@@ -351,7 +377,22 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
     onClose();
   };
 
-  // Memoize table rows to prevent unnecessary re-renders
+  // Clear error when drawer closes
+  const handleClose = () => {
+    setAuth((prev) => ({ ...prev, error: null }));
+    setRemarks("");
+    setLocationStatus("idle");
+    setCurrentPage(1);
+    onClose();
+  };
+
+  // Handle page change
+  const handlePageChange = (event, value) => {
+    setCurrentPage(value);
+    setAuth((prev) => ({ ...prev, error: null })); // Clear error on page change
+  };
+
+  // Memoize table rows
   const tableRows = useMemo(() => {
     return attendance.map((record) => (
       <TableRow key={record._id} hover>
@@ -447,7 +488,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
     <Drawer
       anchor="top"
       open={open}
-      onClose={onClose}
+      onClose={handleClose}
       PaperProps={{
         sx: {
           background: "transparent",
@@ -584,7 +625,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
 
             <Box
               sx={{
-                maxHeight: "400px", // Fixed height for table
+                maxHeight: "400px",
                 overflowY: "auto",
                 background: "#fff",
                 borderRadius: 2,
@@ -630,13 +671,39 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
                 </TableBody>
               </Table>
             </Box>
+
+            {totalRecords > 0 && (
+              <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+                <Pagination
+                  count={totalPages}
+                  page={currentPage}
+                  onChange={handlePageChange}
+                  color="primary"
+                  sx={{
+                    "& .MuiPaginationItem-root": {
+                      color: "white",
+                      "&.Mui-selected": {
+                        backgroundColor: "#1976d2",
+                        color: "white",
+                      },
+                      "&:hover": {
+                        backgroundColor: "rgba(25, 118, 210, 0.1)",
+                      },
+                    },
+                  }}
+                />
+              </Box>
+            )}
+            <Typography sx={{ color: "white", mt: 1, textAlign: "center" }}>
+              Showing {attendance.length} of {totalRecords} records
+            </Typography>
           </>
         )}
 
         <Box sx={{ textAlign: "right", mt: 3 }}>
           <Button
             variant="outlined"
-            onClick={onClose}
+            onClick={handleClose}
             sx={{
               color: "white",
               borderColor: "white",

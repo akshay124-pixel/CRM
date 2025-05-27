@@ -18,6 +18,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
         let relevantUserIds = [];
 
         if (role === "superadmin") {
+          // Superadmin sees all users
           const response = await axios.get(
             "https://crm-server-amz7.onrender.com/api/users",
             {
@@ -29,14 +30,8 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
             username: user.username,
             role: user.role,
           }));
-          if (!relevantUserIds.some((user) => user._id === userId)) {
-            relevantUserIds.push({
-              _id: userId,
-              username: "Superadmin",
-              role: "superadmin",
-            });
-          }
         } else if (role === "admin") {
+          // Admin sees their own data and assigned users' data
           const response = await axios.get(
             "https://crm-server-amz7.onrender.com/api/users",
             {
@@ -44,16 +39,21 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
             }
           );
           relevantUserIds = response.data
-            .filter((user) => user.assignedAdmin === userId)
+            .filter(
+              (user) => user.assignedAdmin === userId || user._id === userId
+            )
             .map((user) => ({
               _id: user._id,
               username: user.username,
               role: user.role,
             }));
+        } else {
+          // Role 'others' sees only their own data
+          relevantUserIds = [{ _id: userId, username: "Self", role: "others" }];
         }
 
         const statsMap = {};
-        // Filter entries by date range
+        // Filter entries by date range and role
         const filteredEntries = entries.filter((entry) => {
           const createdAt = new Date(entry.createdAt);
           return (
@@ -66,8 +66,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                 (user) =>
                   user._id === entry.createdBy?._id ||
                   user._id === entry.assignedTo?._id
-              ) ||
-              entry.createdBy?._id === userId)
+              ))
           );
         });
 
@@ -84,8 +83,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
 
           if (
             (role === "superadmin" && uId !== "unknown") ||
-            (role === "admin" &&
-              (relevantUserIds.some((u) => u._id === uId) || uId === userId))
+            relevantUserIds.some((u) => u._id === uId)
           ) {
             if (!statsMap[uId]) {
               let displayName = username;

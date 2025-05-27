@@ -1230,7 +1230,12 @@ function DashBoard() {
               createdAt <= new Date(dateRange[0].endDate)))
         );
       })
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      .sort((a, b) => {
+        // Ensure updatedAt exists, fallback to createdAt if not available
+        const dateA = new Date(a.updatedAt || a.createdAt);
+        const dateB = new Date(b.updatedAt || b.createdAt);
+        return dateB - dateA; // Sort in descending order (newest first)
+      });
   }, [
     entries,
     searchTerm,
@@ -1636,8 +1641,8 @@ function DashBoard() {
       >
         <div className="virtual-cell">{index + 1}</div>
         <div className="virtual-cell">
-          {row.createdAt
-            ? new Date(row.createdAt).toLocaleDateString("en-GB")
+          {row.updatedAt
+            ? new Date(row.updatedAt).toLocaleDateString("en-GB")
             : "N/A"}
         </div>
         <div className="virtual-cell">{row.customerName}</div>
@@ -1802,8 +1807,8 @@ function DashBoard() {
               variant="body2"
               sx={{ fontSize: "0.8rem", color: "#555" }}
             >
-              {row.createdAt
-                ? new Date(row.createdAt).toLocaleDateString()
+              {row.updatedAt
+                ? new Date(row.updatedAt).toLocaleDateString()
                 : "N/A"}
             </Typography>
           </Box>
@@ -2244,6 +2249,15 @@ function DashBoard() {
               <FaPlus size={16} />
               Add New Entry
             </motion.button>
+            <motion.button
+              onClick={() => setIsAnalyticsModalOpen(true)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              style={actionButtonStyle}
+            >
+              <FaChartBar size={16} />
+              Analytics
+            </motion.button>
             {(role === "superadmin" || role === "admin") && (
               <>
                 <motion.button
@@ -2255,15 +2269,7 @@ function DashBoard() {
                   <FaUsers size={16} />
                   Team Builder
                 </motion.button>
-                <motion.button
-                  onClick={() => setIsAnalyticsModalOpen(true)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  style={actionButtonStyle}
-                >
-                  <FaChartBar size={16} />
-                  Analytics
-                </motion.button>
+
                 <motion.button
                   onClick={handleExport}
                   whileHover={{ scale: 1.05 }}
@@ -2565,6 +2571,22 @@ function DashBoard() {
           onClose={() => setIsDrawerOpen(false)}
           userId={userId}
           role={role}
+        />{" "}
+        <AdminDrawer
+          entries={entries}
+          isOpen={isAnalyticsOpen}
+          onClose={() => setIsAnalyticsOpen(false)}
+          role={role}
+          userId={userId}
+          dateRange={dateRange}
+        />
+        <ValueAnalyticsDrawer
+          entries={entries}
+          isOpen={isValueAnalyticsOpen}
+          onClose={() => setIsValueAnalyticsOpen(false)}
+          role={role}
+          userId={userId}
+          dateRange={dateRange}
         />
         {(role === "superadmin" || role === "admin") && (
           <>
@@ -2574,22 +2596,7 @@ function DashBoard() {
               userRole={role}
               userId={userId}
             />
-            <AdminDrawer
-              entries={entries}
-              isOpen={isAnalyticsOpen}
-              onClose={() => setIsAnalyticsOpen(false)}
-              role={role}
-              userId={userId}
-              dateRange={dateRange}
-            />
-            <ValueAnalyticsDrawer
-              entries={entries}
-              isOpen={isValueAnalyticsOpen}
-              onClose={() => setIsValueAnalyticsOpen(false)}
-              role={role}
-              userId={userId}
-              dateRange={dateRange}
-            />
+
             {role === "superadmin" && (
               <TeamAnalyticsDrawer
                 entries={entries}
