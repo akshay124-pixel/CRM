@@ -433,6 +433,8 @@ export const statesAndCities = {
     "Sundargarh",
   ],
   Punjab: [
+    "Amritsar",
+    "Bathinda",
     "Barnala",
     "Faridkot",
     "Fatehgarh Sahib",

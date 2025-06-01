@@ -479,6 +479,11 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       specifications: ["N/A"],
     },
     {
+      name: "CCTV",
+      sizes: ["Standard"],
+      specifications: ["N/A"],
+    },
+    {
       name: "Kiosk",
       sizes: ["32 inch", "43 inch", "55 inch", "65 inch"],
       specifications: ["Touch Andriod 13/4/32", "Non-Touch Andriod 13/4/32"],
@@ -1466,6 +1471,8 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         "Sundargarh",
       ],
       Punjab: [
+        "Amritsar",
+        "Bathinda",
         "Barnala",
         "Faridkot",
         "Fatehgarh Sahib",
@@ -1482,9 +1489,9 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         "Pathankot",
         "Patiala",
         "Rupnagar",
-        "S.A.S. Nagar", // Sahibzada Ajit Singh Nagar
+        "S.A.S. Nagar",
         "Sangrur",
-        "Shaheed Bhagat Singh Nagar", // Nawanshahr
+        "Shaheed Bhagat Singh Nagar",
         "Sri Muktsar Sahib",
         "Tarn Taran",
       ],

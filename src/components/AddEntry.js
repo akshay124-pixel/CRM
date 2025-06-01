@@ -282,6 +282,11 @@ const productOptions = [
     specifications: ["N/A"],
   },
   {
+    name: "CCTV",
+    sizes: ["Standard"],
+    specifications: ["N/A"],
+  },
+  {
     name: "Audio-Visual Solutions",
     sizes: ["N/A"],
     specifications: ["N/A"],
