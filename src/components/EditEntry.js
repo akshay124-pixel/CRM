@@ -1602,7 +1602,11 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
             <option value="Hospital">Hospital</option>
             <option value="Govt department">Govt department</option>
             <option value="Corporate">Corporate</option>
+
+            <option value="Private coaching">Private coaching</option>
             <option value="Private school">Private school</option>
+            <option value="Private college">Private college</option>
+
             <option value="Govt school">Govt school</option>
             <option value="Govt college">Govt college</option>
             <option value="Govt aided college">Govt aided college</option>
