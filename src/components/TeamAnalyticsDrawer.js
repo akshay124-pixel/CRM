@@ -27,7 +27,7 @@ import { FixedSizeList } from "react-window";
 
 // Custom hook for API calls with pagination
 const useCachedApi = (url, token) => {
-  const [data, setData] = useState(null);
+  const [data, setData] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
@@ -51,19 +51,19 @@ const useCachedApi = (url, token) => {
         });
         console.log(`API Response (Page ${page}):`, response.data);
 
-        // Log unique role values
         const roles = [
           ...new Set(response.data.map((user) => user.role || "undefined")),
         ];
         console.log("Unique Roles in Response:", roles);
 
-        // Log sample admin user
         const adminSample = response.data.find(
-          (user) => (user.role || "").toLowerCase() === "admin"
+          (user) =>
+            (typeof user.role === "string" &&
+              user.role.toLowerCase() === "admin") ||
+            user.role === "admin"
         );
         console.log("Sample Admin User:", adminSample);
 
-        // Normalize user data
         const normalizedPage = response.data.map((user) => ({
           ...user,
           _id: user._id?.$oid || user._id || user.id || "",
@@ -71,8 +71,7 @@ const useCachedApi = (url, token) => {
             typeof user.role === "string" ? user.role.toLowerCase() : "unknown",
           assignedAdmin:
             user.assignedAdmin?.$oid ||
-            (typeof user.assignedAdmin === "object" &&
-              user.assignedAdmin?._id) ||
+            user.assignedAdmin?._id ||
             user.assignedAdmin ||
             null,
         }));
@@ -221,7 +220,12 @@ const TeamAnalyticsDrawer = ({
     const statsMap = {};
     const filteredEntries = entries.filter((entry) => {
       const createdAt = new Date(entry.createdAt);
-      return true; // Bypassing date range for debugging
+      return (
+        !dateRange[0].startDate ||
+        !dateRange[0].endDate ||
+        (createdAt >= new Date(dateRange[0].startDate) &&
+          createdAt <= new Date(dateRange[0].endDate))
+      );
     });
 
     console.log("Filtered Entries:", filteredEntries);
@@ -275,6 +279,7 @@ const TeamAnalyticsDrawer = ({
             hot: 0,
             closedWon: 0,
             closedLost: 0,
+            totalClosingAmount: 0,
           },
           membersAnalytics: {},
           teamTotal: {
@@ -285,6 +290,7 @@ const TeamAnalyticsDrawer = ({
             hot: 0,
             closedWon: 0,
             closedLost: 0,
+            totalClosingAmount: 0,
           },
         };
       }
@@ -306,6 +312,7 @@ const TeamAnalyticsDrawer = ({
             hot: 0,
             closedWon: 0,
             closedLost: 0,
+            totalClosingAmount: 0,
           };
         }
         targetAnalytics = statsMap[adminId].membersAnalytics[memberId];
@@ -340,6 +347,13 @@ const TeamAnalyticsDrawer = ({
           if (entry.closetype === "Closed Won") {
             targetAnalytics.closedWon += 1;
             statsMap[adminId].teamTotal.closedWon += 1;
+            if (entry.closeamount && typeof entry.closeamount === "number") {
+              targetAnalytics.totalClosingAmount += entry.closeamount;
+              statsMap[adminId].teamTotal.totalClosingAmount +=
+                entry.closeamount;
+            } else {
+              console.warn(`Invalid closeamount for entry:`, entry);
+            }
           } else if (entry.closetype === "Closed Lost") {
             targetAnalytics.closedLost += 1;
             statsMap[adminId].teamTotal.closedLost += 1;
@@ -352,34 +366,41 @@ const TeamAnalyticsDrawer = ({
 
     console.log("Stats Map:", statsMap);
 
-    const result = admins.map((admin) => ({
-      adminId: admin._id,
-      adminName: admin.username,
-      teamMembers: admin.teamMembers,
-      teamMembersCount: admin.teamMembers.length, // Added for clarity
-      adminAnalytics: statsMap[admin._id]?.adminAnalytics || {
-        username: admin.username,
-        allTimeEntries: 0,
-        monthEntries: 0,
-        cold: 0,
-        warm: 0,
-        hot: 0,
-        closedWon: 0,
-        closedLost: 0,
-      },
-      membersAnalytics: statsMap[admin._id]?.membersAnalytics
-        ? Object.values(statsMap[admin._id].membersAnalytics)
-        : [],
-      teamTotal: statsMap[admin._id]?.teamTotal || {
-        allTimeEntries: 0,
-        monthEntries: 0,
-        cold: 0,
-        warm: 0,
-        hot: 0,
-        closedWon: 0,
-        closedLost: 0,
-      },
-    }));
+    const result = admins.map((admin) => {
+      const teamData = statsMap[admin._id] || {
+        adminAnalytics: {
+          username: admin.username,
+          allTimeEntries: 0,
+          monthEntries: 0,
+          cold: 0,
+          warm: 0,
+          hot: 0,
+          closedWon: 0,
+          closedLost: 0,
+          totalClosingAmount: 0,
+        },
+        membersAnalytics: {},
+        teamTotal: {
+          allTimeEntries: 0,
+          monthEntries: 0,
+          cold: 0,
+          warm: 0,
+          hot: 0,
+          closedWon: 0,
+          closedLost: 0,
+          totalClosingAmount: 0,
+        },
+      };
+      return {
+        adminId: admin._id,
+        adminName: admin.username,
+        teamMembers: admin.teamMembers,
+        teamMembersCount: admin.teamMembers.length,
+        adminAnalytics: teamData.adminAnalytics,
+        membersAnalytics: Object.values(teamData.membersAnalytics),
+        teamTotal: teamData.teamTotal,
+      };
+    });
 
     setDebugInfo(
       `Found ${result.length} admin teams with ${users.length} total users`
@@ -387,7 +408,7 @@ const TeamAnalyticsDrawer = ({
     console.log("Team Stats Result:", result);
 
     return result;
-  }, [users, entries, role]);
+  }, [users, entries, role, dateRange]);
 
   // Modified useEffect to prevent multiple openings
   useEffect(() => {
@@ -398,40 +419,43 @@ const TeamAnalyticsDrawer = ({
         toast.error("Access restricted to superadmins only");
         onClose();
       } else if (teamStatsMemo.length > 0) {
-        setTeamStats(teamStatsMemo); // Update state only if data is available
+        setTeamStats(teamStatsMemo);
       }
     }
 
     return () => {
-      isMounted = false; // Cleanup to prevent state updates after unmount
+      isMounted = false;
     };
-  }, [isOpen, role, onClose]); // Removed teamStatsMemo from dependencies
+  }, [isOpen, role, onClose, teamStatsMemo]);
 
   // Calculate overall stats
-  const overallStats = useMemo(
-    () =>
-      teamStats.reduce(
-        (acc, team) => ({
-          total: acc.total + team.teamTotal.allTimeEntries,
-          monthTotal: acc.monthTotal + team.teamTotal.monthEntries,
-          hot: acc.hot + team.teamTotal.hot,
-          cold: acc.cold + team.teamTotal.cold,
-          warm: acc.warm + team.teamTotal.warm,
-          closedWon: acc.closedWon + team.teamTotal.closedWon,
-          closedLost: acc.closedLost + team.teamTotal.closedLost,
-        }),
-        {
-          total: 0,
-          monthTotal: 0,
-          hot: 0,
-          cold: 0,
-          warm: 0,
-          closedWon: 0,
-          closedLost: 0,
-        }
-      ),
-    [teamStats]
-  );
+  const overallStats = useMemo(() => {
+    const stats = teamStats.reduce(
+      (acc, team) => ({
+        total: acc.total + team.teamTotal.allTimeEntries,
+        monthTotal: acc.monthTotal + team.teamTotal.monthEntries,
+        hot: acc.hot + team.teamTotal.hot,
+        cold: acc.cold + team.teamTotal.cold,
+        warm: acc.warm + team.teamTotal.warm,
+        closedWon: acc.closedWon + team.teamTotal.closedWon,
+        closedLost: acc.closedLost + team.teamTotal.closedLost,
+        totalClosingAmount:
+          acc.totalClosingAmount + (team.teamTotal.totalClosingAmount || 0),
+      }),
+      {
+        total: 0,
+        monthTotal: 0,
+        hot: 0,
+        cold: 0,
+        warm: 0,
+        closedWon: 0,
+        closedLost: 0,
+        totalClosingAmount: 0,
+      }
+    );
+    console.log("Overall Stats:", stats);
+    return stats;
+  }, [teamStats]);
 
   // Export analytics to Excel
   const handleExport = useCallback(() => {
@@ -449,6 +473,7 @@ const TeamAnalyticsDrawer = ({
           Warm: overallStats.warm,
           Won: overallStats.closedWon,
           Lost: overallStats.closedLost,
+          "Total Closing Amount": overallStats.totalClosingAmount,
         },
         ...teamStats.flatMap((team) => [
           {
@@ -463,6 +488,7 @@ const TeamAnalyticsDrawer = ({
             Warm: team.adminAnalytics.warm,
             Won: team.adminAnalytics.closedWon,
             Lost: team.adminAnalytics.closedLost,
+            "Total Closing Amount": team.adminAnalytics.totalClosingAmount,
           },
           ...team.membersAnalytics
             .filter((m) => showZeroEntries || m.allTimeEntries > 0)
@@ -478,6 +504,7 @@ const TeamAnalyticsDrawer = ({
               Warm: member.warm,
               Won: member.closedWon,
               Lost: member.closedLost,
+              "Total Closing Amount": member.totalClosingAmount,
             })),
           {
             Section: "Team Total",
@@ -491,6 +518,7 @@ const TeamAnalyticsDrawer = ({
             Warm: team.teamTotal.warm,
             Won: team.teamTotal.closedWon,
             Lost: team.teamTotal.closedLost,
+            "Total Closing Amount": team.teamTotal.totalClosingAmount,
           },
         ]),
       ];
@@ -514,6 +542,7 @@ const TeamAnalyticsDrawer = ({
       toast.success("Team analytics exported successfully!");
     } catch (error) {
       toast.error("Failed to export team analytics!");
+      console.error("Export error:", error);
     }
   }, [teamStats, overallStats, dateRange, showZeroEntries]);
 
@@ -543,19 +572,31 @@ const TeamAnalyticsDrawer = ({
     { field: "warm", headerName: "Warm", width: 100 },
     { field: "closedWon", headerName: "Won", width: 100 },
     { field: "closedLost", headerName: "Lost", width: 100 },
+    {
+      field: "totalClosingAmount",
+      headerName: "Total Closure (₹)",
+      width: 150,
+      valueFormatter: (params) =>
+        params.value != null ? params.value.toLocaleString("en-IN") : "₹0",
+    },
   ];
 
-  const summaryRows = teamStats.map((team) => ({
-    id: team.adminId,
-    adminName: team.adminName,
-    totalEntries: team.teamTotal.allTimeEntries,
-    monthEntries: team.teamTotal.monthEntries,
-    hot: team.teamTotal.hot,
-    cold: team.teamTotal.cold,
-    warm: team.teamTotal.warm,
-    closedWon: team.teamTotal.closedWon,
-    closedLost: team.teamTotal.closedLost,
-  }));
+  const summaryRows = useMemo(() => {
+    const rows = teamStats.map((team) => ({
+      id: team.adminId,
+      adminName: team.adminName,
+      totalEntries: team.teamTotal.allTimeEntries,
+      monthEntries: team.teamTotal.monthEntries,
+      hot: team.teamTotal.hot,
+      cold: team.teamTotal.cold,
+      warm: team.teamTotal.warm,
+      closedWon: team.teamTotal.closedWon,
+      closedLost: team.teamTotal.closedLost,
+      totalClosingAmount: team.teamTotal.totalClosingAmount || 0,
+    }));
+    console.log("Summary Rows:", rows);
+    return rows;
+  }, [teamStats]);
 
   // Lazy-loaded team member list
   const MemberRow = ({ index, style, data }) => {
@@ -597,6 +638,13 @@ const TeamAnalyticsDrawer = ({
               { label: "Hot", value: member.hot, color: "yellow" },
               { label: "Won", value: member.closedWon, color: "lightgrey" },
               { label: "Lost", value: member.closedLost, color: "#e91e63" },
+              {
+                label: "Total Closure",
+                value: `₹${(member.totalClosingAmount || 0).toLocaleString(
+                  "en-IN"
+                )}`,
+                color: "lightgreen",
+              },
             ].map((stat) => (
               <StatCard
                 key={stat.label}
@@ -709,7 +757,7 @@ const TeamAnalyticsDrawer = ({
               flexDirection: "column",
               alignItems: "center",
               gap: 2,
-              py: 4,
+              py: 8,
             }}
           >
             <Typography
@@ -722,14 +770,14 @@ const TeamAnalyticsDrawer = ({
               No users found in the system. Please contact support.
             </Typography>
           </Box>
-        ) : teamStats.length === 0 ? (
+        ) : !teamStats.length ? (
           <Box
             sx={{
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               gap: 2,
-              py: 4,
+              py: 8,
             }}
           >
             <Typography
@@ -739,8 +787,8 @@ const TeamAnalyticsDrawer = ({
                 textAlign: "center",
               }}
             >
-              No admin teams found. Ensure users with the 'admin' role exist and
-              have assigned team members.
+              No admin teams found. Ensure users with admin role exist and have
+              assigned team members.
             </Typography>
             <Button
               onClick={retry}
@@ -757,23 +805,23 @@ const TeamAnalyticsDrawer = ({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                sx={{
+                style={{
                   background: "rgba(255, 255, 255, 0.1)",
                   borderRadius: "16px",
-                  p: 3,
+                  padding: "20px",
                   boxShadow: "0 8px 24px rgba(0, 0, 0, 0.3)",
                 }}
               >
                 <Typography
                   sx={{
                     fontSize: "1.6rem",
-                    fontWeight: 700,
+                    fontWeight: 600,
                     mb: 2.5,
                     textAlign: "center",
                     textTransform: "uppercase",
                   }}
                 >
-                  📊 Overall Statistics
+                  📊 Overall Stats
                 </Typography>
                 <Box
                   sx={{
@@ -782,7 +830,7 @@ const TeamAnalyticsDrawer = ({
                       xs: "repeat(2, 1fr)",
                       sm: "repeat(4, 1fr)",
                     },
-                    gap: 1,
+                    gap: "8px",
                   }}
                 >
                   {[
@@ -796,7 +844,11 @@ const TeamAnalyticsDrawer = ({
                       value: overallStats.monthTotal,
                       color: "yellow",
                     },
-                    { label: "Hot", value: overallStats.hot, color: "yellow" },
+                    {
+                      label: "Hot",
+                      value: overallStats.hot,
+                      color: "yellow",
+                    },
                     {
                       label: "Cold",
                       value: overallStats.cold,
@@ -817,6 +869,13 @@ const TeamAnalyticsDrawer = ({
                       value: overallStats.closedLost,
                       color: "#e91e63",
                     },
+                    {
+                      label: "Total Closure",
+                      value: `₹${(
+                        overallStats.totalClosingAmount || 0
+                      ).toLocaleString("en-IN")}`,
+                      color: "lightgreen",
+                    },
                   ].map((stat) => (
                     <StatCard
                       key={stat.label}
@@ -833,7 +892,7 @@ const TeamAnalyticsDrawer = ({
               <Typography
                 sx={{
                   fontSize: "1.4rem",
-                  fontWeight: 700,
+                  fontWeight: 600,
                   mb: 2,
                   textTransform: "uppercase",
                 }}
@@ -850,10 +909,12 @@ const TeamAnalyticsDrawer = ({
                     color: "white",
                     "& .MuiDataGrid-cell": { color: "white" },
                     "& .MuiDataGrid-columnHeader": {
-                      color: "Black",
-                      backgroundColor: "rgba(255, 255, 255, 0.2)", // Solid background for header
+                      color: "black",
+                      background: "rgba(255, 255, 255, 0.2)",
                     },
-                    "& .MuiDataGrid-columnHeaderTitle": { fontWeight: 600 },
+                    "& .MuiDataGrid-columnHeaderTitle": {
+                      fontWeight: "600",
+                    },
                   }}
                 />
               </Box>
@@ -863,8 +924,8 @@ const TeamAnalyticsDrawer = ({
               control={
                 <Switch
                   checked={showZeroEntries}
-                  onChange={() => setShowZeroEntries((prev) => !prev)}
-                  color="primary"
+                  onChange={() => setShowZeroEntries(!showZeroEntries)}
+                  sx={{ color: "#34d399" }}
                 />
               }
               label="Show Zero-Entry Members"
@@ -872,17 +933,16 @@ const TeamAnalyticsDrawer = ({
             />
 
             {teamStats.map((team, index) => (
-              <Box key={team.adminId} sx={{ mb: 3 }}>
+              <Box key={team.adminId} sx={{ mb: 4 }}>
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.15 }}
-                  sx={{
+                  transition={{ delay: index * 0.2 }}
+                  style={{
                     background: "rgba(255, 255, 255, 0.15)",
                     borderRadius: "12px",
-                    p: 3,
-                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-                    "&:hover": { background: "rgba(255, 255, 255, 0.18)" },
+                    padding: "16px",
+                    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.15)",
                   }}
                 >
                   <Box
@@ -896,7 +956,7 @@ const TeamAnalyticsDrawer = ({
                     <Typography
                       sx={{
                         fontSize: "1.5rem",
-                        fontWeight: 700,
+                        fontWeight: 600,
                         textTransform: "capitalize",
                       }}
                     >
@@ -904,7 +964,7 @@ const TeamAnalyticsDrawer = ({
                     </Typography>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <Typography
-                        sx={{ fontSize: "1.1rem", color: "lightgreen" }}
+                        sx={{ fontSize: "1rem", color: "lightgreen" }}
                       >
                         Total: {team.teamTotal.allTimeEntries} | Members:{" "}
                         {team.teamMembersCount}
@@ -927,7 +987,7 @@ const TeamAnalyticsDrawer = ({
                     <Typography
                       sx={{
                         fontSize: "1.2rem",
-                        fontWeight: 600,
+                        fontWeight: 500,
                         mb: 1,
                         color: "rgba(255, 255, 255, 0.9)",
                       }}
@@ -941,7 +1001,7 @@ const TeamAnalyticsDrawer = ({
                           xs: "1fr",
                           sm: "repeat(2, 1fr)",
                         },
-                        gap: 1,
+                        gap: "8px",
                       }}
                     >
                       {[
@@ -979,6 +1039,13 @@ const TeamAnalyticsDrawer = ({
                           label: "Lost",
                           value: team.adminAnalytics.closedLost,
                           color: "#e91e63",
+                        },
+                        {
+                          label: "Total Closure",
+                          value: `₹${(
+                            team.adminAnalytics.totalClosingAmount || 0
+                          ).toLocaleString("en-IN")}`,
+                          color: "lightgreen",
                         },
                       ].map((stat) => (
                         <StatCard
@@ -1020,7 +1087,10 @@ const TeamAnalyticsDrawer = ({
 
                       {team.teamMembers.length > 0 ? (
                         <FixedSizeList
-                          height={Math.min(team.teamMembers.length * 200, 400)} // Increased height to accommodate content
+                          height={Math.min(
+                            team.membersAnalytics.length * 240,
+                            400
+                          )}
                           width="100%"
                           itemCount={
                             showZeroEntries
@@ -1029,7 +1099,7 @@ const TeamAnalyticsDrawer = ({
                                   (m) => m.allTimeEntries > 0
                                 ).length
                           }
-                          itemSize={220} // Increased itemSize to prevent overlap
+                          itemSize={240}
                           itemData={{
                             members: showZeroEntries
                               ? team.membersAnalytics

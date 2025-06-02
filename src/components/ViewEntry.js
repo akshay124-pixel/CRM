@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useEffect } from "react";
-import { Modal, Button, Badge, Dropdown } from "react-bootstrap";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
+import { Modal, Button, Dropdown } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { toast } from "react-toastify";
 import {
@@ -9,10 +9,10 @@ import {
   FaAngleUp,
   FaEllipsisV,
 } from "react-icons/fa";
-import { Box, Typography, Collapse } from "@mui/material";
+import { Box, Typography, Collapse, Chip } from "@mui/material";
 import styled from "styled-components";
-import * as XLSX from "xlsx"; // Import xlsx for client-side Excel generation
-import DisableCopy from "./DisableCopy"; // Adjust path based on your project structure
+import * as XLSX from "xlsx";
+import DisableCopy from "./DisableCopy";
 
 // Styled Components
 const GradientModalHeader = styled(Modal.Header)`
@@ -33,6 +33,7 @@ const GradientSection = styled.div`
   );
   border-radius: 12px;
   padding: 1.5rem;
+  margin-bottom: 1rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
   &:hover {
@@ -51,58 +52,62 @@ const SectionHeader = styled(Box)`
 
 const InfoRow = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.2rem;
-  padding: 0.8rem 0;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  padding: 1rem 0;
+  @media (max-width: 576px) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const InfoItem = styled.div`
   display: flex;
   flex-direction: column;
-  font-size: 0.95rem;
+  font-size: 1rem;
   color: #333;
 `;
 
 const Label = styled.strong`
   font-size: 0.9rem;
   color: #2575fc;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.5rem;
   text-transform: uppercase;
   letter-spacing: 0.6px;
 `;
 
 const Value = styled.span`
-  font-size: 0.95rem;
+  font-size: 1rem;
   color: #444;
   word-break: break-word;
-  line-height: 1.4;
+  line-height: 1.5;
 `;
 
 const HistoryContainer = styled.div`
-  max-height: 280px;
+  max-height: 300px;
   overflow-y: auto;
-  padding-right: 0.8rem;
+  padding-right: 1rem;
+  margin-top: 1rem;
   &::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
   }
   &::-webkit-scrollbar-thumb {
     background: linear-gradient(135deg, #2575fc, #6a11cb);
-    border-radius: 3px;
+    border-radius: 4px;
   }
 `;
 
 const HistoryItem = styled.div`
   position: relative;
-  padding: 1rem 0 1rem 2rem;
-  border-left: 2px solid #2575fc;
-  margin-bottom: 1rem;
+  padding: 1rem 0 1rem 2.5rem;
+  border-left: 3px solid #2575fc;
+  margin-bottom: 1.5rem;
   &:before {
     content: "";
     position: absolute;
     left: -8px;
     top: 1.2rem;
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
     background: linear-gradient(135deg, #2575fc, #6a11cb);
     border-radius: 50%;
     box-shadow: 0 0 8px rgba(37, 117, 252, 0.6);
@@ -111,26 +116,26 @@ const HistoryItem = styled.div`
 
 const HistoryContent = styled.div`
   background: #fff;
-  padding: 1rem;
-  border-radius: 8px;
+  padding: 1.2rem;
+  border-radius: 10px;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
   transition: transform 0.2s ease;
   &:hover {
-    transform: translateX(8px);
+    transform: translateX(10px);
   }
 `;
 
 const HistoryTimestamp = styled.div`
-  font-size: 0.85rem;
-  color: #777;
-  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 0.6rem;
   font-weight: 500;
 `;
 
 const HistoryRemarks = styled.div`
-  font-size: 0.95rem;
+  font-size: 1rem;
   color: #333;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.6rem;
 `;
 
 const HistoryLocation = styled.div`
@@ -138,7 +143,7 @@ const HistoryLocation = styled.div`
   color: #2575fc;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 `;
 
 const MapLink = styled.a`
@@ -157,7 +162,7 @@ const GradientButton = styled(Button)`
     props.disabled ? "#cccccc" : "linear-gradient(135deg, #2575fc, #6a11cb)"};
   border: none;
   border-radius: 30px;
-  padding: 10px 20px;
+  padding: 12px 24px;
   font-size: 1rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -218,6 +223,19 @@ const GradientDropdownItem = styled(Dropdown.Item)`
   }
 `;
 
+const TagContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+`;
+
+const TagChip = styled(Chip)`
+  background: linear-gradient(135deg, #e0f7fa, #b2ebf2);
+  color: #006064;
+  font-weight: 500;
+  border-radius: 16px;
+`;
+
 function ViewEntry({ isOpen, onClose, entry, role }) {
   const [copied, setCopied] = useState(false);
   const [openSections, setOpenSections] = useState({
@@ -228,6 +246,16 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
     history: false,
   });
 
+  // Utility to format dates safely
+  const formatDate = (date) => {
+    if (!date || isNaN(new Date(date).getTime())) return "N/A";
+    return new Date(date).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
+
   useEffect(() => {
     setOpenSections({
       personal: true,
@@ -236,11 +264,38 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
       followup: true,
       history: false,
     });
+    setCopied(false);
   }, [entry]);
 
   const toggleSection = (section) => {
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
+
+  // Enhanced function to format assignedTo for display
+  const formatAssignedTo = useCallback(
+    (assignedTo) => {
+      if (!Array.isArray(assignedTo) || assignedTo.length === 0) {
+        return "Not Assigned";
+      }
+      const usernames = assignedTo
+        .map((user) => {
+          if (typeof user === "object" && user?.username) {
+            return user.username;
+          } else if (typeof user === "string") {
+            // Handle case where assignedTo contains ObjectIds (not populated)
+            // This assumes the entry.assignedTo is already populated, so we look there
+            const foundUser = entry?.assignedTo?.find(
+              (u) => u._id.toString() === user
+            );
+            return foundUser?.username || null;
+          }
+          return null;
+        })
+        .filter(Boolean);
+      return usernames.length > 0 ? usernames.join(", ") : "Not Assigned";
+    },
+    [entry?.assignedTo]
+  );
 
   const handleCopy = useCallback(() => {
     if (role !== "admin" && role !== "superadmin") {
@@ -259,22 +314,16 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
               }, Size: ${product.size}, Quantity: ${product.quantity}`
           )
           .join("\n")
-      : entry.products || "N/A";
+      : "N/A";
+
+    const assignedToText = formatAssignedTo(entry.assignedTo);
 
     const textToCopy = `
-      Date: ${
-        entry.createdAt
-          ? new Date(entry.createdAt).toLocaleDateString("en-IN")
-          : "N/A"
-      }
+      Date: ${formatDate(entry.createdAt)}
       Customer Name: ${entry.customerName || "N/A"}
       Mobile Number: ${entry.mobileNumber || "N/A"}
       Contact Person Name: ${entry.contactperson || "N/A"}
-      First Meeting Date: ${
-        entry.firstdate
-          ? new Date(entry.firstdate).toLocaleDateString("en-IN")
-          : "N/A"
-      }
+      First Meeting Date: ${formatDate(entry.firstdate)}
       Products: ${productsText}
       Customer Type: ${entry.type || "N/A"}
       Address: ${entry.address || "N/A"}
@@ -283,16 +332,8 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
       Organization: ${entry.organization || "N/A"}
       Category: ${entry.category || "N/A"}
       Status: ${entry.status || "Not Interested"}
-      Expected Closure Date: ${
-        entry.expectedClosingDate
-          ? new Date(entry.expectedClosingDate).toLocaleDateString("en-IN")
-          : "N/A"
-      }
-      Follow Up Date: ${
-        entry.followUpDate
-          ? new Date(entry.followUpDate).toLocaleDateString("en-IN")
-          : "N/A"
-      }
+      Expected Closure Date: ${formatDate(entry.expectedClosingDate)}
+      Follow Up Date: ${formatDate(entry.followUpDate)}
       Remarks: ${entry.remarks || "N/A"}
       Priority: ${entry.priority || "N/A"}
       Next Action: ${entry.nextAction || "N/A"}
@@ -306,12 +347,9 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
           ? `₹${new Intl.NumberFormat("en-IN").format(entry.closeamount)}`
           : "N/A"
       }
-      Updated At: ${
-        entry.updatedAt
-          ? new Date(entry.updatedAt).toLocaleDateString("en-IN")
-          : "N/A"
-      }
+      Updated At: ${formatDate(entry.updatedAt)}
       Created By: ${entry.createdBy?.username || "N/A"}
+      Assigned To: ${assignedToText}
     `.trim();
 
     navigator.clipboard
@@ -325,7 +363,7 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
         toast.error("Failed to copy details!");
         console.error("Copy error:", err);
       });
-  }, [entry, role]);
+  }, [entry, role, formatAssignedTo]);
 
   const handleExportEntry = useCallback(() => {
     try {
@@ -334,9 +372,9 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
         return;
       }
 
-      // Prepare data for export
+      const assignedToText = formatAssignedTo(entry.assignedTo);
+
       const exportData = [
-        // Header row
         {
           Section: "Client Entry",
           Customer: "Customer Name",
@@ -362,35 +400,8 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
           Created: "Created",
           Updated: "Updated",
           "Created By": "Created By",
+          "Assigned To": "Assigned To",
         },
-        // Separator row
-        {
-          Section: "",
-          Customer: "",
-          "Mobile Number": "",
-          "Contact Person": "",
-          Address: "",
-          City: "",
-          State: "",
-          Organization: "",
-          Category: "",
-          Type: "",
-          Products: "",
-          "Estimated Value": "",
-          "Closing Amount": "",
-          Status: "",
-          "Close Type": "",
-          "First Meeting": "",
-          "Follow Up": "",
-          "Expected Closing Date": "",
-          Priority: "",
-          "Next Action": "",
-          Remarks: "",
-          Created: "",
-          Updated: "",
-          "Created By": "",
-        },
-        // Entry data
         {
           Section: "Client Entry",
           Customer: entry.customerName || "",
@@ -418,32 +429,20 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
             : "",
           Status: entry.status || "Not Interested",
           "Close Type": entry.closetype || "",
-          "First Meeting": entry.firstdate
-            ? new Date(entry.firstdate).toLocaleDateString("en-IN")
-            : "",
-          "Follow Up": entry.followUpDate
-            ? new Date(entry.followUpDate).toLocaleDateString("en-IN")
-            : "",
-          "Expected Closing Date": entry.expectedClosingDate
-            ? new Date(entry.expectedClosingDate).toLocaleDateString("en-IN")
-            : "",
+          "First Meeting": formatDate(entry.firstdate),
+          "Follow Up": formatDate(entry.followUpDate),
+          "Expected Closing Date": formatDate(entry.expectedClosingDate),
           Priority: entry.priority || "",
           "Next Action": entry.nextAction || "",
           Remarks: entry.remarks || "",
-          Created: entry.createdAt
-            ? new Date(entry.createdAt).toLocaleDateString("en-IN")
-            : "",
-          Updated: entry.updatedAt
-            ? new Date(entry.updatedAt).toLocaleDateString("en-IN")
-            : "",
+          Created: formatDate(entry.createdAt),
+          Updated: formatDate(entry.updatedAt),
           "Created By": entry.createdBy?.username || "Unknown",
+          "Assigned To": assignedToText,
         },
       ];
 
-      // Create worksheet
       const worksheet = XLSX.utils.json_to_sheet(exportData);
-
-      // Auto-size columns
       const colWidths = Object.keys(exportData[0]).map((key) => {
         const maxLength = Math.max(
           key.length,
@@ -453,11 +452,9 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
       });
       worksheet["!cols"] = colWidths;
 
-      // Create workbook
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Client Entry");
 
-      // Generate Excel file as a blob
       const excelBuffer = XLSX.write(workbook, {
         bookType: "xlsx",
         type: "array",
@@ -466,7 +463,6 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
 
-      // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -476,7 +472,6 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
       document.body.appendChild(link);
       link.click();
 
-      // Clean up
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
@@ -485,7 +480,7 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
       console.error("Error exporting entry:", error);
       toast.error("Failed to export entry!");
     }
-  }, [entry]);
+  }, [entry, formatAssignedTo]);
 
   const getGoogleMapsUrl = (location) => {
     if (!location) return "#";
@@ -496,6 +491,15 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
     }
     return `https://www.google.com/maps/search/${encodeURIComponent(location)}`;
   };
+
+  // Sort history once
+  const sortedHistory = useMemo(() => {
+    return Array.isArray(entry?.history)
+      ? [...entry.history].sort(
+          (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+        )
+      : [];
+  }, [entry?.history]);
 
   if (!entry) return null;
 
@@ -533,7 +537,6 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                 alignItems: "center",
               }}
             >
-              <span style={{ marginRight: "8px", fontSize: "1.4rem" }}>📋</span>
               Client Profile
             </Modal.Title>
             <Box sx={{ display: "flex", alignItems: "center", gap: "1rem" }}>
@@ -555,7 +558,7 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                     textShadow: "0 1px 2px rgba(0, 0, 0, 0.3)",
                   }}
                 >
-                  Visits: {entry.history?.length || 0}
+                  Visits: {sortedHistory.length}
                 </Typography>
               </Box>
               <Dropdown>
@@ -567,14 +570,23 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                 </GradientDropdownToggle>
                 <GradientDropdownMenu>
                   {(role === "admin" || role === "superadmin") && (
-                    <GradientDropdownItem onClick={handleCopy}>
+                    <GradientDropdownItem
+                      onClick={handleCopy}
+                      aria-label={copied ? "Copied" : "Copy Details"}
+                    >
                       {copied ? "✅ Copied!" : "📑 Copy Details"}
                     </GradientDropdownItem>
                   )}
-                  <GradientDropdownItem onClick={handleExportEntry}>
+                  <GradientDropdownItem
+                    onClick={handleExportEntry}
+                    aria-label="Export Entry"
+                  >
                     📤 Export Entry
                   </GradientDropdownItem>
-                  <GradientDropdownItem onClick={onClose}>
+                  <GradientDropdownItem
+                    onClick={onClose}
+                    aria-label="Close Modal"
+                  >
                     🔙 Close
                   </GradientDropdownItem>
                 </GradientDropdownMenu>
@@ -585,18 +597,25 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
 
         <Modal.Body
           style={{
-            padding: "1.8rem",
+            padding: "2rem",
             background: "#f9fafb",
             borderRadius: "0 0 12px 12px",
             minHeight: "500px",
             boxShadow: "inset 0 -4px 12px rgba(0, 0, 0, 0.08)",
             display: "flex",
             flexDirection: "column",
-            gap: "1.2rem",
+            gap: "1.5rem",
           }}
         >
           <GradientSection>
-            <SectionHeader onClick={() => toggleSection("personal")}>
+            <SectionHeader
+              onClick={() => toggleSection("personal")}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && toggleSection("personal")}
+              aria-expanded={openSections.personal}
+              aria-controls="personal-section"
+            >
               <Typography
                 sx={{
                   fontSize: "1.2rem",
@@ -610,7 +629,7 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
               </Typography>
               {openSections.personal ? <FaAngleUp /> : <FaAngleDown />}
             </SectionHeader>
-            <Collapse in={openSections.personal}>
+            <Collapse in={openSections.personal} id="personal-section">
               <InfoRow>
                 <InfoItem>
                   <Label>Customer Name</Label>
@@ -633,7 +652,14 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
           </GradientSection>
 
           <GradientSection>
-            <SectionHeader onClick={() => toggleSection("location")}>
+            <SectionHeader
+              onClick={() => toggleSection("location")}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && toggleSection("location")}
+              aria-expanded={openSections.location}
+              aria-controls="location-section"
+            >
               <Typography
                 sx={{
                   fontSize: "1.2rem",
@@ -647,7 +673,7 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
               </Typography>
               {openSections.location ? <FaAngleUp /> : <FaAngleDown />}
             </SectionHeader>
-            <Collapse in={openSections.location}>
+            <Collapse in={openSections.location} id="location-section">
               <InfoRow>
                 <InfoItem>
                   <Label>Address</Label>
@@ -666,7 +692,14 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
           </GradientSection>
 
           <GradientSection>
-            <SectionHeader onClick={() => toggleSection("business")}>
+            <SectionHeader
+              onClick={() => toggleSection("business")}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && toggleSection("business")}
+              aria-expanded={openSections.business}
+              aria-controls="business-section"
+            >
               <Typography
                 sx={{
                   fontSize: "1.2rem",
@@ -680,7 +713,7 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
               </Typography>
               {openSections.business ? <FaAngleUp /> : <FaAngleDown />}
             </SectionHeader>
-            <Collapse in={openSections.business}>
+            <Collapse in={openSections.business} id="business-section">
               <InfoRow>
                 <InfoItem>
                   <Label>Organization</Label>
@@ -696,8 +729,10 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                     {Array.isArray(entry.products) && entry.products.length > 0
                       ? entry.products.map((product, index) => (
                           <div key={index}>
-                            {product.name} (Spec: {product.specification}, Size:{" "}
-                            {product.size}, Qty: {product.quantity})
+                            {product.name || "N/A"} (Spec:{" "}
+                            {product.specification || "N/A"}, Size:{" "}
+                            {product.size || "N/A"}, Qty:{" "}
+                            {product.quantity || "N/A"})
                           </div>
                         ))
                       : "N/A"}
@@ -732,7 +767,14 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
           </GradientSection>
 
           <GradientSection>
-            <SectionHeader onClick={() => toggleSection("followup")}>
+            <SectionHeader
+              onClick={() => toggleSection("followup")}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && toggleSection("followup")}
+              aria-expanded={openSections.followup}
+              aria-controls="followup-section"
+            >
               <Typography
                 sx={{
                   fontSize: "1.2rem",
@@ -742,11 +784,11 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                   WebkitTextFillColor: "transparent",
                 }}
               >
-                Follow-up
+                Follow-up Actions
               </Typography>
               {openSections.followup ? <FaAngleUp /> : <FaAngleDown />}
             </SectionHeader>
-            <Collapse in={openSections.followup}>
+            <Collapse in={openSections.followup} id="followup-section">
               <InfoRow>
                 <InfoItem>
                   <Label>Status</Label>
@@ -758,29 +800,15 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                 </InfoItem>
                 <InfoItem>
                   <Label>First Meeting</Label>
-                  <Value>
-                    {entry.firstdate
-                      ? new Date(entry.firstdate).toLocaleDateString("en-IN")
-                      : "N/A"}
-                  </Value>
+                  <Value>{formatDate(entry.firstdate)}</Value>
                 </InfoItem>
                 <InfoItem>
                   <Label>Follow Up</Label>
-                  <Value>
-                    {entry.followUpDate
-                      ? new Date(entry.followUpDate).toLocaleDateString("en-IN")
-                      : "N/A"}
-                  </Value>
+                  <Value>{formatDate(entry.followUpDate)}</Value>
                 </InfoItem>
                 <InfoItem>
                   <Label>Expected Closure</Label>
-                  <Value>
-                    {entry.expectedClosingDate
-                      ? new Date(entry.expectedClosingDate).toLocaleDateString(
-                          "en-IN"
-                        )
-                      : "N/A"}
-                  </Value>
+                  <Value>{formatDate(entry.expectedClosingDate)}</Value>
                 </InfoItem>
                 <InfoItem>
                   <Label>Priority</Label>
@@ -796,30 +824,50 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                 </InfoItem>
                 <InfoItem>
                   <Label>Created</Label>
-                  <Value>
-                    {entry.createdAt
-                      ? new Date(entry.createdAt).toLocaleDateString("en-IN")
-                      : "N/A"}
-                  </Value>
+                  <Value>{formatDate(entry.createdAt)}</Value>
                 </InfoItem>
                 <InfoItem>
                   <Label>Updated</Label>
-                  <Value>
-                    {entry.updatedAt
-                      ? new Date(entry.updatedAt).toLocaleDateString("en-IN")
-                      : "N/A"}
-                  </Value>
+                  <Value>{formatDate(entry.updatedAt)}</Value>
                 </InfoItem>
                 <InfoItem>
                   <Label>Created By</Label>
                   <Value>{entry.createdBy?.username || "N/A"}</Value>
+                </InfoItem>
+                <InfoItem>
+                  <Label>Tagged With</Label>
+                  <TagContainer>
+                    {Array.isArray(entry.assignedTo) &&
+                    entry.assignedTo.length > 0 ? (
+                      entry.assignedTo.map((user, index) => (
+                        <TagChip
+                          key={index}
+                          label={
+                            typeof user === "object"
+                              ? user.username || "Unknown"
+                              : "Unknown"
+                          }
+                          size="small"
+                        />
+                      ))
+                    ) : (
+                      <Value>Not Assigned</Value>
+                    )}
+                  </TagContainer>
                 </InfoItem>
               </InfoRow>
             </Collapse>
           </GradientSection>
 
           <GradientSection>
-            <SectionHeader onClick={() => toggleSection("history")}>
+            <SectionHeader
+              onClick={() => toggleSection("history")}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === "Enter" && toggleSection("history")}
+              aria-expanded={openSections.history}
+              aria-controls="history-section"
+            >
               <Typography
                 sx={{
                   fontSize: "1.2rem",
@@ -833,109 +881,127 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
               </Typography>
               {openSections.history ? <FaAngleUp /> : <FaAngleDown />}
             </SectionHeader>
-            <Collapse in={openSections.history}>
+            <Collapse in={openSections.history} id="history-section">
               <HistoryContainer>
-                {entry?.history && entry.history.length > 0 ? (
-                  entry.history
-                    .slice()
-                    .sort(
-                      (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
-                    )
-                    .map((log, index, array) => (
-                      <HistoryItem key={`${log.timestamp}-${index}`}>
-                        <HistoryContent>
-                          <Box
+                {sortedHistory.length > 0 ? (
+                  sortedHistory.map((log, index, array) => (
+                    <HistoryItem key={`${log.timestamp}-${index}`}>
+                      <HistoryContent>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            marginBottom: "0.6rem",
+                          }}
+                        >
+                          <Typography
                             sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              marginBottom: "0.5rem",
+                              fontSize: "1.1rem",
+                              fontWeight: "600",
+                              color: "#2575fc",
+                              marginRight: "1rem",
                             }}
                           >
-                            <Typography
-                              sx={{
-                                fontSize: "1.1rem",
-                                fontWeight: "600",
-                                color: "#2575fc",
-                                marginRight: "1rem",
-                              }}
+                            #{array.length - index}
+                          </Typography>
+                          <HistoryTimestamp>
+                            {formatDate(log.timestamp)}
+                          </HistoryTimestamp>
+                        </Box>
+                        <Chip
+                          label={log.status || "N/A"}
+                          color={
+                            log.status === "Interested"
+                              ? "success"
+                              : log.status === "Not Interested"
+                              ? "error"
+                              : "warning"
+                          }
+                          size="small"
+                          sx={{ marginBottom: "0.6rem" }}
+                        />
+                        <HistoryRemarks>
+                          {log.remarks || "No remarks"}
+                        </HistoryRemarks>
+                        {Array.isArray(log.products) &&
+                          log.products.length > 0 && (
+                            <InfoItem>
+                              <Label>Products</Label>
+                              <Value>
+                                {log.products.map((product, idx) => (
+                                  <div key={idx}>
+                                    {product.name || "N/A"} (Spec:{" "}
+                                    {product.specification || "N/A"}, Size:{" "}
+                                    {product.size || "N/A"}, Qty:{" "}
+                                    {product.quantity || "N/A"})
+                                  </div>
+                                ))}
+                              </Value>
+                            </InfoItem>
+                          )}
+                        {log.liveLocation && (
+                          <HistoryLocation>
+                            <FaMapMarkerAlt />
+                            <MapLink
+                              href={getGoogleMapsUrl(log.liveLocation)}
+                              target="_blank"
+                              rel="noreferrer"
+                              aria-label="View Location on Google Maps"
                             >
-                              #{array.length - index}
-                            </Typography>
-                            <HistoryTimestamp>
-                              {new Date(log.timestamp).toLocaleString("en-IN")}
-                            </HistoryTimestamp>
-                          </Box>
-                          <Badge
-                            bg={
-                              log.status === "Interested"
-                                ? "success"
-                                : log.status === "Not Interested"
-                                ? "danger"
-                                : "warning"
-                            }
-                            style={{ marginBottom: "0.5rem" }}
-                          >
-                            {log.status || "N/A"}
-                          </Badge>
-                          <HistoryRemarks>
-                            {log.remarks || "No remarks"}
-                          </HistoryRemarks>
-                          {Array.isArray(log.products) &&
-                            log.products.length > 0 && (
-                              <div style={{ marginBottom: "0.5rem" }}>
-                                <Label>Products</Label>
-                                <Value>
-                                  {log.products.map((product, idx) => (
-                                    <div key={idx}>
-                                      {product.name} (Spec:{" "}
-                                      {product.specification}, Size:{" "}
-                                      {product.size}, Qty: {product.quantity})
-                                    </div>
-                                  ))}
-                                </Value>
-                              </div>
+                              View Location
+                            </MapLink>
+                          </HistoryLocation>
+                        )}
+                        <InfoItem>
+                          <Label>Tagged With</Label>
+                          <TagContainer>
+                            {Array.isArray(log.assignedTo) &&
+                            log.assignedTo.length > 0 ? (
+                              log.assignedTo.map((user, index) => {
+                                const username = formatAssignedTo([user]);
+                                return (
+                                  <TagChip
+                                    key={index}
+                                    label={username || "Unknown"}
+                                    size="small"
+                                  />
+                                );
+                              })
+                            ) : (
+                              <Value>Not Assigned</Value>
                             )}
-                          {log.liveLocation && (
-                            <HistoryLocation>
-                              <FaMapMarkerAlt />
-                              <MapLink
-                                href={getGoogleMapsUrl(log.liveLocation)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                View Location
-                              </MapLink>
-                            </HistoryLocation>
-                          )}
-                          {log.firstPersonMeet && (
-                            <div>
-                              <Label>First Person Meet</Label>
-                              <Value>{log.firstPersonMeet}</Value>
-                            </div>
-                          )}
-                          {log.secondPersonMeet && (
-                            <div>
-                              <Label>Second Person Meet</Label>
-                              <Value>{log.secondPersonMeet}</Value>
-                            </div>
-                          )}
-                          {log.thirdPersonMeet && (
-                            <div>
-                              <Label>Third Person Meet</Label>
-                              <Value>{log.thirdPersonMeet}</Value>
-                            </div>
-                          )}
-                          {log.fourthPersonMeet && (
-                            <div>
-                              <Label>Fourth Person Meet</Label>
-                              <Value>{log.fourthPersonMeet}</Value>
-                            </div>
-                          )}
-                        </HistoryContent>
-                      </HistoryItem>
-                    ))
+                          </TagContainer>
+                        </InfoItem>
+                        {log.firstPersonMeet && (
+                          <InfoItem>
+                            <Label>First Person Meet</Label>
+                            <Value>{log.firstPersonMeet}</Value>
+                          </InfoItem>
+                        )}
+                        {log.secondPersonMeet && (
+                          <InfoItem>
+                            <Label>Second Person Meet</Label>
+                            <Value>{log.secondPersonMeet}</Value>
+                          </InfoItem>
+                        )}
+                        {log.thirdPersonMeet && (
+                          <InfoItem>
+                            <Label>Third Person Meet</Label>
+                            <Value>{log.thirdPersonMeet}</Value>
+                          </InfoItem>
+                        )}
+                        {log.fourthPersonMeet && (
+                          <InfoItem>
+                            <Label>Fourth Person Meet</Label>
+                            <Value>{log.fourthPersonMeet}</Value>
+                          </InfoItem>
+                        )}
+                      </HistoryContent>
+                    </HistoryItem>
+                  ))
                 ) : (
                   <Typography
+                    variant="subtitle2"
                     sx={{ color: "#777", fontStyle: "italic", padding: "1rem" }}
                   >
                     No history available.
@@ -945,6 +1011,15 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
             </Collapse>
           </GradientSection>
         </Modal.Body>
+        <Modal.Footer>
+          <GradientButton
+            variant="secondary"
+            onClick={onClose}
+            aria-label="Close Modal"
+          >
+            Close
+          </GradientButton>
+        </Modal.Footer>
       </Modal>
     </>
   );

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../App.css";
-import {statesAndCities }from "./Options.js";
+import { statesAndCities } from "./Options.js";
 import { DateRangePicker } from "react-date-range";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
@@ -74,7 +74,8 @@ const CallTrackingDashboard = ({
       (entry) =>
         (role === "superadmin" ||
           role === "admin" ||
-          entry.createdBy?._id === userId) &&
+          entry.createdBy?._id === userId ||
+          entry.assignedTo?._id === userId) &&
         (!selectedUsername ||
           entry.createdBy?.username === selectedUsername ||
           entry.assignedTo?.username === selectedUsername)
@@ -385,78 +386,225 @@ function DashBoard() {
     dateRange,
   ]);
 
+  // Naya handleEntryAdded function
   const handleEntryAdded = useCallback(
     (newEntry) => {
-      const completeEntry = {
-        _id: newEntry._id || Date.now().toString(),
-        customerName: newEntry.customerName || "",
-        mobileNumber: newEntry.mobileNumber || "",
-        contactperson: newEntry.contactperson || "",
-        products: newEntry.products || [],
-        type: newEntry.type || "",
-        address: newEntry.address || "",
-        state: newEntry.state || "",
-        city: newEntry.city || "",
-        organization: newEntry.organization || "",
-        category: newEntry.category || "",
-        createdAt: newEntry.createdAt || new Date().toISOString(),
-        status: newEntry.status || "Not Found",
-        expectedClosingDate: newEntry.expectedClosingDate || "",
-        followUpDate: newEntry.followUpDate || "",
-        remarks: newEntry.remarks || "",
-        firstdate: newEntry.firstdate || "",
-        estimatedValue: newEntry.estimatedValue || "",
-        nextAction: newEntry.nextAction || "",
-        closetype:
-          newEntry.status === "Closed" &&
-          ["Closed Won", "Closed Lost"].includes(newEntry.closetype)
-            ? newEntry.closetype
-            : "",
-        priority: newEntry.priority || "",
-        updatedAt: newEntry.updatedAt || new Date().toISOString(),
-        createdBy: {
-          _id: userId,
-          username: newEntry.createdBy?.username || "",
-        },
-        assignedTo: newEntry.assignedTo || null,
-        history: newEntry.history || [],
+      // Fetch users to map assignedTo IDs to user objects with usernames
+      const fetchUsers = async () => {
+        try {
+          const token = localStorage.getItem("token");
+          const response = await axios.get(
+            "https://crm-server-amz7.onrender.com/api/users",
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+          const users = response.data;
+
+          // Map assignedTo IDs to user objects
+          const assignedToUsers = Array.isArray(newEntry.assignedTo)
+            ? newEntry.assignedTo
+                .map((id) => users.find((user) => user._id === id))
+                .filter(Boolean)
+                .map((user) => ({ _id: user._id, username: user.username }))
+            : [];
+
+          const completeEntry = {
+            _id: newEntry._id || Date.now().toString(),
+            customerName: newEntry.customerName || "",
+            mobileNumber: newEntry.mobileNumber || "",
+            contactperson: newEntry.contactperson || "",
+            products: newEntry.products || [],
+            type: newEntry.type || "",
+            address: newEntry.address || "",
+            state: newEntry.state || "",
+            city: newEntry.city || "",
+            organization: newEntry.organization || "",
+            category: newEntry.category || "",
+            createdAt: newEntry.createdAt || new Date().toISOString(),
+            status: newEntry.status || "Not Found",
+            expectedClosingDate: newEntry.expectedClosingDate || "",
+            followUpDate: newEntry.followUpDate || "",
+            remarks: newEntry.remarks || "",
+            firstdate: newEntry.firstdate || "",
+            estimatedValue: newEntry.estimatedValue || "",
+            nextAction: newEntry.nextAction || "",
+            closetype:
+              newEntry.status === "Closed" &&
+              ["Closed Won", "Closed Lost"].includes(newEntry.closetype)
+                ? newEntry.closetype
+                : "",
+            priority: newEntry.priority || "",
+            updatedAt: newEntry.updatedAt || new Date().toISOString(),
+            createdBy: {
+              _id: userId,
+              username:
+                newEntry.createdBy?.username ||
+                localStorage.getItem("username") ||
+                "",
+            },
+            assignedTo: assignedToUsers, // Use mapped user objects
+            history: newEntry.history || [
+              {
+                timestamp: new Date().toISOString(),
+                status: newEntry.status || "Not Found",
+                remarks: newEntry.remarks || "",
+                liveLocation: newEntry.liveLocation || "",
+                products: newEntry.products || [],
+                assignedTo: assignedToUsers, // Include in history
+              },
+            ],
+          };
+
+          setEntries((prev) => [completeEntry, ...prev]);
+
+          // Update usernames for dropdown
+          const newUsernames = new Set(usernames);
+          if (newEntry.createdBy?.username) {
+            newUsernames.add(newEntry.createdBy.username);
+          }
+          assignedToUsers.forEach((user) => {
+            if (user.username) newUsernames.add(user.username);
+          });
+          setUsernames([...newUsernames]);
+
+          // Fetch latest entries to sync with backend
+          await fetchEntries();
+        } catch (error) {
+          console.error("Error fetching users for assignedTo:", error);
+          toast.error("Failed to fetch user details for assignment.");
+          setEntries((prev) => [
+            {
+              ...newEntry,
+              _id: newEntry._id || Date.now().toString(),
+              createdBy: {
+                _id: userId,
+                username: newEntry.createdBy?.username || "",
+              },
+              assignedTo: [], // Default to empty if error
+              history: [
+                {
+                  timestamp: new Date().toISOString(),
+                  status: newEntry.status || "Not Found",
+                  remarks: newEntry.remarks || "",
+                  liveLocation: newEntry.liveLocation || "",
+                  products: newEntry.products || [],
+                  assignedTo: [], // Default to empty
+                },
+              ],
+            },
+            ...prev,
+          ]);
+        }
       };
-      setEntries((prev) => [completeEntry, ...prev]);
 
       if (
-        (role === "superadmin" || role === "admin") &&
-        newEntry.createdBy?.username &&
-        !usernames.includes(newEntry.createdBy.username)
+        role === "superadmin" ||
+        role === "admin" ||
+        newEntry.assignedTo?.length > 0
       ) {
-        setUsernames((prev) => [...prev, newEntry.createdBy.username]);
-      }
-      if (
-        newEntry.assignedTo?.username &&
-        !usernames.includes(newEntry.assignedTo.username)
-      ) {
-        setUsernames((prev) => [...prev, newEntry.assignedTo.username]);
+        fetchUsers();
+      } else {
+        const completeEntry = {
+          _id: newEntry._id || Date.now().toString(),
+          customerName: newEntry.customerName || "",
+          mobileNumber: newEntry.mobileNumber || "",
+          contactperson: newEntry.contactperson || "",
+          products: newEntry.products || [],
+          type: newEntry.type || "",
+          address: newEntry.address || "",
+          state: newEntry.state || "",
+          city: newEntry.city || "",
+          organization: newEntry.organization || "",
+          category: newEntry.category || "",
+          createdAt: newEntry.createdAt || new Date().toISOString(),
+          status: newEntry.status || "Not Found",
+          expectedClosingDate: newEntry.expectedClosingDate || "",
+          followUpDate: newEntry.followUpDate || "",
+          remarks: newEntry.remarks || "",
+          firstdate: newEntry.firstdate || "",
+          estimatedValue: newEntry.estimatedValue || "",
+          nextAction: newEntry.nextAction || "",
+          closetype:
+            newEntry.status === "Closed" &&
+            ["Closed Won", "Closed Lost"].includes(newEntry.closetype)
+              ? newEntry.closetype
+              : "",
+          priority: newEntry.priority || "",
+          updatedAt: newEntry.updatedAt || new Date().toISOString(),
+          createdBy: {
+            _id: userId,
+            username: newEntry.createdBy?.username || "",
+          },
+          assignedTo: [], // Default to empty
+          history: newEntry.history || [
+            {
+              timestamp: new Date().toISOString(),
+              status: newEntry.status || "Not Found",
+              remarks: newEntry.remarks || "",
+              liveLocation: newEntry.liveLocation || "",
+              products: newEntry.products || [],
+              assignedTo: [], // Default to empty
+            },
+          ],
+        };
+        setEntries((prev) => [completeEntry, ...prev]);
+
+        if (
+          (role === "superadmin" || role === "admin") &&
+          newEntry.createdBy?.username &&
+          !usernames.includes(newEntry.createdBy.username)
+        ) {
+          setUsernames((prev) => [...prev, newEntry.createdBy.username]);
+        }
+        // Fetch latest entries to sync with backend
+        fetchEntries();
       }
     },
-    [role, userId, usernames]
+    [role, userId, usernames, fetchEntries] // Added fetchEntries to dependencies
   );
 
+  // Naya handleEntryUpdated function
   const handleEntryUpdated = useCallback(
     (updatedEntry) => {
       setEntries((prev) =>
         prev.map((entry) =>
-          entry._id === updatedEntry._id ? updatedEntry : entry
+          entry._id === updatedEntry._id
+            ? {
+                ...updatedEntry,
+                assignedTo: Array.isArray(updatedEntry.assignedTo)
+                  ? updatedEntry.assignedTo.map((user) => ({
+                      _id: user._id,
+                      username: user.username || "",
+                    }))
+                  : updatedEntry.assignedTo
+                  ? [
+                      {
+                        _id: updatedEntry.assignedTo._id,
+                        username: updatedEntry.assignedTo.username || "",
+                      },
+                    ]
+                  : [], // Handle single user or empty
+              }
+            : entry
         )
       );
       setIsEditModalOpen(false);
       toast.success("Entry updated successfully!");
-      if (
-        updatedEntry.assignedTo?.username &&
-        !usernames.includes(updatedEntry.assignedTo.username)
-      ) {
-        setUsernames((prev) => [...prev, updatedEntry.assignedTo.username]);
+      // Update usernames for dropdown
+      const newUsernames = new Set(usernames);
+      if (Array.isArray(updatedEntry.assignedTo)) {
+        updatedEntry.assignedTo.forEach((user) => {
+          if (user.username) newUsernames.add(user.username);
+        });
+      } else if (updatedEntry.assignedTo?.username) {
+        newUsernames.add(updatedEntry.assignedTo.username);
       }
+      setUsernames([...newUsernames]);
+      // Fetch latest entries to sync with backend
+      fetchEntries();
     },
-    [usernames]
+    [usernames, fetchEntries] // Added fetchEntries to dependencies
   );
 
   const handleDelete = useCallback((deletedIds) => {
@@ -511,6 +659,7 @@ function DashBoard() {
         Type: entry.type || "",
         Status: entry.status || "",
         Close_Type: entry.closetype || "",
+        Assigned_To: entry.assignedTo?.username || "",
         Assigned_To: entry.assignedTo?.username || "",
         Estimated_Value: entry.estimatedValue || "",
         Close_Amount: entry.closeamount || "",
@@ -770,10 +919,23 @@ function DashBoard() {
   const rowRenderer = ({ index, key, style }) => {
     const row = filteredData[index];
     const isSelected = selectedEntries.includes(row._id);
+
+    const isAssigned = Array.isArray(row.assignedTo)
+      ? row.assignedTo.length > 0
+      : !!row.assignedTo;
     return (
       <div
         key={key}
-        style={{ ...style, cursor: "pointer" }}
+        style={{
+          ...style,
+          cursor: "pointer",
+          backgroundColor: isSelected
+            ? "rgba(37, 117, 252, 0.1)"
+            : isAssigned
+            ? "rgba(200, 230, 255, 0.3)" // Light blue for assigned entries
+            : "#fff",
+          border: isSelected ? "2px solid #2575fc" : "none",
+        }}
         className={`virtual-row ${isSelected ? "selected" : ""}`}
         onDoubleClick={() => handleDoubleClick(row._id)}
         onClick={() => handleSingleClick(row._id)}
@@ -897,6 +1059,10 @@ function DashBoard() {
   const renderMobileCard = ({ index, style }) => {
     const row = filteredData[index];
     const isSelected = selectedEntries.includes(row._id);
+
+    const isAssigned = Array.isArray(row.assignedTo)
+      ? row.assignedTo.length > 0
+      : !!row.assignedTo;
     return (
       <motion.div
         key={row._id}
@@ -917,7 +1083,11 @@ function DashBoard() {
             p: 2,
             borderRadius: "12px",
             boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
-            backgroundColor: isSelected ? "rgba(37, 117, 252, 0.1)" : "#fff",
+            backgroundColor: isSelected
+              ? "rgba(37, 117, 252, 0.1)"
+              : isAssigned
+              ? "rgba(200, 230, 255, 0.3)" // Light blue for assigned entries
+              : "#fff",
             border: isSelected ? "2px solid #2575fc" : "1px solid #ddd",
             cursor: "pointer",
             transition: "all 0.3s ease",

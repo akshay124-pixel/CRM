@@ -3,7 +3,9 @@ import { Modal, Form, Spinner, Alert, Button } from "react-bootstrap";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { useForm, Controller } from "react-hook-form";
+import Select from "react-select";
 import styled from "styled-components";
+import { productOptions } from "./Options";
 import debounce from "lodash/debounce";
 import {
   FaEdit,
@@ -13,6 +15,7 @@ import {
   FaPlus,
   FaTrash,
 } from "react-icons/fa";
+import { FaUserTag } from "react-icons/fa";
 
 const StyledModal = styled(Modal)`
   .modal-content {
@@ -112,6 +115,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       nextAction: "",
       estimatedValue: "",
       closeamount: "",
+      assignedTo: [],
     }),
     []
   );
@@ -137,7 +141,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
   const [locationLoading, setLocationLoading] = useState(false);
   const [manualLocation, setManualLocation] = useState(false);
   const [locationFetched, setLocationFetched] = useState(false);
-
+  const [users, setUsers] = useState([]);
   const status = watch("status");
   const selectedState = watch("state");
 
@@ -148,6 +152,12 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         customerName: entry.customerName || "",
         mobileNumber: entry.mobileNumber || "",
         contactperson: entry.contactperson || "",
+        assignedTo: Array.isArray(entry.assignedTo)
+          ? entry.assignedTo.map((user) => ({
+              value: user._id,
+              label: user.username,
+            }))
+          : [],
         products:
           Array.isArray(entry.products) && entry.products.length > 0
             ? entry.products.map((p) => ({
@@ -169,8 +179,8 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         fourthPersonMeet: entry.fourthPersonMeet || "",
         status: entry.status || "",
         closetype: entry.closetype || "",
-        firstMeetingDate: entry.firstMeetingDate
-          ? new Date(entry.firstMeetingDate).toISOString().split("T")[0]
+        firstMeetingDate: entry.firstdate
+          ? new Date(entry.firstdate).toISOString().split("T")[0]
           : "",
         expectedClosingDate: entry.expectedClosingDate
           ? new Date(entry.expectedClosingDate).toISOString().split("T")[0]
@@ -188,6 +198,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       setError(null);
       setShowConfirm(false);
       setManualLocation(false);
+      setLocationFetched(!!entry.liveLocation);
       setView("options");
     }
   }, [isOpen, entry, reset]);
@@ -199,7 +210,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const location = `${position.coords.latitude}, ${position.coords.longitude}`;
-          setValue("liveLocation", location, { shouldValidate: true }); // backend ke liye hidden field
+          setValue("liveLocation", location, { shouldValidate: true });
           setLocationFetched(true);
           setLocationLoading(false);
           toast.success("Location fetched successfully!");
@@ -208,6 +219,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           console.error("Error fetching location:", error);
           setLocationFetched(false);
           setLocationLoading(false);
+          toast.error("Failed to fetch location!");
         },
         { timeout: 10000, maximumAge: 0, enableHighAccuracy: true }
       );
@@ -215,6 +227,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       console.error("Geolocation is not supported by your browser.");
       setLocationFetched(false);
       setLocationLoading(false);
+      toast.error("Geolocation not supported!");
     }
   }, [setValue]);
 
@@ -261,6 +274,15 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     );
   };
 
+  const userOptions = useMemo(
+    () =>
+      users.map((user) => ({
+        value: user._id,
+        label: user.username,
+      })),
+    [users]
+  );
+
   const onSubmit = async (data) => {
     if (!showConfirm) {
       setShowConfirm(true);
@@ -268,18 +290,21 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     }
     setLoading(true);
     try {
-      // Clean products array
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("You must be logged in to update an entry.");
+      }
+
       const payload = {
         ...data,
         products: data.products.filter(
           (p) => p.name && p.specification && p.size && p.quantity
         ),
+        assignedTo: data.assignedTo.map((user) => user.value), // Extract user IDs
       };
 
-      // Validation for status change
-      if (payload.status !== entry?.status) {
-        if (!payload.liveLocation)
-          throw new Error("Live location is required when updating status.");
+      if (payload.status !== entry?.status && !payload.liveLocation) {
+        throw new Error("Live location is required when updating status.");
       }
 
       const response = await axios.put(
@@ -288,6 +313,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         {
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
         }
       );
@@ -298,8 +324,16 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       }
 
       toast.success("Entry updated successfully!");
-      onEntryUpdated(updatedEntry);
-      reset(updatedEntry); // Sync form with server data
+      onEntryUpdated(updatedEntry); // Pass full updated entry with populated assignedTo
+      reset({
+        ...initialFormData,
+        assignedTo: Array.isArray(updatedEntry.assignedTo)
+          ? updatedEntry.assignedTo.map((user) => ({
+              value: user._id,
+              label: user.username,
+            }))
+          : [],
+      });
       onClose();
     } catch (err) {
       console.error("Submit error:", err.response?.data || err.message);
@@ -329,671 +363,58 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       setShowConfirm(false);
     }
   };
-  const productOptions = [
-    {
-      name: "IFPD",
-      sizes: ["65 inch", "75 inch", "86 inch", "98 inch"],
-      specifications: [
-        "Android 9, 4GB RAM, 32GB ROM",
-        "Android 8, 4GB RAM, 32GB ROM",
-        "Android 11, 4GB RAM, 32GB ROM",
-        "Android 11, 8GB RAM, 128GB ROM",
-        "Android 13, 4GB RAM, 32GB ROM",
-        "Android 13, 8GB RAM, 128GB ROM",
-        "Android 13, 8GB RAM, 128GB ROM Inbuilt Camera",
-        "Android 14, 8GB RAM, 128GB ROM",
-        "Android 14, 8GB RAM, 128GB ROM Inbuilt Camera",
-      ],
-    },
-    {
-      name: "OPS",
-      sizes: ["N/A"],
-      specifications: [
-        // i5 6th Gen
-        "i5 6th Gen, 8GB RAM, 256GB ROM",
-        "i5 6th Gen, 8GB RAM, 512GB ROM",
-        "i5 6th Gen, 8GB RAM, 1TB ROM",
-        "i5 6th Gen, 16GB RAM, 256GB ROM",
-        "i5 6th Gen, 16GB RAM, 512GB ROM",
-        "i5 6th Gen, 16GB RAM, 1TB ROM",
-        // i5 7th Gen
-        "i5 7th Gen, 8GB RAM, 256GB ROM",
-        "i5 7th Gen, 8GB RAM, 512GB ROM",
-        "i5 7th Gen, 8GB RAM, 1TB ROM",
-        "i5 7th Gen, 16GB RAM, 256GB ROM",
-        "i5 7th Gen, 16GB RAM, 512GB ROM",
-        "i5 7th Gen, 16GB RAM, 1TB ROM",
-        // i5 8th Gen
-        "i5 8th Gen, 8GB RAM, 256GB ROM",
-        "i5 8th Gen, 8GB RAM, 512GB ROM",
-        "i5 8th Gen, 8GB RAM, 1TB ROM",
-        "i5 8th Gen, 16GB RAM, 256GB ROM",
-        "i5 8th Gen, 16GB RAM, 512GB ROM",
-        "i5 8th Gen, 16GB RAM, 1TB ROM",
-        // i5 11th Gen
-        "i5 11th Gen, 8GB RAM, 256GB ROM",
-        "i5 11th Gen, 8GB RAM, 512GB ROM",
-        "i5 11th Gen, 8GB RAM, 1TB ROM",
-        "i5 11th Gen, 16GB RAM, 256GB ROM",
-        "i5 11th Gen, 16GB RAM, 512GB ROM",
-        "i5 11th Gen, 16GB RAM, 1TB ROM",
-        // i5 12th Gen
-        "i5 12th Gen, 8GB RAM, 256GB ROM",
-        "i5 12th Gen, 8GB RAM, 512GB ROM",
-        "i5 12th Gen, 8GB RAM, 1TB ROM",
-        "i5 12th Gen, 16GB RAM, 256GB ROM",
-        "i5 12th Gen, 16GB RAM, 512GB ROM",
-        "i5 12th Gen, 16GB RAM, 1TB ROM",
-        // i7 4th Gen
-        "i7 4th Gen, 8GB RAM, 256GB ROM",
-        "i7 4th Gen, 8GB RAM, 512GB ROM",
-        "i7 4th Gen, 8GB RAM, 1TB ROM",
-        "i7 4th Gen, 16GB RAM, 256GB ROM",
-        "i7 4th Gen, 16GB RAM, 512GB ROM",
-        "i7 4th Gen, 16GB RAM, 1TB ROM",
-        // i7 5th Gen
-        "i7 5th Gen, 8GB RAM, 256GB ROM",
-        "i7 5th Gen, 8GB RAM, 512GB ROM",
-        "i7 5th Gen, 8GB RAM, 1TB ROM",
-        "i7 5th Gen, 16GB RAM, 256GB ROM",
-        "i7 5th Gen, 16GB RAM, 512GB ROM",
-        "i7 5th Gen, 16GB RAM, 1TB ROM",
-        // i7 6th Gen
-        "i7 6th Gen, 8GB RAM, 256GB ROM",
-        "i7 6th Gen, 8GB RAM, 512GB ROM",
-        "i7 6th Gen, 8GB RAM, 1TB ROM",
-        "i7 6th Gen, 16GB RAM, 256GB ROM",
-        "i7 6th Gen, 16GB RAM, 512GB ROM",
-        "i7 6th Gen, 16GB RAM, 1TB ROM",
-        // i7 7th Gen
-        "i7 7th Gen, 8GB RAM, 256GB ROM",
-        "i7 7th Gen, 8GB RAM, 512GB ROM",
-        "i7 7th Gen, 8GB RAM, 1TB ROM",
-        "i7 7th Gen, 16GB RAM, 256GB ROM",
-        "i7 7th Gen, 16GB RAM, 512GB ROM",
-        "i7 7th Gen, 16GB RAM, 1TB ROM",
-        // i7 8th Gen
-        "i7 8th Gen, 8GB RAM, 256GB ROM",
-        "i7 8th Gen, 8GB RAM, 512GB ROM",
-        "i7 8th Gen, 8GB RAM, 1TB ROM",
-        "i7 8th Gen, 16GB RAM, 256GB ROM",
-        "i7 8th Gen, 16GB RAM, 512GB ROM",
-        "i7 8th Gen, 16GB RAM, 1TB ROM",
-        // i7 9th Gen
-        "i7 9th Gen, 8GB RAM, 256GB ROM",
-        "i7 9th Gen, 8GB RAM, 512GB ROM",
-        "i7 9th Gen, 8GB RAM, 1TB ROM",
-        "i7 9th Gen, 16GB RAM, 256GB ROM",
-        "i7 9th Gen, 16GB RAM, 512GB ROM",
-        "i7 9th Gen, 16GB RAM, 1TB ROM",
-        // i7 10th Gen
-        "i7 10th Gen, 8GB RAM, 256GB ROM",
-        "i7 10th Gen, 8GB RAM, 512GB ROM",
-        "i7 10th Gen, 8GB RAM, 1TB ROM",
-        "i7 10th Gen, 16GB RAM, 256GB ROM",
-        "i7 10th Gen, 16GB RAM, 512GB ROM",
-        "i7 10th Gen, 16GB RAM, 1TB ROM",
-        // i7 11th Gen
-        "i7 11th Gen, 8GB RAM, 256GB ROM",
-        "i7 11th Gen, 8GB RAM, 512GB ROM",
-        "i7 11th Gen, 8GB RAM, 1TB ROM",
-        "i7 11th Gen, 16GB RAM, 256GB ROM",
-        "i7 11th Gen, 16GB RAM, 512GB ROM",
-        "i7 11th Gen, 16GB RAM, 1TB ROM",
-        // i7 12th Gen
-        "i7 12th Gen, 8GB RAM, 256GB ROM",
-        "i7 12th Gen, 8GB RAM, 512GB ROM",
-        "i7 12th Gen, 8GB RAM, 1TB ROM",
-        "i7 12th Gen, 16GB RAM, 256GB ROM",
-        "i7 12th Gen, 16GB RAM, 512GB ROM",
-        "i7 12th Gen, 16GB RAM, 1TB ROM",
-      ],
-    },
-    {
-      name: "Digital Podium",
-      sizes: ["Standard"],
-      specifications: [
-        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 1 GOOSENECK MIC',
-        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 2 HANDHELD MIC, 1 GOOSENECK MIC',
-        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 1 COOLER MIC, 1 GOOSENECK MIC',
-        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 2 COOLER MIC, 1 GOOSENECK MIC',
-        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 1 GOOSENECK MIC, VISUALIZER',
-        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 2 HANDHELD MIC, 1 GOOSENECK MIC, VISUALIZER',
-      ],
-    },
-    {
-      name: "Advance Digital Podium",
-      sizes: ["Front Display 32inch"],
-      specifications: [
-        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 1 COOLER MIC, 1 GOOSENECK MIC',
-        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 2 COOLER MIC, 1 GOOSENECK MIC',
-        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 1 GOOSENECK MIC',
-        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 2 HANDHELD MIC, 1 GOOSENECK MIC',
-        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 1 HANDHELD MIC, 1 GOOSENECK MIC, VISUALIZER',
-        'MINI PC 21.5" TOUCH DISPLAY, AMP. 70 WATT 30 W, 2 SPEAKER, 2 HANDHELD MIC, 1 GOOSENECK MIC, VISUALIZER',
-      ],
-    },
-    {
-      name: "Audio Podium",
-      sizes: ["Full"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "CCTV",
-      sizes: ["Standard"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Kiosk",
-      sizes: ["32 inch", "43 inch", "55 inch", "65 inch"],
-      specifications: ["Touch Andriod 13/4/32", "Non-Touch Andriod 13/4/32"],
-    },
-    {
-      name: "PTZ Camera",
-      sizes: ["N/A"],
-      specifications: [
-        "Non-Voice Tracking-Full HD",
-        "UHD 20x",
-        "FHD Voice Tracking",
-        "4K Auto Tracking",
-        "4K 12x",
-        "HD 20x",
-      ],
-    },
-    {
-      name: "Document Camera",
-      sizes: ["N/A"],
-      specifications: [
-        "Hydraulic Wall Mount Visualizer",
-        "Non-Hydraulic Wall Mount Visualizer",
-        "Slim Portable Visualizer",
-        "Table Top Portable Visualizer",
-        "Visualizer",
-      ],
-    },
-    {
-      name: "UPS",
-      sizes: ["Standard"],
-      specifications: [
-        "1 KVA",
-        "2 KVA",
-        "3 KVA",
-        "4 KVA",
-        "5 KVA",
-        "6 KVA",
-        "7 KVA",
-        "8 KVA",
-        "9 KVA",
-        "10 KVA",
-        "Offline UPS",
-        "Online UPS",
-      ],
-    },
-    {
-      name: "Wallmount Kit",
-      sizes: ["55 inch", "65 inch", "75 inch", "86 inch", "98 inch"],
-      specifications: ["Standard"],
-    },
-    {
-      name: "Furniture",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Stylus Pen",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Sliding Shutter",
-      sizes: ["65 inch", "75 inch", "86 inch", "98 inch"],
-      specifications: [
-        "Common",
-        "White & Red Dispaly Boards",
-        "White & Green Dispaly Boards",
-        "White & Blue Dispaly Boards",
-        "N/A",
-      ],
-    },
-    {
-      name: "3 Cup Speaker",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Microphone",
-      sizes: ["N/A"],
-      specifications: [
-        "Handheld Collar Mic",
-        "Goose Neck Mic",
-        "Collar/Lapel Mic",
-      ],
-    },
-    {
-      name: "Keyboard",
-      sizes: ["N/A"],
-      specifications: ["Wireless", "Wired"],
-    },
-    {
-      name: "Mouse",
-      sizes: ["N/A"],
-      specifications: ["Wireless", "Wired"],
-    },
-    {
-      name: "Interactive White Board",
-      sizes: ["82 inch"],
-      specifications: ["Ceramic", "Non-Ceramic"],
-    },
-    {
-      name: "Floor Stand",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Notice Board",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Visualizer",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "PTZ Camera - Full HD Voice Tracking",
-      sizes: ["N/A"],
-      specifications: ["FHD Voice Tracking"],
-    },
-    {
-      name: "PTZ Camera - 4K Auto Tracking",
-      sizes: ["N/A"],
-      specifications: ["4K Auto Tracking"],
-    },
-    {
-      name: "Web Cam",
-      sizes: ["N/A"],
-      specifications: [
-        "Full HD Non-AI Featured",
-        "4K AI Featured",
-        "4K Auto Tracking",
-      ],
-    },
-    {
-      name: "Bluetooth Microphone",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "UPS - Offline",
-      sizes: ["N/A"],
-      specifications: ["Offline UPS"],
-    },
-    {
-      name: "UPS - Online",
-      sizes: ["N/A"],
-      specifications: ["Online UPS"],
-    },
-    {
-      name: "UPS Cabinet",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "SD Card",
-      sizes: ["N/A"],
-      specifications: ["8GB", "16GB", "32GB", "64GB", "128GB"],
-    },
-    {
-      name: "Casing",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Fitting Accessories",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "HDMI Cable",
-      sizes: ["N/A"],
-      specifications: ["Standard", "4K"],
-    },
-    {
-      name: "White Board",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "C-type Cable",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Fujifilm-Printer",
-      sizes: ["N/A"],
-      specifications: [
-        "Color Printer",
-        "Monochrome Printer",
-        "Black and White Printer",
-        "Multifunction Color Printer",
-        "Multifunction Monochrome Printer",
-        "Multifunction Black and White Printer",
-      ],
-    },
-    {
-      name: "Google TV",
-      sizes: ["43 inch", "50 inch", "55 inch"],
-      specifications: ["4GB RAM / 32GB ROM 4K"],
-    },
-    {
-      name: "Wriety Software",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Ceiling Mount Kit",
-      sizes: ["Standard"],
-      specifications: ["Projector Ceiling Mount", "PTZ Ceiling Mount"],
-    },
-    {
-      name: "Almirah Type Shutter",
-      sizes: ["65 inch", "75 inch", "86 inch", "98 inch"],
-      specifications: ["Plain", "White Boards", "Green Boards"],
-    },
-    {
-      name: "Aicharya",
-      sizes: ["N/A"],
-      specifications: ["Standard"],
-    },
-    {
-      name: "Logo",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Microphones",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "E-Share License",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "PRO Share Software",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "E Share Software",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "DMS Software",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Battery Bank",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Rack & Interlink",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Green Board",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Wooden Podium",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Writing Board",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "LED Video Wall",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "4K Video Bar",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Microsoft Office 2016 Licensed",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Windows 11 Licensed",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Embibe Content",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "SSD",
-      sizes: ["N/A"],
-      specifications: ["256GB", "512GB", "1TB"],
-    },
-    {
-      name: "RAM",
-      sizes: ["N/A"],
-      specifications: ["8GB", "16GB"],
-    },
-    {
-      name: "Video Conferencing Camera",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "CBSE Content",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "ICSE Content",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "PA System Speakers",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Red Board",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Promark Stickers",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Bluetooth Speaker",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "3 Cup Conference Speaker",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Conference Setup-Delegate Room",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Content",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Flex",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Wireless Speakerphone - Two Pair",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Remote",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Educational Software",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Hydraulic Bracket",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Desktop PC Monitor",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Home Theatre",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Digital Audio Processor",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Projector",
-      sizes: ["N/A"],
-      specifications: ["Long Throw", "Short Throw", "Ultra Long Throw"],
-    },
-    {
-      name: "LED TV",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Digital Podium Controller",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Amplifier Mic Receiver",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Wireless Mic Receiver",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Projector Screen",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Speakerphone",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "IT Catalog",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "AI Charya Podium",
-      sizes: ["N/A"],
-      specifications: ["Standard"],
-    },
-    {
-      name: "4 Pole C Curve MCB",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Extension Mic",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Mike Wireless",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Advance Podium",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Speaker & Mic",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Document Visualizer",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Black Metal Body Electronic Lectern",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "LED Monitor",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Document Camera Wall Mounted",
-      sizes: ["N/A"],
-      specifications: [
-        "Hydraulic Wall Mount Visualizer",
-        "Non-Hydraulic Wall Mount Visualizer",
-      ],
-    },
-    {
-      name: "SLV Mic",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Bubble Roll",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-    {
-      name: "Wrapping Roll",
-      sizes: ["N/A"],
-      specifications: ["N/A"],
-    },
-  ];
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          setError("Please log in to access user tagging.");
+          toast.error("Authentication required. Please log in.");
+          setUsers([]);
+          return;
+        }
+
+        const response = await axios.get(
+          "https://crm-server-amz7.onrender.com/api/users",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        const fetchedUsers = Array.isArray(response.data) ? response.data : [];
+        if (fetchedUsers.length === 0) {
+          setError(
+            "No users available for tagging. Contact your administrator."
+          );
+          toast.warn("No users available for tagging.");
+        }
+
+        const sortedUsers = fetchedUsers.sort((a, b) =>
+          a.username.localeCompare(b.username)
+        );
+        setUsers(sortedUsers);
+      } catch (err) {
+        console.error("Error fetching users:", err.message);
+        let errorMessage = "Failed to fetch users for tagging.";
+        if (err.response?.status === 403) {
+          errorMessage =
+            "You do not have permission to fetch users. Contact your administrator.";
+        } else if (err.response?.status === 401) {
+          errorMessage = "Session expired. Please log in again.";
+          localStorage.removeItem("token");
+        }
+        setError(errorMessage);
+        toast.error(errorMessage);
+        setUsers([]);
+      }
+    };
+
+    if (isOpen) {
+      fetchUsers();
+    }
+  }, [isOpen]);
+
   // Mock Data
   const states = [
     "Andhra Pradesh",
@@ -2216,6 +1637,30 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
   const renderUpdateForm = () => (
     <Form onSubmit={handleSubmit(onSubmit)}>
       <FormSection>
+        <Form.Group controlId="assignedTo">
+          <Form.Label>
+            <FaUserTag className="me-1" /> Tag With Salesperson
+          </Form.Label>
+          <Controller
+            name="assignedTo"
+            control={control}
+            render={({ field }) => (
+              <Select
+                {...field}
+                isMulti
+                options={userOptions}
+                placeholder="Select Salespersons..."
+                isInvalid={!!errors.assignedTo}
+                aria-label="Assign to Salesperson"
+              />
+            )}
+          />
+          {errors.assignedTo && (
+            <div className="invalid-feedback d-block">
+              {errors.assignedTo.message}
+            </div>
+          )}
+        </Form.Group>
         <Form.Group controlId="status">
           <Form.Label>📊 Status</Form.Label>
           <Controller
