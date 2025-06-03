@@ -223,8 +223,15 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
 
       // Sort attendance by date in descending order (newest first)
       const sortedAttendance = (response.data.data || []).sort((a, b) => {
-        return new Date(b.date) - new Date(a.date);
+        const dateA = a.date ? new Date(a.date) : new Date(0); // Fallback to epoch if date is invalid
+        const dateB = b.date ? new Date(b.date) : new Date(0);
+        return dateB - dateA; // Newest first
       });
+
+      console.log(
+        "Sorted attendance dates:",
+        sortedAttendance.map((record) => record.date)
+      ); // Debug: Verify date order
 
       setAttendance(sortedAttendance);
       setTotalPages(response.data.pagination.totalPages || 1);
