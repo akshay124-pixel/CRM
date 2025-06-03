@@ -221,17 +221,25 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
         throw new Error(response.data.message || "Failed to fetch attendance");
       }
 
-      // Sort attendance by date in descending order (newest first)
+      // Sort attendance by full timestamp (date + time) in descending order (newest first)
       const sortedAttendance = (response.data.data || []).sort((a, b) => {
-        const dateA = a.date ? new Date(a.date) : new Date(0); // Fallback to epoch if date is invalid
-        const dateB = b.date ? new Date(b.date) : new Date(0);
-        return dateB - dateA; // Newest first
+        const dateA =
+          a.date && !isNaN(new Date(a.date)) ? new Date(a.date) : new Date(0);
+        const dateB =
+          b.date && !isNaN(new Date(b.date)) ? new Date(b.date) : new Date(0);
+        return dateB - dateA; // Newest timestamp first
       });
 
+      console.log("Raw API data:", response.data.data); // Debug: Log raw data
       console.log(
-        "Sorted attendance dates:",
-        sortedAttendance.map((record) => record.date)
-      ); // Debug: Verify date order
+        "Sorted attendance timestamps:",
+        sortedAttendance.map((record) => ({
+          date: record.date,
+          formatted: record.date
+            ? new Date(record.date).toLocaleString()
+            : "Invalid Date",
+        }))
+      ); // Debug: Log sorted timestamps
 
       setAttendance(sortedAttendance);
       setTotalPages(response.data.pagination.totalPages || 1);
