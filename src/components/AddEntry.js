@@ -51,8 +51,8 @@ const theme = {
 const StyledFormGroup = styled(Form.Group)`
   .form-control,
   .form-select {
-    minheight: 42px;
-    fontsize: 1rem;
+    min-height: 42px;
+    font-size: 1rem;
     transition: border-color 0.2s ease-in-out;
 
     &:focus {
@@ -177,7 +177,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
     category: "",
     remarks: "",
     liveLocation: "",
-    assignedTo: [], // Initialize as array for multiple users
+    assignedTo: [],
     createdAt: new Date().toISOString(),
   };
 
@@ -193,31 +193,30 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
     size: "",
     quantity: "",
   });
-  const [users, setUsers] = useState([]); // State to store available users
+  const [users, setUsers] = useState([]);
 
   const totalSteps = 4;
 
-  // Fetch users for assignedTo dropdown
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchUsersForTagging = async () => {
       try {
         const token = localStorage.getItem("token");
         const response = await axios.get(
-          "https://crm-server-amz7.onrender.com/api/users",
+          "https://crm-server-amz7.onrender.com/api/tag-users",
           {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
-        setUsers(response.data || []); // Ensure users is an array
+        setUsers(response.data || []);
       } catch (error) {
-        console.error("Error fetching users:", error);
-        toast.error("Failed to fetch users for assignment.");
+        console.error("Error fetching users for tagging:", error);
+        toast.error("Failed to fetch users for tagging.");
         setUsers([]);
       }
     };
 
     if (isOpen) {
-      fetchUsers();
+      fetchUsersForTagging();
       setFormData({ ...initialFormData, createdAt: new Date().toISOString() });
       setSelectedState("");
       setSelectedCity("");
@@ -385,7 +384,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
         ...formData,
         createdAt: new Date().toISOString(),
         estimatedValue: Number(formData.estimatedValue) || 0,
-        assignedTo: formData.assignedTo.map((option) => option.value), // Extract user IDs
+        assignedTo: formData.assignedTo.map((option) => option.value),
       };
 
       const response = await axios.post(
@@ -401,7 +400,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
 
       const newEntry = response.data.data;
       toast.success("Entry added successfully!");
-      onEntryAdded(newEntry); // Pass full entry with populated assignedTo
+      onEntryAdded(newEntry);
 
       setFormData({ ...initialFormData, createdAt: new Date().toISOString() });
       setSelectedState("");
