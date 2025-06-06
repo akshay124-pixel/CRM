@@ -163,7 +163,7 @@ const TeamAnalyticsDrawer = ({
   // Log props for debugging
   useEffect(() => {
     if (isOpen) {
-      console.log("Props:", { role, entries, dateRange });
+      console.log("TeamAnalytics Props:", { role, entries, dateRange });
     }
   }, [isOpen, role, entries, dateRange]);
 
@@ -269,6 +269,7 @@ const TeamAnalyticsDrawer = ({
         statsMap[adminId] = {
           adminId,
           adminName: admin.username,
+          teamLeader: admin.username,
           teamMembers: admin.teamMembers,
           adminAnalytics: {
             username: admin.username,
@@ -347,12 +348,22 @@ const TeamAnalyticsDrawer = ({
           if (entry.closetype === "Closed Won") {
             targetAnalytics.closedWon += 1;
             statsMap[adminId].teamTotal.closedWon += 1;
-            if (entry.closeamount && typeof entry.closeamount === "number") {
+            if (
+              entry.closeamount != null &&
+              typeof entry.closeamount === "number" &&
+              !isNaN(entry.closeamount)
+            ) {
+              console.log(
+                `TeamAnalytics: Adding closeamount for entry ${entry._id} by ${creator.username}: ₹${entry.closeamount}`
+              );
               targetAnalytics.totalClosingAmount += entry.closeamount;
               statsMap[adminId].teamTotal.totalClosingAmount +=
                 entry.closeamount;
             } else {
-              console.warn(`Invalid closeamount for entry:`, entry);
+              console.warn(
+                `TeamAnalytics: Invalid closeamount for entry ${entry._id}:`,
+                entry
+              );
             }
           } else if (entry.closetype === "Closed Lost") {
             targetAnalytics.closedLost += 1;
@@ -453,7 +464,7 @@ const TeamAnalyticsDrawer = ({
         totalClosingAmount: 0,
       }
     );
-    console.log("Overall Stats:", stats);
+    console.log("TeamAnalytics Overall Stats:", stats);
     return stats;
   }, [teamStats]);
 

@@ -4,7 +4,7 @@ import { Drawer, Box, Typography, IconButton } from "@mui/material";
 import { FaTimes } from "react-icons/fa";
 import axios from "axios";
 import { toast } from "react-toastify";
-import * as XLSX from "xlsx"; // Import XLSX for Excel export
+import * as XLSX from "xlsx";
 
 const ValueAnalyticsDrawer = ({
   entries,
@@ -28,17 +28,29 @@ const ValueAnalyticsDrawer = ({
         let relevantUserIds = [];
 
         if (role === "superadmin") {
-          // Superadmin sees all users
+          // Superadmin sees only admins and their team members
           const response = await axios.get(
             "https://crm-server-amz7.onrender.com/api/users",
             {
               headers: { Authorization: `Bearer ${token}` },
             }
           );
-          relevantUserIds = response.data.map((user) => ({
+          const admins = response.data.filter(
+            (user) =>
+              typeof user.role === "string" &&
+              user.role.toLowerCase() === "admin"
+          );
+          const teamMembers = response.data.filter(
+            (user) =>
+              typeof user.role === "string" &&
+              user.role.toLowerCase() === "others" &&
+              user.assignedAdmin
+          );
+          relevantUserIds = [...admins, ...teamMembers].map((user) => ({
             _id: user._id,
             username: user.username,
             role: user.role,
+            assignedAdmin: user.assignedAdmin,
           }));
         } else if (role === "admin") {
           // Admin sees their own data and assigned users' data
@@ -56,6 +68,7 @@ const ValueAnalyticsDrawer = ({
               _id: user._id,
               username: user.username,
               role: user.role,
+              assignedAdmin: user.assignedAdmin,
             }));
         } else {
           // Role 'others' sees only their own data
@@ -67,33 +80,45 @@ const ValueAnalyticsDrawer = ({
         let totalHot = 0;
         let totalWarm = 0;
 
-        // Filter entries by date range and role
+        // Filter entries by date range
         const filteredEntries = entries.filter((entry) => {
           const createdAt = new Date(entry.createdAt);
           return (
-            (!dateRange[0].startDate ||
-              !dateRange[0].endDate ||
-              (createdAt >= new Date(dateRange[0].startDate) &&
-                createdAt <= new Date(dateRange[0].endDate))) &&
-            (role === "superadmin" ||
-              relevantUserIds.some(
-                (user) =>
-                  user._id === entry.createdBy?._id ||
-                  user._id === entry.assignedTo?._id
-              ))
+            !dateRange[0].startDate ||
+            !dateRange[0].endDate ||
+            (createdAt >= new Date(dateRange[0].startDate) &&
+              createdAt <= new Date(dateRange[0].endDate))
           );
         });
 
         filteredEntries.forEach((entry) => {
-          const user = entry.assignedTo || entry.createdBy;
-          const uId = user?._id || "unknown";
-          const username = user?.username || "Unknown";
+          const creatorId =
+            entry.createdBy?._id ||
+            entry.createdBy?.$oid ||
+            entry.createdBy ||
+            null;
+          const creator = relevantUserIds.find((u) => u._id === creatorId);
+          if (!creator) {
+            console.warn(
+              `ValueAnalytics: Creator not found for entry ${entry._id}:`,
+              entry
+            );
+            return;
+          }
+
+          const uId = creator._id;
+          const username = creator.username;
           const userRole =
-            relevantUserIds.find((u) => u._id === uId)?.role || "user";
+            typeof creator.role === "string"
+              ? creator.role.toLowerCase()
+              : "user";
 
           if (
-            (role === "superadmin" && uId !== "unknown") ||
-            relevantUserIds.some((u) => u._id === uId)
+            (role === "superadmin" &&
+              (userRole === "admin" || userRole === "others")) ||
+            (role === "admin" &&
+              (uId === userId || creator.assignedAdmin === userId)) ||
+            (role === "others" && uId === userId)
           ) {
             if (!statsMap[uId]) {
               let displayName = username;
@@ -110,16 +135,29 @@ const ValueAnalyticsDrawer = ({
               };
             }
             if (
-              entry.closeamount &&
+              entry.closeamount != null &&
               entry.closetype === "Closed Won" &&
-              typeof entry.closeamount === "number"
+              typeof entry.closeamount === "number" &&
+              !isNaN(entry.closeamount)
             ) {
+              console.log(
+                `ValueAnalytics: Adding closeamount for entry ${entry._id} by ${username}: ₹${entry.closeamount}`
+              );
               statsMap[uId].totalClosingAmount += entry.closeamount;
               totalClose += entry.closeamount;
+            } else if (
+              entry.closetype === "Closed Won" &&
+              (entry.closeamount == null || isNaN(entry.closeamount))
+            ) {
+              console.warn(
+                `ValueAnalytics: Invalid closeamount for entry ${entry._id}:`,
+                entry
+              );
             }
             if (
-              entry.estimatedValue &&
-              typeof entry.estimatedValue === "number"
+              entry.estimatedValue != null &&
+              typeof entry.estimatedValue === "number" &&
+              !isNaN(entry.estimatedValue)
             ) {
               if (entry.status === "Interested") {
                 statsMap[uId].hotValue += entry.estimatedValue;
