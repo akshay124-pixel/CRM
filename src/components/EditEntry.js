@@ -368,44 +368,16 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     const fetchUsers = async () => {
       try {
         const token = localStorage.getItem("token");
-        if (!token) {
-          setError("Please log in to access user tagging.");
-          toast.error("Authentication required. Please log in.");
-          setUsers([]);
-          return;
-        }
-
         const response = await axios.get(
-          "https://crm-server-amz7.onrender.com/api/users",
+          "https://crm-server-amz7.onrender.com/api/tag-users",
           {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
-
-        const fetchedUsers = Array.isArray(response.data) ? response.data : [];
-        if (fetchedUsers.length === 0) {
-          setError(
-            "No users available for tagging. Contact your administrator."
-          );
-          toast.warn("No users available for tagging.");
-        }
-
-        const sortedUsers = fetchedUsers.sort((a, b) =>
-          a.username.localeCompare(b.username)
-        );
-        setUsers(sortedUsers);
-      } catch (err) {
-        console.error("Error fetching users:", err.message);
-        let errorMessage = "Failed to fetch users for tagging.";
-        if (err.response?.status === 403) {
-          errorMessage =
-            "You do not have permission to fetch users. Contact your administrator.";
-        } else if (err.response?.status === 401) {
-          errorMessage = "Session expired. Please log in again.";
-          localStorage.removeItem("token");
-        }
-        setError(errorMessage);
-        toast.error(errorMessage);
+        setUsers(response.data || []);
+      } catch (error) {
+        console.error("Error fetching users for tagging:", error);
+        toast.error("Failed to fetch users for tagging.");
         setUsers([]);
       }
     };
