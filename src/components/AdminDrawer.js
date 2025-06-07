@@ -1,180 +1,326 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Drawer, Box, Typography, IconButton } from "@mui/material";
 import { FaTimes } from "react-icons/fa";
 import axios from "axios";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
+import DOMPurify from "dompurify";
 
-const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
-  const [userStats, setUserStats] = useState([]);
+// Custom hook for API calls with pagination
+const useCachedApi = (url, token) => {
+  const [data, setData] = useState([]);
+  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+
+  const fetchData = useCallback(async () => {
+    if (!token) {
+      setError("No authentication token found");
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      let allUsers = [];
+      let page = 1;
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await axios.get(url, {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { limit: 100, page },
+        });
+        const normalizedPage = response.data.map((user) => ({
+          ...user,
+          _id: user._id?.$oid || user._id || user.id || "",
+          username: DOMPurify.sanitize(user.username || "Unknown"),
+          role:
+            typeof user.role === "string" ? user.role.toLowerCase() : "unknown",
+          assignedAdmin:
+            user.assignedAdmin?.$oid ||
+            user.assignedAdmin?._id ||
+            user.assignedAdmin ||
+            null,
+        }));
+        allUsers = [...allUsers, ...normalizedPage];
+        hasMore = response.data.length === 100;
+        page += 1;
+      }
+      setData(allUsers);
+      setError(null);
+    } catch (err) {
+      setError(
+        err.response
+          ? `API error: ${err.response.status} ${err.response.statusText}`
+          : `Network error: ${err.message}`
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [url, token]);
 
   useEffect(() => {
-    const fetchAssignedUsersAndCalculateStats = async () => {
-      setLoading(true);
-      try {
-        const token = localStorage.getItem("token");
-        let relevantUserIds = [];
+    fetchData();
+  }, [fetchData, retryCount]);
 
-        if (role === "superadmin") {
-          // Superadmin sees all users
-          const response = await axios.get(
-            "https://crm-server-amz7.onrender.com/api/users",
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
-          relevantUserIds = response.data.map((user) => ({
-            _id: user._id,
-            username: user.username,
-            role: user.role,
-          }));
-        } else if (role === "admin") {
-          // Admin sees their own data and assigned users' data
-          const response = await axios.get(
-            "https://crm-server-amz7.onrender.com/api/users",
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
-          relevantUserIds = response.data
-            .filter(
-              (user) => user.assignedAdmin === userId || user._id === userId
-            )
-            .map((user) => ({
-              _id: user._id,
-              username: user.username,
-              role: user.role,
-            }));
-        } else {
-          // Role 'others' sees only their own data
-          relevantUserIds = [{ _id: userId, username: "Self", role: "others" }];
-        }
+  return {
+    data,
+    error,
+    loading,
+    retry: () => setRetryCount((prev) => prev + 1),
+  };
+};
 
-        const statsMap = {};
-        // Filter entries by date range and role
-        const filteredEntries = entries.filter((entry) => {
-          const createdAt = new Date(entry.createdAt);
-          return (
-            (!dateRange[0].startDate ||
-              !dateRange[0].endDate ||
-              (createdAt >= new Date(dateRange[0].startDate) &&
-                createdAt <= new Date(dateRange[0].endDate))) &&
-            (role === "superadmin" ||
-              relevantUserIds.some(
-                (user) =>
-                  user._id === entry.createdBy?._id ||
-                  user._id === entry.assignedTo?._id
-              ))
-          );
-        });
+// Reusable StatCard component
+const StatCard = ({ label, value, color }) => (
+  <Box
+    sx={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      background: "rgba(255, 255, 255, 0.08)",
+      borderRadius: "6px",
+      px: 2,
+      py: 1,
+    }}
+  >
+    <Typography
+      sx={{
+        fontSize: "0.9rem",
+        fontWeight: 500,
+        color: "rgba(255, 255, 255, 0.9)",
+        textTransform: "uppercase",
+      }}
+    >
+      {label}
+    </Typography>
+    <Typography sx={{ fontSize: "0.95rem", fontWeight: 600, color }}>
+      {value}
+    </Typography>
+  </Box>
+);
 
-        const now = new Date();
-        const currentMonth = now.getMonth();
-        const currentYear = now.getFullYear();
+const AdminDrawer = ({
+  entries = [],
+  isOpen,
+  onClose,
+  role,
+  userId,
+  dateRange,
+}) => {
+  const [userStats, setUserStats] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [debugInfo, setDebugInfo] = useState(null);
 
-        filteredEntries.forEach((entry) => {
-          const user = entry.assignedTo || entry.createdBy;
-          const uId = user?._id || "unknown";
-          const username = user?.username || "Unknown";
-          const userRole =
-            relevantUserIds.find((u) => u._id === uId)?.role || "user";
-
-          if (
-            (role === "superadmin" && uId !== "unknown") ||
-            relevantUserIds.some((u) => u._id === uId)
-          ) {
-            if (!statsMap[uId]) {
-              let displayName = username;
-              if (userRole === "superadmin") {
-                displayName = `${username} (Superadmin)`;
-              } else if (userRole === "admin") {
-                displayName = `${username} (Admin)`;
-              }
-              statsMap[uId] = {
-                username: displayName,
-                cold: 0,
-                warm: 0,
-                hot: 0,
-                closedWon: 0,
-                closedLost: 0,
-                allTimeEntries: 0,
-                monthEntries: 0,
-              };
-            }
-            statsMap[uId].allTimeEntries += 1;
-
-            const entryDate = new Date(entry.createdAt);
-            if (
-              entryDate.getMonth() === currentMonth &&
-              entryDate.getFullYear() === currentYear
-            ) {
-              statsMap[uId].monthEntries += 1;
-            }
-
-            switch (entry.status) {
-              case "Not Interested":
-                statsMap[uId].cold += 1;
-                break;
-              case "Maybe":
-                statsMap[uId].warm += 1;
-                break;
-              case "Interested":
-                statsMap[uId].hot += 1;
-                break;
-              case "Closed":
-                if (entry.closetype === "Closed Won")
-                  statsMap[uId].closedWon += 1;
-                else if (entry.closetype === "Closed Lost")
-                  statsMap[uId].closedLost += 1;
-                break;
-              default:
-                break;
-            }
-          }
-        });
-
-        setUserStats(Object.values(statsMap));
-      } catch (error) {
-        console.error("Error fetching assigned users:", error);
-        toast.error("Failed to load team analytics!");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (isOpen) fetchAssignedUsersAndCalculateStats();
-  }, [entries, isOpen, role, userId, dateRange]);
-
-  // Calculate overall statistics
-  const overallStats = userStats.reduce(
-    (acc, user) => ({
-      total: acc.total + user.allTimeEntries,
-      monthTotal: acc.monthTotal + user.monthEntries,
-      hot: acc.hot + user.hot,
-      cold: acc.cold + user.cold,
-      warm: acc.warm + user.warm,
-      closedWon: acc.closedWon + user.closedWon,
-      closedLost: acc.closedLost + user.closedLost,
-    }),
-    {
-      total: 0,
-      monthTotal: 0,
-      hot: 0,
-      cold: 0,
-      warm: 0,
-      closedWon: 0,
-      closedLost: 0,
-    }
+  // Fetch users from API
+  const {
+    data: users,
+    error,
+    loading: apiLoading,
+  } = useCachedApi(
+    "https://crm-server-amz7.onrender.com/api/users",
+    localStorage.getItem("token")
   );
 
+  // Log props for debugging
+  useEffect(() => {
+    if (isOpen) {
+      console.log("AdminDrawer Props:", { role, userId, entries, dateRange });
+    }
+  }, [isOpen, role, userId, entries, dateRange]);
+
+  // Calculate user stats
+  const userStatsMemo = useMemo(() => {
+    if (!Array.isArray(users) || users.length === 0) {
+      setDebugInfo("No users found");
+      return [];
+    }
+
+    // Determine relevant users based on role
+    let relevantUserIds = [];
+    if (role === "superadmin") {
+      relevantUserIds = users.map((user) => ({
+        _id: user._id,
+        username: user.username,
+        role: user.role,
+        assignedAdmin: user.assignedAdmin,
+      }));
+    } else if (role === "admin") {
+      relevantUserIds = users
+        .filter((user) => user.assignedAdmin === userId || user._id === userId)
+        .map((user) => ({
+          _id: user._id,
+          username: user.username,
+          role: user.role,
+          assignedAdmin: user.assignedAdmin,
+        }));
+    } else {
+      relevantUserIds = [
+        { _id: userId, username: "Self", role: "others", assignedAdmin: null },
+      ];
+    }
+
+    const statsMap = {};
+    // Filter entries by date range and role
+    const filteredEntries = entries.filter((entry) => {
+      const createdAt = new Date(entry.createdAt);
+      const startDate = dateRange[0].startDate
+        ? new Date(dateRange[0].startDate).setHours(0, 0, 0, 0)
+        : null;
+      const endDate = dateRange[0].endDate
+        ? new Date(dateRange[0].endDate).setHours(23, 59, 59, 999)
+        : null;
+      return (
+        (!startDate ||
+          !endDate ||
+          (createdAt >= startDate && createdAt <= endDate)) &&
+        (role === "superadmin" ||
+          relevantUserIds.some(
+            (user) =>
+              user._id === (entry.createdBy?._id || entry.createdBy) ||
+              user._id === (entry.assignedTo?._id || entry.assignedTo)
+          ))
+      );
+    });
+
+    console.log("Filtered Entries:", filteredEntries);
+
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    filteredEntries.forEach((entry) => {
+      const user = entry.assignedTo || entry.createdBy;
+      const uId = user?._id || user || "unknown";
+      const creator = users.find((u) => u._id === uId);
+      if (!creator) {
+        console.warn(`User not found for entry:`, entry);
+        return;
+      }
+
+      const username = creator.username;
+      const userRole = creator.role;
+      const assignedAdmin = creator.assignedAdmin;
+
+      if (
+        (role === "superadmin" && uId !== "unknown") ||
+        relevantUserIds.some((u) => u._id === uId)
+      ) {
+        if (!statsMap[uId]) {
+          let displayName = username;
+          if (userRole === "superadmin") {
+            displayName = `${username} (Superadmin)`;
+          } else if (userRole === "admin") {
+            displayName = `${username} (Admin)`;
+          } else if (assignedAdmin) {
+            const admin = users.find((u) => u._id === assignedAdmin);
+            displayName = `${username} (Team: ${admin?.username || "Unknown"})`;
+          }
+          statsMap[uId] = {
+            username: displayName,
+            cold: 0,
+            warm: 0,
+            hot: 0,
+            closedWon: 0,
+            closedLost: 0,
+            allTimeEntries: 0,
+            monthEntries: 0,
+            totalClosingAmount: 0,
+          };
+        }
+
+        statsMap[uId].allTimeEntries += 1;
+        const entryDate = new Date(entry.createdAt);
+        if (
+          entryDate.getMonth() === currentMonth &&
+          entryDate.getFullYear() === currentYear
+        ) {
+          statsMap[uId].monthEntries += 1;
+        }
+
+        switch (entry.status) {
+          case "Not Interested":
+            statsMap[uId].cold += 1;
+            break;
+          case "Maybe":
+            statsMap[uId].warm += 1;
+            break;
+          case "Interested":
+            statsMap[uId].hot += 1;
+            break;
+          case "Closed":
+            if (entry.closetype === "Closed Won") {
+              statsMap[uId].closedWon += 1;
+              if (
+                entry.closeamount != null &&
+                typeof entry.closeamount === "number" &&
+                !isNaN(entry.closeamount)
+              ) {
+                console.log(
+                  `AdminDrawer: Adding closeamount for entry ${entry._id} by ${username}: ₹${entry.closeamount}`
+                );
+                statsMap[uId].totalClosingAmount += entry.closeamount;
+              }
+            } else if (entry.closetype === "Closed Lost") {
+              statsMap[uId].closedLost += 1;
+            }
+            break;
+          default:
+            break;
+        }
+      }
+    });
+
+    console.log("Stats Map:", statsMap);
+
+    const result = Object.values(statsMap);
+    setDebugInfo(`Found ${result.length} users with analytics`);
+    return result;
+  }, [entries, users, role, userId, dateRange]);
+
+  // Update userStats when drawer opens
+  useEffect(() => {
+    if (isOpen) {
+      setLoading(true);
+      setUserStats(userStatsMemo);
+      setLoading(false);
+    }
+  }, [isOpen, userStatsMemo]);
+
+  // Calculate overall statistics
+  const overallStats = useMemo(() => {
+    const stats = userStats.reduce(
+      (acc, user) => ({
+        total: acc.total + user.allTimeEntries,
+        monthTotal: acc.monthTotal + user.monthEntries,
+        hot: acc.hot + user.hot,
+        cold: acc.cold + user.cold,
+        warm: acc.warm + user.warm,
+        closedWon: acc.closedWon + user.closedWon,
+        closedLost: acc.closedLost + user.closedLost,
+        totalClosingAmount:
+          acc.totalClosingAmount + (user.totalClosingAmount || 0),
+      }),
+      {
+        total: 0,
+        monthTotal: 0,
+        hot: 0,
+        cold: 0,
+        warm: 0,
+        closedWon: 0,
+        closedLost: 0,
+        totalClosingAmount: 0,
+      }
+    );
+    console.log("Overall Stats:", stats);
+    return stats;
+  }, [userStats]);
+
   // Handle export to Excel
-  const handleExport = () => {
+  const handleExport = useCallback(() => {
     try {
-      // Prepare data for export
       const exportData = [
-        // Overall Statistics
         {
           Section: "Overall Statistics",
           Username: "",
@@ -185,8 +331,8 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
           Warm: overallStats.warm,
           Won: overallStats.closedWon,
           Lost: overallStats.closedLost,
+          "Total Closing Amount": overallStats.totalClosingAmount,
         },
-        // Separator row
         {
           Section: "",
           Username: "",
@@ -197,8 +343,8 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
           Warm: "",
           Won: "",
           Lost: "",
+          "Total Closing Amount": "",
         },
-        // User Statistics
         ...userStats.map((user) => ({
           Section: "User Statistics",
           Username: user.username,
@@ -209,35 +355,32 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
           Warm: user.warm,
           Won: user.closedWon,
           Lost: user.closedLost,
+          "Total Closing Amount": user.totalClosingAmount,
         })),
       ];
 
-      // Create worksheet
       const worksheet = XLSX.utils.json_to_sheet(exportData);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Team Analytics");
 
-      // Auto-size columns
-      const colWidths = Object.keys(exportData[0]).map((key) => {
-        const maxLength = Math.max(
-          key.length,
-          ...exportData.map((row) => String(row[key] || "").length)
-        );
-        return { wch: Math.min(maxLength + 2, 50) };
-      });
-      worksheet["!cols"] = colWidths;
+      worksheet["!cols"] = Object.keys(exportData[0]).map((key) => ({
+        wch: Math.min(Math.max(key.length, 15) + 2, 50),
+      }));
 
-      // Generate and download Excel file
-      XLSX.writeFile(
-        workbook,
-        `team_analytics_${new Date().toISOString().slice(0, 10)}.xlsx`
-      );
+      const dateStr = dateRange[0]?.startDate
+        ? `${new Date(dateRange[0].startDate)
+            .toISOString()
+            .slice(0, 10)}_to_${new Date(dateRange[0].endDate)
+            .toISOString()
+            .slice(0, 10)}`
+        : new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(workbook, `team_analytics_${dateStr}.xlsx`);
       toast.success("Analytics exported successfully!");
     } catch (error) {
-      console.error("Error exporting analytics:", error);
+      console.error("Export error:", error);
       toast.error("Failed to export analytics!");
     }
-  };
+  }, [userStats, overallStats, dateRange]);
 
   return (
     <Drawer
@@ -294,7 +437,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
 
       {/* Content */}
       <Box sx={{ flex: 1, overflowY: "auto", px: 3, py: 4 }}>
-        {loading ? (
+        {loading || apiLoading ? (
           <Box
             sx={{
               display: "flex",
@@ -314,6 +457,31 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
               }}
             >
               Loading Analytics...
+            </Typography>
+          </Box>
+        ) : error ? (
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "100%",
+            }}
+          >
+            <Typography
+              sx={{
+                color: "rgba(255, 255, 255, 0.7)",
+                fontSize: "1.2rem",
+                fontWeight: "400",
+                fontStyle: "italic",
+                textAlign: "center",
+                background: "rgba(255, 255, 255, 0.05)",
+                borderRadius: "8px",
+                padding: "16px",
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+              }}
+            >
+              {error}
             </Typography>
           </Box>
         ) : userStats.length === 0 ? (
@@ -373,13 +541,13 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                 >
                   📊 Overall Statistics
                 </Typography>
-                {/* Top Row: Total Entries and This Month */}
                 <Box
                   sx={{
-                    display: "flex",
-                    gap: 4,
-                    mb: 2,
-                    justifyContent: "center",
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)" },
+                    gap: "12px",
+                    justifyItems: "center",
+                    alignItems: "stretch",
                   }}
                 >
                   {[
@@ -393,61 +561,6 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                       value: overallStats.monthTotal,
                       color: "yellow",
                     },
-                  ].map((stat, index) => (
-                    <motion.div
-                      key={stat.label}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: index * 0.1, duration: 0.3 }}
-                      sx={{
-                        flex: 1,
-                        background: "rgba(255, 255, 255, 0.1)",
-                        borderRadius: "8px",
-                        p: 1.5,
-                        textAlign: "center",
-                        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
-                        minHeight: "80px",
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Typography
-                        sx={{
-                          fontSize: "0.9rem",
-                          fontWeight: "600",
-                          color: "rgba(255, 255, 255, 0.9)",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.6px",
-                          mb: 0.5,
-                        }}
-                      >
-                        {stat.label}
-                      </Typography>
-                      <Typography
-                        sx={{
-                          fontSize: "1.3rem",
-                          fontWeight: "700",
-                          color: stat.color,
-                          textShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
-                        }}
-                      >
-                        {stat.value}
-                      </Typography>
-                    </motion.div>
-                  ))}
-                </Box>
-                {/* Bottom Grid: Hot, Cold, Warm, Won, Lost */}
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(3, 1fr)",
-                    gap: "12px",
-                    justifyItems: "center",
-                    alignItems: "stretch",
-                  }}
-                >
-                  {[
                     { label: "Hot", value: overallStats.hot, color: "yellow" },
                     {
                       label: "Cold",
@@ -469,12 +582,19 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                       value: overallStats.closedLost,
                       color: "#e91e63",
                     },
+                    {
+                      label: "Total Closure",
+                      value: `₹${(
+                        overallStats.totalClosingAmount || 0
+                      ).toLocaleString("en-IN")}`,
+                      color: "lightgreen",
+                    },
                   ].map((stat, index) => (
                     <motion.div
                       key={stat.label}
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: (index + 2) * 0.1, duration: 0.3 }}
+                      transition={{ delay: index * 0.1, duration: 0.3 }}
                       sx={{
                         width: "100%",
                         background: "rgba(255, 255, 255, 0.1)",
@@ -535,7 +655,6 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                     },
                   }}
                 >
-                  {/* User Header */}
                   <Box sx={{ mb: 2 }}>
                     <Typography
                       sx={{
@@ -573,7 +692,6 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                     </Box>
                   </Box>
 
-                  {/* Status Metrics */}
                   <Box
                     sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}
                   >
@@ -591,41 +709,20 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                         value: user.closedLost,
                         color: "#e91e63",
                       },
+                      {
+                        label: "Total Closure",
+                        value: `₹${(
+                          user.totalClosingAmount || 0
+                        ).toLocaleString("en-IN")}`,
+                        color: "lightgreen",
+                      },
                     ].map((stat) => (
-                      <Box
+                      <StatCard
                         key={stat.label}
-                        sx={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          background: "rgba(255, 255, 255, 0.05)",
-                          borderRadius: "6px",
-                          px: 2,
-                          py: 1,
-                        }}
-                      >
-                        <Typography
-                          sx={{
-                            fontSize: "0.9rem",
-                            fontWeight: "500",
-                            color: "rgba(255, 255, 255, 0.9)",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.5px",
-                          }}
-                        >
-                          {stat.label}
-                        </Typography>
-                        <Typography
-                          sx={{
-                            fontSize: "1rem",
-                            fontWeight: "600",
-                            color: stat.color,
-                            textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
-                          }}
-                        >
-                          {stat.value}
-                        </Typography>
-                      </Box>
+                        label={stat.label}
+                        value={stat.value}
+                        color={stat.color}
+                      />
                     ))}
                   </Box>
                 </motion.div>
