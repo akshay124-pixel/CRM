@@ -67,19 +67,26 @@ const CallTrackingDashboard = ({
   selectedCategory,
   userId,
   selectedUsername,
+  dateRange,
 }) => {
   const callStats = useMemo(() => {
     const stats = { cold: 0, warm: 0, hot: 0, closedWon: 0, closedLost: 0 };
-    const filteredEntries = entries.filter(
-      (entry) =>
+    const filteredEntries = entries.filter((entry) => {
+      const createdAt = new Date(entry.createdAt);
+      return (
         (role === "superadmin" ||
           role === "admin" ||
           entry.createdBy?._id === userId ||
           entry.assignedTo?._id === userId) &&
         (!selectedUsername ||
           entry.createdBy?.username === selectedUsername ||
-          entry.assignedTo?.username === selectedUsername)
-    );
+          entry.assignedTo?.username === selectedUsername) &&
+        (!dateRange[0].startDate ||
+          !dateRange[0].endDate ||
+          (createdAt >= new Date(dateRange[0].startDate) &&
+            createdAt <= new Date(dateRange[0].endDate)))
+      );
+    });
 
     filteredEntries.forEach((entry) => {
       switch (entry.status) {
@@ -101,7 +108,7 @@ const CallTrackingDashboard = ({
       }
     });
     return stats;
-  }, [entries, role, userId, selectedUsername]);
+  }, [entries, role, userId, selectedUsername, dateRange]);
 
   return (
     <motion.div
@@ -219,7 +226,6 @@ const CallTrackingDashboard = ({
     </motion.div>
   );
 };
-
 function DashBoard() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
@@ -337,11 +343,16 @@ function DashBoard() {
     return entries
       .filter((row) => {
         const createdAt = new Date(row.createdAt);
-
-        // Check if any product name matches the searchTerm
         const productNameMatch = row.products?.some((product) =>
           product.name?.toLowerCase().includes(searchTerm.toLowerCase())
         );
+
+        const startDate = dateRange[0].startDate
+          ? new Date(dateRange[0].startDate.setHours(0, 0, 0, 0))
+          : null;
+        const endDate = dateRange[0].endDate
+          ? new Date(dateRange[0].endDate.setHours(23, 59, 59, 999))
+          : null;
 
         return (
           (!searchTerm ||
@@ -364,17 +375,15 @@ function DashBoard() {
               row.status === "Closed" &&
               row.closetype === "Closed Lost") ||
             row.status === dashboardFilter) &&
-          (!dateRange[0].startDate ||
-            !dateRange[0].endDate ||
-            (createdAt >= new Date(dateRange[0].startDate) &&
-              createdAt <= new Date(dateRange[0].endDate)))
+          (!startDate ||
+            !endDate ||
+            (createdAt >= startDate && createdAt <= endDate))
         );
       })
       .sort((a, b) => {
-        // Ensure updatedAt exists, fallback to createdAt if not available
         const dateA = new Date(a.updatedAt || a.createdAt);
         const dateB = new Date(b.updatedAt || b.createdAt);
-        return dateB - dateA; // Sort in descending order (newest first)
+        return dateB - dateA;
       });
   }, [
     entries,
@@ -1512,6 +1521,7 @@ function DashBoard() {
             selectedCategory={dashboardFilter}
             userId={userId}
             selectedUsername={selectedUsername}
+            dateRange={dateRange}
           />
 
           {/* Action Buttons */}
