@@ -25,7 +25,7 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
     try {
       const token = localStorage.getItem("token");
       const response = await axios.get(
-        "https://crm-server-amz7.onrender.com/api/users",
+        "https://crm-server-amz7.onrender.com/api/fetch-team",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -280,7 +280,18 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
                           py: 1.5,
                         }}
                       >
-                        {user.assignedAdmin && user.assignedAdmin === userId ? (
+                        {user.role === "admin" ? (
+                          <Typography
+                            sx={{
+                              color: "white",
+                              fontSize: "0.9rem",
+                              fontStyle: "italic",
+                            }}
+                          >
+                            Admin (No Actions)
+                          </Typography>
+                        ) : user.assignedAdmin &&
+                          user.assignedAdmin === userId ? (
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
