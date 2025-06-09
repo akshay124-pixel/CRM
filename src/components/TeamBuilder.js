@@ -317,34 +317,25 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={() => handleAssign(user._id)}
-                            disabled={
-                              user.assignedAdmin &&
-                              user.assignedAdmin !== userId
-                            }
+                            disabled={user.assignedAdmin}
                             style={{
                               padding: "8px 16px",
-                              background:
-                                user.assignedAdmin &&
-                                user.assignedAdmin !== userId
-                                  ? "linear-gradient(90deg, #cccccc, #999999)"
-                                  : "linear-gradient(135deg, #2575fc, #6a11cb)",
+                              background: user.assignedAdmin
+                                ? "linear-gradient(90deg, #cccccc, #999999)"
+                                : "linear-gradient(135deg, #2575fc, #6a11cb)",
                               color: "white",
                               borderRadius: "12px",
                               border: "none",
                               fontSize: "0.9rem",
                               fontWeight: "bold",
-                              cursor:
-                                user.assignedAdmin &&
-                                user.assignedAdmin !== userId
-                                  ? "not-allowed"
-                                  : "pointer",
+                              cursor: user.assignedAdmin
+                                ? "not-allowed"
+                                : "pointer",
                               boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
                               transition: "all 0.2s ease",
                             }}
                           >
-                            {user.assignedAdmin
-                              ? "Assigned to Another Admin"
-                              : "Assign to Me"}
+                            Assign to Me
                           </motion.button>
                         )}
                       </TableCell>
