@@ -25,7 +25,7 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
     try {
       const token = localStorage.getItem("token");
       const response = await axios.get(
-        "https://crm-server-amz7.onrender.com/api/fetch-team",
+        "https://crm-server-amz7.onrender.com/api/users",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
