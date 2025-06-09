@@ -51,11 +51,6 @@ const useCachedApi = (url, token) => {
         });
         console.log(`API Response (Page ${page}):`, response.data);
 
-        const roles = [
-          ...new Set(response.data.map((user) => user.role || "undefined")),
-        ];
-        console.log("Unique Roles in Response:", roles);
-
         const normalizedPage = response.data.map((user) => ({
           ...user,
           _id: user._id?.$oid || user._id || user.id || "",
@@ -157,6 +152,7 @@ const TeamAnalyticsDrawer = ({
   useEffect(() => {
     if (isOpen) {
       console.log("TeamAnalytics Props:", { role, entries, dateRange });
+      console.log("Sample Entries:", entries.slice(0, 5));
     }
   }, [isOpen, role, entries, dateRange]);
 
@@ -219,7 +215,10 @@ const TeamAnalyticsDrawer = ({
         (createdAt >= new Date(dateRange[0].startDate) &&
           createdAt <= new Date(dateRange[0].endDate));
       if (!isValidDate) {
-        console.log(`Entry filtered out due to date range:`, entry);
+        console.log(
+          `Entry filtered out due to date range (ID: ${entry._id}):`,
+          entry
+        );
       }
       return isValidDate;
     });
@@ -236,7 +235,7 @@ const TeamAnalyticsDrawer = ({
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    // Initialize stats for all admins, even those without entries
+    // Initialize stats for all admins
     admins.forEach((admin) => {
       statsMap[admin._id] = {
         adminId: admin._id,
@@ -275,13 +274,19 @@ const TeamAnalyticsDrawer = ({
         entry.createdBy ||
         null;
       if (!creatorId) {
-        console.warn(`Entry ${index} has no valid creatorId:`, entry);
+        console.warn(
+          `Entry ${index} (ID: ${entry._id}) has no valid creatorId:`,
+          entry
+        );
         return;
       }
 
       const creator = users.find((user) => user._id === creatorId);
       if (!creator) {
-        console.warn(`Creator not found for entry ${index}:`, entry);
+        console.warn(
+          `Creator not found for entry ${index} (ID: ${entry._id}):`,
+          entry
+        );
         return;
       }
 
@@ -294,7 +299,10 @@ const TeamAnalyticsDrawer = ({
 
       const admin = admins.find((a) => a._id === adminId);
       if (!admin || !adminId) {
-        console.warn(`Admin not found for creator in entry ${index}:`, creator);
+        console.warn(
+          `Admin not found for creator in entry ${index} (ID: ${entry._id}):`,
+          creator
+        );
         return;
       }
 
@@ -331,6 +339,7 @@ const TeamAnalyticsDrawer = ({
 
       const entryDate = new Date(entry.createdAt);
       if (
+        !isNaN(entryDate) &&
         entryDate.getMonth() === currentMonth &&
         entryDate.getFullYear() === currentYear
       ) {
@@ -341,15 +350,7 @@ const TeamAnalyticsDrawer = ({
       const status = entry.status ? entry.status.toLowerCase() : null;
       const closetype = entry.closetype ? entry.closetype.toLowerCase() : null;
 
-      const validStatuses = ["not interested", "maybe", "interested", "closed"];
-      if (!validStatuses.includes(status)) {
-        console.warn(
-          `Invalid status for entry ${index} (ID: ${entry._id}): ${status}`,
-          entry
-        );
-        return;
-      }
-
+      // Align status checks with AdminDrawer
       switch (status) {
         case "not interested":
           targetAnalytics.cold += 1;
@@ -364,12 +365,7 @@ const TeamAnalyticsDrawer = ({
           statsMap[adminId].teamTotal.hot += 1;
           break;
         case "closed":
-          if (closetype === "open") {
-            console.warn(
-              `Entry ${index} (ID: ${entry._id}) has closed status with open closetype`,
-              entry
-            );
-          } else if (closetype === "closed won") {
+          if (closetype === "closed won") {
             targetAnalytics.closedWon += 1;
             statsMap[adminId].teamTotal.closedWon += 1;
             const closeAmount =
@@ -399,8 +395,8 @@ const TeamAnalyticsDrawer = ({
           }
           break;
         default:
-          console.error(
-            `Unexpected status for entry ${index} (ID: ${entry._id}): ${status}`,
+          console.warn(
+            `Invalid status for entry ${index} (ID: ${entry._id}): ${status}`,
             entry
           );
           break;
@@ -619,8 +615,8 @@ const TeamAnalyticsDrawer = ({
       field: "totalClosingAmount",
       headerName: "Total Closure (₹)",
       width: 150,
-      valueFormatter: (params) =>
-        params.value != null ? params.value.toLocaleString("en-IN") : "₹0",
+      valueFormatter: ({ value }) =>
+        value != null ? `₹${value.toLocaleString("en-IN")}` : "₹0",
     },
   ];
 
@@ -1187,7 +1183,6 @@ const TeamAnalyticsDrawer = ({
             marginBottom: "12px",
             display: "flex",
             alignItems: "center",
-            ascended_at: 0,
             justifyContent: "center",
             gap: "8px",
             textTransform: "uppercase",
