@@ -330,27 +330,28 @@ const TeamAnalyticsDrawer = ({
         targetAnalytics.monthEntries += 1;
         statsMap[adminId].teamTotal.monthEntries += 1;
       }
-      // Normalize status and closetype to lowercase for case-insensitive comparison
-      const status = entry.status ? entry.status.toLowerCase() : null;
-      const closetype = entry.closetype ? entry.closetype.toLowerCase() : null;
+
+      // Status checks aligned with AdminDrawer
+      const status = entry.status || null;
+      const closetype = entry.closetype || null;
 
       switch (status) {
-        case "not interested":
+        case "Not Interested":
           targetAnalytics.cold += 1;
           statsMap[adminId].teamTotal.cold += 1;
           break;
-        case "maybe":
+        case "Maybe":
           targetAnalytics.warm += 1;
           statsMap[adminId].teamTotal.warm += 1;
           break;
-        case "interested":
+        case "Interested":
           targetAnalytics.hot += 1;
           statsMap[adminId].teamTotal.hot += 1;
           break;
-        case "closed":
+        case "Closed":
           if (closetype === "open") {
             // Ignore entries with closetype "open"
-          } else if (closetype === "closed won") {
+          } else if (closetype === "Closed Won") {
             targetAnalytics.closedWon += 1;
             statsMap[adminId].teamTotal.closedWon += 1;
             if (
@@ -370,7 +371,7 @@ const TeamAnalyticsDrawer = ({
                 entry
               );
             }
-          } else if (closetype === "closed lost") {
+          } else if (closetype === "Closed Lost") {
             targetAnalytics.closedLost += 1;
             statsMap[adminId].teamTotal.closedLost += 1;
           } else {
