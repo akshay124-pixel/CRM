@@ -56,14 +56,6 @@ const useCachedApi = (url, token) => {
         ];
         console.log("Unique Roles in Response:", roles);
 
-        const adminSample = response.data.find(
-          (user) =>
-            (typeof user.role === "string" &&
-              user.role.toLowerCase() === "admin") ||
-            user.role === "admin"
-        );
-        console.log("Sample Admin User:", adminSample);
-
         const normalizedPage = response.data.map((user) => ({
           ...user,
           _id: user._id?.$oid || user._id || user.id || "",
@@ -74,6 +66,7 @@ const useCachedApi = (url, token) => {
             user.assignedAdmin?._id ||
             user.assignedAdmin ||
             null,
+          username: DOMPurify.sanitize(user.username || "Unknown"),
         }));
 
         allUsers = [...allUsers, ...normalizedPage];
@@ -220,12 +213,15 @@ const TeamAnalyticsDrawer = ({
     const statsMap = {};
     const filteredEntries = entries.filter((entry) => {
       const createdAt = new Date(entry.createdAt);
-      return (
+      const isValidDate =
         !dateRange[0].startDate ||
         !dateRange[0].endDate ||
         (createdAt >= new Date(dateRange[0].startDate) &&
-          createdAt <= new Date(dateRange[0].endDate))
-      );
+          createdAt <= new Date(dateRange[0].endDate));
+      if (!isValidDate) {
+        console.log(`Entry filtered out due to date range:`, entry);
+      }
+      return isValidDate;
     });
 
     console.log("Filtered Entries:", filteredEntries);
@@ -240,15 +236,52 @@ const TeamAnalyticsDrawer = ({
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    filteredEntries.forEach((entry) => {
+    // Initialize stats for all admins, even those without entries
+    admins.forEach((admin) => {
+      statsMap[admin._id] = {
+        adminId: admin._id,
+        adminName: admin.username,
+        teamLeader: admin.username,
+        teamMembers: admin.teamMembers,
+        adminAnalytics: {
+          username: admin.username,
+          allTimeEntries: 0,
+          monthEntries: 0,
+          cold: 0,
+          warm: 0,
+          hot: 0,
+          closedWon: 0,
+          closedLost: 0,
+          totalClosingAmount: 0,
+        },
+        membersAnalytics: {},
+        teamTotal: {
+          allTimeEntries: 0,
+          monthEntries: 0,
+          cold: 0,
+          warm: 0,
+          hot: 0,
+          closedWon: 0,
+          closedLost: 0,
+          totalClosingAmount: 0,
+        },
+      };
+    });
+
+    filteredEntries.forEach((entry, index) => {
       const creatorId =
         entry.createdBy?._id ||
         entry.createdBy?.$oid ||
         entry.createdBy ||
         null;
+      if (!creatorId) {
+        console.warn(`Entry ${index} has no valid creatorId:`, entry);
+        return;
+      }
+
       const creator = users.find((user) => user._id === creatorId);
       if (!creator) {
-        console.warn(`Creator not found for entry:`, entry);
+        console.warn(`Creator not found for entry ${index}:`, entry);
         return;
       }
 
@@ -261,39 +294,13 @@ const TeamAnalyticsDrawer = ({
 
       const admin = admins.find((a) => a._id === adminId);
       if (!admin || !adminId) {
-        console.warn(`Admin not found for creator:`, creator);
+        console.warn(`Admin not found for creator in entry ${index}:`, creator);
         return;
       }
 
       if (!statsMap[adminId]) {
-        statsMap[adminId] = {
-          adminId,
-          adminName: admin.username,
-          teamLeader: admin.username,
-          teamMembers: admin.teamMembers,
-          adminAnalytics: {
-            username: admin.username,
-            allTimeEntries: 0,
-            monthEntries: 0,
-            cold: 0,
-            warm: 0,
-            hot: 0,
-            closedWon: 0,
-            closedLost: 0,
-            totalClosingAmount: 0,
-          },
-          membersAnalytics: {},
-          teamTotal: {
-            allTimeEntries: 0,
-            monthEntries: 0,
-            cold: 0,
-            warm: 0,
-            hot: 0,
-            closedWon: 0,
-            closedLost: 0,
-            totalClosingAmount: 0,
-          },
-        };
+        console.warn(`Stats map not initialized for admin ${adminId}`);
+        return;
       }
 
       const memberId = creator._id;
@@ -330,9 +337,18 @@ const TeamAnalyticsDrawer = ({
         targetAnalytics.monthEntries += 1;
         statsMap[adminId].teamTotal.monthEntries += 1;
       }
-      // Normalize status and closetype to lowercase for case-insensitive comparison
+
       const status = entry.status ? entry.status.toLowerCase() : null;
       const closetype = entry.closetype ? entry.closetype.toLowerCase() : null;
+
+      const validStatuses = ["not interested", "maybe", "interested", "closed"];
+      if (!validStatuses.includes(status)) {
+        console.warn(
+          `Invalid status for entry ${index} (ID: ${entry._id}): ${status}`,
+          entry
+        );
+        return;
+      }
 
       switch (status) {
         case "not interested":
@@ -349,24 +365,26 @@ const TeamAnalyticsDrawer = ({
           break;
         case "closed":
           if (closetype === "open") {
-            // Ignore entries with closetype "open"
+            console.warn(
+              `Entry ${index} (ID: ${entry._id}) has closed status with open closetype`,
+              entry
+            );
           } else if (closetype === "closed won") {
             targetAnalytics.closedWon += 1;
             statsMap[adminId].teamTotal.closedWon += 1;
-            if (
-              entry.closeamount != null &&
-              typeof entry.closeamount === "number" &&
-              !isNaN(entry.closeamount)
-            ) {
+            const closeAmount =
+              typeof entry.closeamount === "number" && !isNaN(entry.closeamount)
+                ? entry.closeamount
+                : 0;
+            if (closeAmount > 0) {
               console.log(
-                `TeamAnalytics: Adding closeamount for entry ${entry._id} by ${creator.username}: ₹${entry.closeamount}`
+                `Adding closeamount for entry ${index} (ID: ${entry._id}) by ${creator.username}: ₹${closeAmount}`
               );
-              targetAnalytics.totalClosingAmount += entry.closeamount;
-              statsMap[adminId].teamTotal.totalClosingAmount +=
-                entry.closeamount;
+              targetAnalytics.totalClosingAmount += closeAmount;
+              statsMap[adminId].teamTotal.totalClosingAmount += closeAmount;
             } else {
               console.warn(
-                `TeamAnalytics: Invalid closeamount for entry ${entry._id}:`,
+                `Invalid or zero closeamount for entry ${index} (ID: ${entry._id}):`,
                 entry
               );
             }
@@ -375,14 +393,14 @@ const TeamAnalyticsDrawer = ({
             statsMap[adminId].teamTotal.closedLost += 1;
           } else {
             console.warn(
-              `TeamAnalytics: Invalid closetype for closed entry ${entry._id}: ${closetype}`,
+              `Invalid closetype for closed entry ${index} (ID: ${entry._id}): ${closetype}`,
               entry
             );
           }
           break;
         default:
-          console.warn(
-            `TeamAnalytics: Invalid status for entry ${entry._id}: ${status}`,
+          console.error(
+            `Unexpected status for entry ${index} (ID: ${entry._id}): ${status}`,
             entry
           );
           break;
@@ -1169,6 +1187,7 @@ const TeamAnalyticsDrawer = ({
             marginBottom: "12px",
             display: "flex",
             alignItems: "center",
+            ascended_at: 0,
             justifyContent: "center",
             gap: "8px",
             textTransform: "uppercase",
