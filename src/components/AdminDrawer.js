@@ -1,253 +1,314 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Drawer, Box, Typography, IconButton } from "@mui/material";
 import { FaTimes } from "react-icons/fa";
 import axios from "axios";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
+import DOMPurify from "dompurify";
 
 const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
   const [userStats, setUserStats] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [debugInfo, setDebugInfo] = useState(null);
+
+  // Fetch users from API
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    setDebugInfo(null);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      let allUsers = [];
+      let apiUrl =
+        role === "superadmin"
+          ? "https://crm-server-amz7.onrender.com/api/allusers"
+          : "https://crm-server-amz7.onrender.com/api/users";
+      let page = 1;
+      let hasMore = true;
+
+      while (hasMore) {
+        const response = await axios.get(apiUrl, {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { limit: 100, page },
+        });
+        console.log(`API Response (Page ${page}):`, response.data);
+
+        const normalizedPage = response.data.map((user) => ({
+          _id: user._id?.$oid || user._id || user.id || "",
+          username: DOMPurify.sanitize(user.username || "Unknown"),
+          role:
+            typeof user.role === "string" ? user.role.toLowerCase() : "unknown",
+          assignedAdmin:
+            user.assignedAdmin?.$oid ||
+            user.assignedAdmin?._id ||
+            user.assignedAdmin ||
+            null,
+        }));
+
+        allUsers = [...allUsers, ...normalizedPage];
+        hasMore = response.data.length === 100;
+        page += 1;
+      }
+
+      console.log("Normalized Users:", allUsers);
+      console.log(`Total Users Fetched: ${allUsers.length}`);
+
+      // Filter users based on role
+      let relevantUsers;
+      if (role === "superadmin") {
+        relevantUsers = allUsers.filter(
+          (u) => u.role === "admin" || u.role === "others"
+        );
+      } else if (role === "admin") {
+        relevantUsers = allUsers.filter(
+          (user) =>
+            user._id === userId ||
+            (user.assignedAdmin === userId && user.role === "others")
+        );
+      } else {
+        relevantUsers = allUsers.filter((user) => user._id === userId);
+      }
+
+      console.log("Relevant Users:", relevantUsers);
+
+      if (relevantUsers.length === 0) {
+        setDebugInfo("No relevant users found for the given role");
+      }
+
+      return relevantUsers;
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      setDebugInfo(error.message || "Failed to fetch users");
+      toast.error("Failed to load team analytics!");
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, [role, userId]);
 
   useEffect(() => {
-    const fetchAssignedUsersAndCalculateStats = async () => {
-      setLoading(true);
-      try {
-        const token = localStorage.getItem("token");
-        let relevantUserIds = [];
+    if (!isOpen) return;
 
-        // Fetch users based on role
-        if (role === "superadmin") {
-          const response = await axios.get(
-            "https://crm-server-amz7.onrender.com/api/users",
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
-          relevantUserIds = response.data.map((user) => ({
-            _id: user._id?.$oid || user._id,
-            username: user.username || "Unknown",
-            role:
-              typeof user.role === "string"
-                ? user.role.toLowerCase()
-                : "unknown",
-          }));
-        } else if (role === "admin") {
-          const response = await axios.get(
-            "https://crm-server-amz7.onrender.com/api/users",
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
-          relevantUserIds = response.data
-            .filter(
-              (user) =>
-                (user.assignedAdmin?.$oid || user.assignedAdmin) === userId ||
-                user._id === userId
-            )
-            .map((user) => ({
-              _id: user._id?.$oid || user._id,
-              username: user.username || "Unknown",
-              role:
-                typeof user.role === "string"
-                  ? user.role.toLowerCase()
-                  : "unknown",
-            }));
-        } else {
-          relevantUserIds = [{ _id: userId, username: "Self", role: "others" }];
+    const calculateStats = async () => {
+      const users = await fetchUsers();
+      if (!users.length) {
+        setUserStats([]);
+        return;
+      }
+
+      const statsMap = {};
+      const filteredEntries = entries.filter((entry) => {
+        const createdAt = new Date(entry.createdAt);
+        return (
+          !dateRange[0]?.startDate ||
+          !dateRange[0]?.endDate ||
+          (createdAt >= new Date(dateRange[0].startDate) &&
+            createdAt <= new Date(dateRange[0].endDate))
+        );
+      });
+
+      console.log("Filtered Entries:", filteredEntries);
+
+      if (filteredEntries.length === 0) {
+        setDebugInfo("No entries found in the selected date range");
+      }
+
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      filteredEntries.forEach((entry) => {
+        const creatorId =
+          entry.createdBy?._id ||
+          entry.createdBy?.$oid ||
+          entry.createdBy ||
+          null;
+        if (!creatorId) {
+          console.warn(`No creator found for entry:`, entry);
+          return;
         }
 
-        const statsMap = {};
-        // Filter entries by date range and role
-        const filteredEntries = entries.filter((entry) => {
-          const createdAt = new Date(entry.createdAt);
-          const startDate = dateRange[0].startDate
-            ? new Date(dateRange[0].startDate).setHours(0, 0, 0, 0)
-            : null;
-          const endDate = dateRange[0].endDate
-            ? new Date(dateRange[0].endDate).setHours(23, 59, 59, 999)
-            : null;
-          return (
-            (!startDate ||
-              !endDate ||
-              (createdAt >= startDate && createdAt <= endDate)) &&
-            (role === "superadmin" ||
-              relevantUserIds.some(
-                (user) =>
-                  user._id === (entry.createdBy?._id || entry.createdBy) ||
-                  user._id === (entry.assignedTo?._id || entry.assignedTo)
-              ))
+        const creator = users.find((user) => user._id === creatorId);
+        if (!creator) {
+          console.warn(
+            `Creator ${creatorId} not found in relevant users:`,
+            entry
           );
-        });
+          return;
+        }
 
-        const now = new Date();
-        const currentMonth = now.getMonth();
-        const currentYear = now.getFullYear();
-
-        filteredEntries.forEach((entry) => {
-          const user = entry.assignedTo || entry.createdBy;
-          const uId = user?._id || user || "unknown";
-          const creator = relevantUserIds.find((u) => u._id === uId);
-          if (!creator || uId === "unknown") return;
-
-          const username = creator.username;
-          const userRole = creator.role;
-
-          if (
-            (role === "superadmin" && uId !== "unknown") ||
-            relevantUserIds.some((u) => u._id === uId)
-          ) {
-            if (!statsMap[uId]) {
-              let displayName = username;
-              if (userRole === "superadmin") {
-                displayName = `${username} (Superadmin)`;
-              } else if (userRole === "admin") {
-                displayName = `${username} (Admin)`;
-              }
-              statsMap[uId] = {
-                username: displayName,
-                cold: 0,
-                warm: 0,
-                hot: 0,
-                closedWon: 0,
-                closedLost: 0,
-                allTimeEntries: 0,
-                monthEntries: 0,
-              };
-            }
-
-            statsMap[uId].allTimeEntries += 1;
-            const entryDate = new Date(entry.createdAt);
-            if (
-              entryDate.getMonth() === currentMonth &&
-              entryDate.getFullYear() === currentYear
-            ) {
-              statsMap[uId].monthEntries += 1;
-            }
-
-            switch (entry.status) {
-              case "Not Interested":
-                statsMap[uId].cold += 1;
-                break;
-              case "Maybe":
-                statsMap[uId].warm += 1;
-                break;
-              case "Interested":
-                statsMap[uId].hot += 1;
-                break;
-              case "Closed":
-                if (entry.closetype === "Closed Won") {
-                  statsMap[uId].closedWon += 1;
-                } else if (entry.closetype === "Closed Lost") {
-                  statsMap[uId].closedLost += 1;
-                }
-                break;
-              default:
-                break;
-            }
+        if (!statsMap[creatorId]) {
+          let displayName = creator.username;
+          if (role === "superadmin" && creator.role === "admin") {
+            displayName = `${creator.username} (Admin)`;
+          } else if (role === "superadmin" && creator.role === "others") {
+            displayName = creator.username;
+          } else if (creator._id === userId && role === "admin") {
+            displayName = `${creator.username} (Admin)`;
           }
-        });
+          statsMap[creatorId] = {
+            _id: creatorId,
+            username: displayName,
+            allTimeEntries: 0,
+            monthEntries: 0,
+            cold: 0,
+            warm: 0,
+            hot: 0,
+            closedWon: 0,
+            closedLost: 0,
+            totalClosingAmount: 0,
+          };
+        }
 
-        const result = Object.values(statsMap);
-        console.log("Calculated User Stats:", result);
-        setUserStats(result);
-      } catch (error) {
-        console.error("Error fetching assigned users:", error);
-        toast.error("Failed to load team analytics!");
-      } finally {
-        setLoading(false);
+        statsMap[creatorId].allTimeEntries += 1;
+
+        const entryDate = new Date(entry.createdAt);
+        if (
+          entryDate.getMonth() === currentMonth &&
+          entryDate.getFullYear() === currentYear
+        ) {
+          statsMap[creatorId].monthEntries += 1;
+        }
+
+        switch (entry.status) {
+          case "Not Interested":
+            statsMap[creatorId].cold += 1;
+            break;
+          case "Maybe":
+            statsMap[creatorId].warm += 1;
+            break;
+          case "Interested":
+            statsMap[creatorId].hot += 1;
+            break;
+          case "Closed":
+            if (entry.closetype === "open") {
+            } else if (entry.closetype === "Closed Won") {
+              statsMap[creatorId].closedWon += 1;
+              if (
+                entry.closeamount != null &&
+                typeof entry.closeamount === "number" &&
+                !isNaN(entry.closeamount)
+              ) {
+                console.log(
+                  `Adding closeamount for entry ${entry._id} by ${creator.username}: ₹${entry.closeamount}`
+                );
+                statsMap[creatorId].totalClosingAmount += entry.closeamount;
+              } else {
+                console.warn(
+                  `Invalid closeamount for entry ${entry._id}:`,
+                  entry
+                );
+              }
+            } else if (entry.closetype === "Closed Lost") {
+              statsMap[creatorId].closedLost += 1;
+            }
+            break;
+          default:
+            break;
+        }
+      });
+
+      const result = Object.values(statsMap);
+      console.log("Calculated User Stats:", result);
+      setUserStats(result);
+
+      if (result.length === 0 && filteredEntries.length > 0) {
+        setDebugInfo("No matching stats generated; check user IDs in entries");
       }
     };
 
-    if (isOpen) fetchAssignedUsersAndCalculateStats();
-  }, [entries, isOpen, role, userId, dateRange]);
+    calculateStats();
+  }, [isOpen, entries, dateRange, fetchUsers, role, userId]);
 
   // Calculate overall statistics
   const overallStats = userStats.reduce(
     (acc, user) => ({
       total: acc.total + user.allTimeEntries,
       monthTotal: acc.monthTotal + user.monthEntries,
-      hot: acc.hot + user.hot,
       cold: acc.cold + user.cold,
       warm: acc.warm + user.warm,
+      hot: acc.hot + user.hot,
       closedWon: acc.closedWon + user.closedWon,
       closedLost: acc.closedLost + user.closedLost,
+      totalClosingAmount:
+        acc.totalClosingAmount + (user.totalClosingAmount || 0),
     }),
     {
       total: 0,
       monthTotal: 0,
-      hot: 0,
       cold: 0,
       warm: 0,
+      hot: 0,
       closedWon: 0,
       closedLost: 0,
+      totalClosingAmount: 0,
     }
   );
+
+  console.log("Overall Analytics Stats:", overallStats);
 
   // Handle export to Excel
   const handleExport = () => {
     try {
-      // Prepare data for export
       const exportData = [
-        // Overall Statistics
         {
           Section: "Overall Statistics",
           Username: "",
           "Total Entries": overallStats.total,
           "This Month": overallStats.monthTotal,
-          Hot: overallStats.hot,
           Cold: overallStats.cold,
           Warm: overallStats.warm,
+          Hot: overallStats.hot,
           Won: overallStats.closedWon,
           Lost: overallStats.closedLost,
+          "Total Closing Amount": overallStats.totalClosingAmount,
         },
-        // Separator row
         {
           Section: "",
           Username: "",
           "Total Entries": "",
           "This Month": "",
-          Hot: "",
           Cold: "",
           Warm: "",
+          Hot: "",
           Won: "",
           Lost: "",
+          "Total Closing Amount": "",
         },
-        // User Statistics
         ...userStats.map((user) => ({
           Section: "User Statistics",
           Username: user.username,
           "Total Entries": user.allTimeEntries,
           "This Month": user.monthEntries,
-          Hot: user.hot,
           Cold: user.cold,
           Warm: user.warm,
+          Hot: user.hot,
           Won: user.closedWon,
           Lost: user.closedLost,
+          "Total Closing Amount": user.totalClosingAmount || 0,
         })),
       ];
 
-      // Create worksheet
       const worksheet = XLSX.utils.json_to_sheet(exportData);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Team Analytics");
 
-      // Auto-size columns
-      const colWidths = Object.keys(exportData[0]).map((key) => {
-        const maxLength = Math.max(
-          key.length,
-          ...exportData.map((row) => String(row[key] || "").length)
-        );
-        return { wch: Math.min(maxLength + 2, 50) };
-      });
-      worksheet["!cols"] = colWidths;
+      worksheet["cols"] = Object.keys(exportData[0]).map((key) => ({
+        wch: Math.min(Math.max(key.length, 15) + 2, 50),
+      }));
 
-      // Generate and download Excel file
-      XLSX.writeFile(
-        workbook,
-        `team_analytics_${new Date().toISOString().slice(0, 10)}.xlsx`
-      );
+      const dateStr = dateRange[0]?.startDate
+        ? `${new Date(dateRange[0].startDate)
+            .toISOString()
+            .slice(0, 10)}_to_${new Date(dateRange[0].endDate)
+            .toISOString()
+            .slice(0, 10)}`
+        : new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(workbook, `team_analytics_${dateStr}.xlsx`);
       toast.success("Analytics exported successfully!");
     } catch (error) {
       console.error("Error exporting analytics:", error);
@@ -288,7 +349,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
         <Typography
           variant="h5"
           sx={{
-            fontWeight: "700",
+            fontWeight: 700,
             fontSize: "1.6rem",
             letterSpacing: "1.2px",
             textTransform: "uppercase",
@@ -322,7 +383,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
             <Typography
               sx={{
                 fontSize: "1.2rem",
-                fontWeight: "400",
+                fontWeight: 400,
                 fontStyle: "italic",
                 textAlign: "center",
                 borderRadius: "8px",
@@ -332,7 +393,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
               Loading Analytics...
             </Typography>
           </Box>
-        ) : userStats.length === 0 ? (
+        ) : debugInfo || userStats.length === 0 ? (
           <Box
             sx={{
               display: "flex",
@@ -345,7 +406,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
               sx={{
                 color: "rgba(255, 255, 255, 0.7)",
                 fontSize: "1.2rem",
-                fontWeight: "400",
+                fontWeight: 400,
                 fontStyle: "italic",
                 textAlign: "center",
                 background: "rgba(255, 255, 255, 0.05)",
@@ -354,13 +415,13 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                 boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
               }}
             >
-              No Team Data Available
+              {debugInfo || "No Team Data Available"}
             </Typography>
           </Box>
         ) : (
           <>
             {/* Overall Statistics Section */}
-            <Box sx={{ mb: 4 }}>
+            <Box sx={{ mb: 3 }}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -377,7 +438,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                 <Typography
                   sx={{
                     fontSize: "1.6rem",
-                    fontWeight: "700",
+                    fontWeight: 700,
                     background: "linear-gradient(135deg, #ffffff, #e0e7ff)",
                     WebkitBackgroundClip: "text",
                     WebkitTextFillColor: "transparent",
@@ -389,12 +450,12 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                 >
                   📊 Overall Statistics
                 </Typography>
-                {/* Top Row: Total Entries and This Month */}
                 <Box
                   sx={{
                     display: "flex",
-                    gap: 4,
+                    gap: "12px",
                     mb: 2,
+                    flexWrap: "wrap",
                     justifyContent: "center",
                   }}
                 >
@@ -416,7 +477,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: index * 0.1, duration: 0.3 }}
                       sx={{
-                        flex: 1,
+                        flex: "1 0 120px",
                         background: "rgba(255, 255, 255, 0.1)",
                         borderRadius: "8px",
                         p: 1.5,
@@ -431,7 +492,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                       <Typography
                         sx={{
                           fontSize: "0.9rem",
-                          fontWeight: "600",
+                          fontWeight: 600,
                           color: "rgba(255, 255, 255, 0.9)",
                           textTransform: "uppercase",
                           letterSpacing: "0.6px",
@@ -443,7 +504,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                       <Typography
                         sx={{
                           fontSize: "1.3rem",
-                          fontWeight: "700",
+                          fontWeight: 700,
                           color: stat.color,
                           textShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
                         }}
@@ -453,18 +514,16 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                     </motion.div>
                   ))}
                 </Box>
-                {/* Bottom Grid: Hot, Cold, Warm, Won, Lost */}
                 <Box
                   sx={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gridTemplateColumns: "repeat(2, 1fr)",
                     gap: "12px",
                     justifyItems: "center",
                     alignItems: "stretch",
                   }}
                 >
                   {[
-                    { label: "Hot", value: overallStats.hot, color: "yellow" },
                     {
                       label: "Cold",
                       value: overallStats.cold,
@@ -475,6 +534,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                       value: overallStats.warm,
                       color: "lightgreen",
                     },
+                    { label: "Hot", value: overallStats.hot, color: "yellow" },
                     {
                       label: "Won",
                       value: overallStats.closedWon,
@@ -484,6 +544,13 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                       label: "Lost",
                       value: overallStats.closedLost,
                       color: "#e91e63",
+                    },
+                    {
+                      label: "Total Closure",
+                      value: `₹${(
+                        overallStats.totalClosingAmount || 0
+                      ).toLocaleString("en-IN")}`,
+                      color: "lightgreen",
                     },
                   ].map((stat, index) => (
                     <motion.div
@@ -495,10 +562,10 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                         width: "100%",
                         background: "rgba(255, 255, 255, 0.1)",
                         borderRadius: "8px",
-                        p: 1.5,
+                        p: 1,
                         textAlign: "center",
                         boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
-                        minHeight: "80px",
+                        minHeight: "60px",
                         display: "flex",
                         flexDirection: "column",
                         justifyContent: "center",
@@ -506,8 +573,8 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                     >
                       <Typography
                         sx={{
-                          fontSize: "0.9rem",
-                          fontWeight: "600",
+                          fontSize: "0.8rem",
+                          fontWeight: 600,
                           color: "rgba(255, 255, 255, 0.9)",
                           textTransform: "uppercase",
                           letterSpacing: "0.6px",
@@ -518,8 +585,8 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                       </Typography>
                       <Typography
                         sx={{
-                          fontSize: "1.3rem",
-                          fontWeight: "700",
+                          fontSize: "1rem",
+                          fontWeight: 700,
                           color: stat.color,
                           textShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
                         }}
@@ -532,17 +599,17 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
               </motion.div>
             </Box>
 
-            {/* Individual User Statistics */}
+            {/* Individual User Stats */}
             {userStats.map((user, index) => (
-              <Box key={user.username + index} sx={{ mb: 3 }}>
+              <Box key={user._id || user.username + index} sx={{ mb: 3 }}>
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.15 }}
                   sx={{
                     background: "rgba(255, 255, 255, 0.1)",
-                    borderRadius: "12px",
-                    p: 3,
+                    borderRadius: "6px",
+                    p: 2,
                     boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
                     "&:hover": {
                       background: "rgba(255, 255, 255, 0.15)",
@@ -551,12 +618,11 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                     },
                   }}
                 >
-                  {/* User Header */}
                   <Box sx={{ mb: 2 }}>
                     <Typography
                       sx={{
-                        fontSize: "1.4rem",
-                        fontWeight: "600",
+                        fontSize: "1.3rem",
+                        fontWeight: 600,
                         letterSpacing: "0.4px",
                         textTransform: "capitalize",
                         textShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
@@ -569,7 +635,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                       <Typography
                         sx={{
                           fontSize: "1rem",
-                          fontWeight: "600",
+                          fontWeight: 600,
                           color: "lightgreen",
                           textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
                         }}
@@ -579,19 +645,16 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                       <Typography
                         sx={{
                           fontSize: "1rem",
-                          fontWeight: "600",
+                          fontWeight: 600,
                           color: "yellow",
-                          textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
                         }}
                       >
                         This Month: {user.monthEntries}
                       </Typography>
                     </Box>
                   </Box>
-
-                  {/* Status Metrics */}
                   <Box
-                    sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}
+                    sx={{ display: "flex", flexDirection: "column", gap: 1 }}
                   >
                     {[
                       { label: "Cold", value: user.cold, color: "orange" },
@@ -607,6 +670,13 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                         value: user.closedLost,
                         color: "#e91e63",
                       },
+                      {
+                        label: "Total Closure",
+                        value: `₹${(
+                          user.totalClosingAmount || 0
+                        ).toLocaleString("en-IN")}`,
+                        color: "lightgreen",
+                      },
                     ].map((stat) => (
                       <Box
                         key={stat.label}
@@ -615,16 +685,16 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                           justifyContent: "space-between",
                           alignItems: "center",
                           background: "rgba(255, 255, 255, 0.05)",
-                          borderRadius: "6px",
+                          borderRadius: "5px",
                           px: 2,
-                          py: 1,
+                          py: 0.5,
                         }}
                       >
                         <Typography
                           sx={{
-                            fontSize: "0.9rem",
-                            fontWeight: "500",
-                            color: "rgba(255, 255, 255, 0.9)",
+                            fontSize: "0.8rem",
+                            fontWeight: 500,
+                            color: "rgba(255, 255, 255, 0.85)",
                             textTransform: "uppercase",
                             letterSpacing: "0.5px",
                           }}
@@ -633,10 +703,9 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                         </Typography>
                         <Typography
                           sx={{
-                            fontSize: "1rem",
-                            fontWeight: "600",
+                            fontSize: "0.9rem",
+                            fontWeight: 600,
                             color: stat.color,
-                            textShadow: "0 1px 2px rgba(0, 0, 0, 0.1)",
                           }}
                         >
                           {stat.value}
@@ -665,22 +734,21 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
           onClick={handleExport}
           style={{
             width: "100%",
-            padding: "12px",
+            padding: "10px",
             background: "linear-gradient(90deg, #34d399, #10b981)",
             color: "white",
-            borderRadius: "8px",
+            borderRadius: 5,
             border: "none",
-            fontSize: "1.1rem",
-            fontWeight: "600",
+            fontSize: "1rem",
+            fontWeight: 600,
+            letterSpacing: "0.5",
             cursor: "pointer",
-            transition: "all 0.3s ease",
-            letterSpacing: "0.5px",
             textTransform: "uppercase",
-            marginBottom: "12px",
+            marginBottom: 5,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: "8px",
+            gap: "10px",
           }}
         >
           <span style={{ fontSize: "1.2rem" }}>⬇</span> Export Analytics
@@ -691,20 +759,19 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
           onClick={onClose}
           style={{
             width: "100%",
-            padding: "12px",
+            padding: "10px",
             background: "linear-gradient(90deg, #ff6b6b, #ff8e53)",
             color: "white",
-            borderRadius: "8px",
+            borderRadius: 5,
             border: "none",
-            fontSize: "1.1rem",
-            fontWeight: "600",
+            fontSize: "1rem",
+            fontWeight: 600,
+            letterSpacing: "0.5",
             cursor: "pointer",
-            transition: "all 0.3s ease",
-            letterSpacing: "0.5px",
             textTransform: "uppercase",
           }}
         >
-          Close Dashboard
+          Close
         </motion.button>
       </Box>
     </Drawer>
