@@ -156,7 +156,7 @@ const TeamAnalyticsDrawer = ({
     loading,
     retry,
   } = useCachedApi(
-    "https://crm-server-amz7.onrender.com/api/allusers",
+    "https://crm-server-amz7.onrender.com/api?users",
     localStorage.getItem("token")
   );
 
