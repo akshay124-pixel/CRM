@@ -51,9 +51,22 @@ const useCachedApi = (url, token) => {
         });
         console.log(`API Response (Page ${page}):`, response.data);
 
+        const roles = [
+          ...new Set(response.data.map((user) => user.role || "undefined")),
+        ];
+        console.log("Unique Roles in Response:", roles);
+
+        const adminSample = response.data.find(
+          (user) =>
+            (typeof user.role === "string" &&
+              user.role.toLowerCase() === "admin") ||
+            user.role === "admin"
+        );
+        console.log("Sample Admin User:", adminSample);
+
         const normalizedPage = response.data.map((user) => ({
+          ...user,
           _id: user._id?.$oid || user._id || user.id || "",
-          username: DOMPurify.sanitize(user.username || "Unknown"),
           role:
             typeof user.role === "string" ? user.role.toLowerCase() : "unknown",
           assignedAdmin:
@@ -161,13 +174,29 @@ const TeamAnalyticsDrawer = ({
       return [];
     }
 
-    // Filter admins and their team members
+    // Filter admins by role
     const admins = users
-      .filter((user) => user.role === "admin")
+      .filter((user) => {
+        const userRole =
+          typeof user.role === "string" ? user.role.toLowerCase() : "unknown";
+        console.log(
+          `User: ${user.username}, Role: ${userRole}, ID: ${user._id}`
+        );
+        return userRole === "admin";
+      })
       .map((admin) => {
         const adminId = admin._id;
         const teamMembers = users
-          .filter((u) => u.role === "others" && u.assignedAdmin === adminId)
+          .filter((u) => {
+            const userRole =
+              typeof u.role === "string" ? u.role.toLowerCase() : "unknown";
+            if (userRole !== "others") return false;
+            const assignedAdmin = u.assignedAdmin;
+            console.log(
+              `Checking team member: ${u.username}, AssignedAdmin: ${assignedAdmin}, AdminId: ${adminId}`
+            );
+            return assignedAdmin === adminId;
+          })
           .map((u) => ({
             _id: u._id,
             username: DOMPurify.sanitize(u.username),
@@ -188,13 +217,12 @@ const TeamAnalyticsDrawer = ({
       return [];
     }
 
-    // Initialize stats map
     const statsMap = {};
     const filteredEntries = entries.filter((entry) => {
       const createdAt = new Date(entry.createdAt);
       return (
-        !dateRange[0]?.startDate ||
-        !dateRange[0]?.endDate ||
+        !dateRange[0].startDate ||
+        !dateRange[0].endDate ||
         (createdAt >= new Date(dateRange[0].startDate) &&
           createdAt <= new Date(dateRange[0].endDate))
       );
@@ -218,34 +246,33 @@ const TeamAnalyticsDrawer = ({
         entry.createdBy?.$oid ||
         entry.createdBy ||
         null;
-      if (!creatorId) {
-        console.warn(`No creator found for entry:`, entry);
-        return;
-      }
-
       const creator = users.find((user) => user._id === creatorId);
       if (!creator) {
-        console.warn(`Creator ${creatorId} not found in users:`, entry);
+        console.warn(`Creator not found for entry:`, entry);
         return;
       }
 
-      const creatorRole = creator.role;
+      const creatorRole =
+        typeof creator.role === "string"
+          ? creator.role.toLowerCase()
+          : "unknown";
       const adminId =
         creatorRole === "admin" ? creator._id : creator.assignedAdmin || null;
 
-      // Initialize stats for the admin
+      const admin = admins.find((a) => a._id === adminId);
+      if (!admin || !adminId) {
+        console.warn(`Admin not found for creator:`, creator);
+        return;
+      }
+
       if (!statsMap[adminId]) {
-        const admin = admins.find((a) => a._id === adminId);
-        if (!admin && creatorRole !== "admin") {
-          console.warn(`Admin not found for creator:`, creator);
-          return;
-        }
         statsMap[adminId] = {
           adminId,
-          adminName: admin ? admin.username : creator.username,
-          teamMembers: admin ? admin.teamMembers : [],
+          adminName: admin.username,
+          teamLeader: admin.username,
+          teamMembers: admin.teamMembers,
           adminAnalytics: {
-            username: admin ? admin.username : creator.username,
+            username: admin.username,
             allTimeEntries: 0,
             monthEntries: 0,
             cold: 0,
@@ -269,14 +296,16 @@ const TeamAnalyticsDrawer = ({
         };
       }
 
-      // Determine target analytics (admin or member)
+      const memberId = creator._id;
+      const memberName = creator.username;
       let targetAnalytics;
+
       if (creatorRole === "admin") {
         targetAnalytics = statsMap[adminId].adminAnalytics;
       } else {
-        if (!statsMap[adminId].membersAnalytics[creatorId]) {
-          statsMap[adminId].membersAnalytics[creatorId] = {
-            username: creator.username,
+        if (!statsMap[adminId].membersAnalytics[memberId]) {
+          statsMap[adminId].membersAnalytics[memberId] = {
+            username: memberName,
             allTimeEntries: 0,
             monthEntries: 0,
             cold: 0,
@@ -287,10 +316,9 @@ const TeamAnalyticsDrawer = ({
             totalClosingAmount: 0,
           };
         }
-        targetAnalytics = statsMap[adminId].membersAnalytics[creatorId];
+        targetAnalytics = statsMap[adminId].membersAnalytics[memberId];
       }
 
-      // Update stats
       targetAnalytics.allTimeEntries += 1;
       statsMap[adminId].teamTotal.allTimeEntries += 1;
 
@@ -302,28 +330,27 @@ const TeamAnalyticsDrawer = ({
         targetAnalytics.monthEntries += 1;
         statsMap[adminId].teamTotal.monthEntries += 1;
       }
-
-      // Use case-sensitive status and closetype as per AdminDrawer
-      const status = entry.status || null;
-      const closetype = entry.closetype || null;
+      // Normalize status and closetype to lowercase for case-insensitive comparison
+      const status = entry.status ? entry.status.toLowerCase() : null;
+      const closetype = entry.closetype ? entry.closetype.toLowerCase() : null;
 
       switch (status) {
-        case "Not Interested":
+        case "not interested":
           targetAnalytics.cold += 1;
           statsMap[adminId].teamTotal.cold += 1;
           break;
-        case "Maybe":
+        case "maybe":
           targetAnalytics.warm += 1;
           statsMap[adminId].teamTotal.warm += 1;
           break;
-        case "Interested":
+        case "interested":
           targetAnalytics.hot += 1;
           statsMap[adminId].teamTotal.hot += 1;
           break;
-        case "Closed":
+        case "closed":
           if (closetype === "open") {
-            // Ignore
-          } else if (closetype === "Closed Won") {
+            // Ignore entries with closetype "open"
+          } else if (closetype === "closed won") {
             targetAnalytics.closedWon += 1;
             statsMap[adminId].teamTotal.closedWon += 1;
             if (
@@ -339,26 +366,33 @@ const TeamAnalyticsDrawer = ({
                 entry.closeamount;
             } else {
               console.warn(
-                `Invalid closeamount for entry ${entry._id}:`,
+                `TeamAnalytics: Invalid closeamount for entry ${entry._id}:`,
                 entry
               );
             }
-          } else if (closetype === "Closed Lost") {
+          } else if (closetype === "closed lost") {
             targetAnalytics.closedLost += 1;
             statsMap[adminId].teamTotal.closedLost += 1;
+          } else {
+            console.warn(
+              `TeamAnalytics: Invalid closetype for closed entry ${entry._id}: ${closetype}`,
+              entry
+            );
           }
           break;
         default:
+          console.warn(
+            `TeamAnalytics: Invalid status for entry ${entry._id}: ${status}`,
+            entry
+          );
           break;
       }
     });
 
-    // Build team stats result
+    console.log("Stats Map:", statsMap);
+
     const result = admins.map((admin) => {
       const teamData = statsMap[admin._id] || {
-        adminId: admin._id,
-        adminName: admin.username,
-        teamMembers: admin.teamMembers,
         adminAnalytics: {
           username: admin.username,
           allTimeEntries: 0,
