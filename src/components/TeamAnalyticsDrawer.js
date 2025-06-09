@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { m, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Drawer,
   Box,
@@ -163,19 +163,11 @@ const TeamAnalyticsDrawer = ({
 
     // Filter admins and their team members
     const admins = users
-      .filter((user) => {
-        const userRole =
-          typeof user.role === "string" ? user.role.toLowerCase() : "unknown";
-        return userRole === "admin";
-      })
+      .filter((user) => user.role === "admin")
       .map((admin) => {
         const adminId = admin._id;
         const teamMembers = users
-          .filter((u) => {
-            const userRole =
-              typeof u.role === "string" ? u.role.toLowerCase() : "unknown";
-            return userRole === "others" && u.assignedAdmin === adminId;
-          })
+          .filter((u) => u.role === "others" && u.assignedAdmin === adminId)
           .map((u) => ({
             _id: u._id,
             username: DOMPurify.sanitize(u.username),
@@ -196,13 +188,13 @@ const TeamAnalyticsDrawer = ({
       return [];
     }
 
-    // Initialize stats map for users
+    // Initialize stats map
     const statsMap = {};
     const filteredEntries = entries.filter((entry) => {
       const createdAt = new Date(entry.createdAt);
       return (
-        !dateRange[0].startDate ||
-        !dateRange[0].endDate ||
+        !dateRange[0]?.startDate ||
+        !dateRange[0]?.endDate ||
         (createdAt >= new Date(dateRange[0].startDate) &&
           createdAt <= new Date(dateRange[0].endDate))
       );
@@ -220,7 +212,6 @@ const TeamAnalyticsDrawer = ({
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    // Calculate stats for each user (admin or team member)
     filteredEntries.forEach((entry) => {
       const creatorId =
         entry.createdBy?._id ||
@@ -238,68 +229,103 @@ const TeamAnalyticsDrawer = ({
         return;
       }
 
-      const creatorRole =
-        typeof creator.role === "string"
-          ? creator.role.toLowerCase()
-          : "unknown";
+      const creatorRole = creator.role;
       const adminId =
         creatorRole === "admin" ? creator._id : creator.assignedAdmin || null;
 
-      // Only process users who are admins or assigned to an admin
-      const admin = admins.find((a) => a._id === adminId);
-      if (!admin && creatorRole !== "admin") {
-        console.warn(`Admin not found for creator:`, creator);
-        return;
-      }
-
-      // Initialize stats for the creator
-      if (!statsMap[creatorId]) {
-        statsMap[creatorId] = {
-          _id: creatorId,
-          username: DOMPurify.sanitize(creator.username),
-          role: creatorRole,
-          adminId:
-            creatorRole === "admin" ? creator._id : creator.assignedAdmin,
-          allTimeEntries: 0,
-          monthEntries: 0,
-          cold: 0,
-          warm: 0,
-          hot: 0,
-          closedWon: 0,
-          closedLost: 0,
-          totalClosingAmount: 0,
+      // Initialize stats for the admin
+      if (!statsMap[adminId]) {
+        const admin = admins.find((a) => a._id === adminId);
+        if (!admin && creatorRole !== "admin") {
+          console.warn(`Admin not found for creator:`, creator);
+          return;
+        }
+        statsMap[adminId] = {
+          adminId,
+          adminName: admin ? admin.username : creator.username,
+          teamMembers: admin ? admin.teamMembers : [],
+          adminAnalytics: {
+            username: admin ? admin.username : creator.username,
+            allTimeEntries: 0,
+            monthEntries: 0,
+            cold: 0,
+            warm: 0,
+            hot: 0,
+            closedWon: 0,
+            closedLost: 0,
+            totalClosingAmount: 0,
+          },
+          membersAnalytics: {},
+          teamTotal: {
+            allTimeEntries: 0,
+            monthEntries: 0,
+            cold: 0,
+            warm: 0,
+            hot: 0,
+            closedWon: 0,
+            closedLost: 0,
+            totalClosingAmount: 0,
+          },
         };
       }
 
+      // Determine target analytics (admin or member)
+      let targetAnalytics;
+      if (creatorRole === "admin") {
+        targetAnalytics = statsMap[adminId].adminAnalytics;
+      } else {
+        if (!statsMap[adminId].membersAnalytics[creatorId]) {
+          statsMap[adminId].membersAnalytics[creatorId] = {
+            username: creator.username,
+            allTimeEntries: 0,
+            monthEntries: 0,
+            cold: 0,
+            warm: 0,
+            hot: 0,
+            closedWon: 0,
+            closedLost: 0,
+            totalClosingAmount: 0,
+          };
+        }
+        targetAnalytics = statsMap[adminId].membersAnalytics[creatorId];
+      }
+
       // Update stats
-      statsMap[creatorId].allTimeEntries += 1;
+      targetAnalytics.allTimeEntries += 1;
+      statsMap[adminId].teamTotal.allTimeEntries += 1;
 
       const entryDate = new Date(entry.createdAt);
       if (
         entryDate.getMonth() === currentMonth &&
         entryDate.getFullYear() === currentYear
       ) {
-        statsMap[creatorId].monthEntries += 1;
+        targetAnalytics.monthEntries += 1;
+        statsMap[adminId].teamTotal.monthEntries += 1;
       }
 
+      // Use case-sensitive status and closetype as per AdminDrawer
       const status = entry.status || null;
       const closetype = entry.closetype || null;
 
       switch (status) {
         case "Not Interested":
-          statsMap[creatorId].cold += 1;
+          targetAnalytics.cold += 1;
+          statsMap[adminId].teamTotal.cold += 1;
           break;
         case "Maybe":
-          statsMap[creatorId].warm += 1;
+          targetAnalytics.warm += 1;
+          statsMap[adminId].teamTotal.warm += 1;
           break;
         case "Interested":
-          statsMap[creatorId].hot += 1;
+          targetAnalytics.hot += 1;
+          statsMap[adminId].teamTotal.hot += 1;
           break;
         case "Closed":
           if (closetype === "open") {
-            // Ignore entries with closetype "open"
+            // Ignore
           } else if (closetype === "Closed Won") {
-            statsMap[creatorId].closedWon += 1;
+            targetAnalytics.closedWon += 1;
+            statsMap[adminId].teamTotal.closedWon += 1;
             if (
               entry.closeamount != null &&
               typeof entry.closeamount === "number" &&
@@ -308,103 +334,71 @@ const TeamAnalyticsDrawer = ({
               console.log(
                 `TeamAnalytics: Adding closeamount for entry ${entry._id} by ${creator.username}: ₹${entry.closeamount}`
               );
-              statsMap[creatorId].totalClosingAmount += entry.closeamount;
+              targetAnalytics.totalClosingAmount += entry.closeamount;
+              statsMap[adminId].teamTotal.totalClosingAmount +=
+                entry.closeamount;
             } else {
               console.warn(
-                `TeamAnalytics: Invalid closeamount for entry ${entry._id}:`,
+                `Invalid closeamount for entry ${entry._id}:`,
                 entry
               );
             }
           } else if (closetype === "Closed Lost") {
-            statsMap[creatorId].closedLost += 1;
-          } else {
-            console.warn(
-              `TeamAnalytics: Invalid closetype for closed entry ${entry._id}: ${closetype}`,
-              entry
-            );
+            targetAnalytics.closedLost += 1;
+            statsMap[adminId].teamTotal.closedLost += 1;
           }
           break;
         default:
-          console.warn(
-            `TeamAnalytics: Invalid status for entry ${entry._id}: ${status}`,
-            entry
-          );
           break;
       }
     });
 
-    // Aggregate stats into team structure
-    const teamStatsResult = admins.map((admin) => {
-      const adminStats = statsMap[admin._id] || {
-        _id: admin._id,
-        username: admin.username,
-        role: "admin",
+    // Build team stats result
+    const result = admins.map((admin) => {
+      const teamData = statsMap[admin._id] || {
         adminId: admin._id,
-        allTimeEntries: 0,
-        monthEntries: 0,
-        cold: 0,
-        warm: 0,
-        hot: 0,
-        closedWon: 0,
-        closedLost: 0,
-        totalClosingAmount: 0,
+        adminName: admin.username,
+        teamMembers: admin.teamMembers,
+        adminAnalytics: {
+          username: admin.username,
+          allTimeEntries: 0,
+          monthEntries: 0,
+          cold: 0,
+          warm: 0,
+          hot: 0,
+          closedWon: 0,
+          closedLost: 0,
+          totalClosingAmount: 0,
+        },
+        membersAnalytics: {},
+        teamTotal: {
+          allTimeEntries: 0,
+          monthEntries: 0,
+          cold: 0,
+          warm: 0,
+          hot: 0,
+          closedWon: 0,
+          closedLost: 0,
+          totalClosingAmount: 0,
+        },
       };
-
-      const membersAnalytics = admin.teamMembers
-        .map((member) => statsMap[member._id])
-        .filter((stats) => stats); // Only include members with stats
-
-      const teamTotal = membersAnalytics.reduce(
-        (acc, member) => ({
-          allTimeEntries: acc.allTimeEntries + member.allTimeEntries,
-          monthEntries: acc.monthEntries + member.monthEntries,
-          cold: acc.cold + member.cold,
-          warm: acc.warm + member.warm,
-          hot: acc.hot + member.hot,
-          closedWon: acc.closedWon + member.closedWon,
-          closedLost: acc.closedLost + member.closedLost,
-          totalClosingAmount:
-            acc.totalClosingAmount + (member.totalClosingAmount || 0),
-        }),
-        {
-          allTimeEntries: adminStats.allTimeEntries,
-          monthEntries: adminStats.monthEntries,
-          cold: adminStats.cold,
-          warm: adminStats.warm,
-          hot: adminStats.hot,
-          closedWon: adminStats.closedWon,
-          closedLost: adminStats.closedLost,
-          totalClosingAmount: adminStats.totalClosingAmount || 0,
-        }
-      );
-
       return {
         adminId: admin._id,
         adminName: admin.username,
         teamMembers: admin.teamMembers,
         teamMembersCount: admin.teamMembers.length,
-        adminAnalytics: {
-          username: adminStats.username,
-          allTimeEntries: adminStats.allTimeEntries,
-          monthEntries: adminStats.monthEntries,
-          cold: adminStats.cold,
-          warm: adminStats.warm,
-          hot: adminStats.hot,
-          closedWon: adminStats.closedWon,
-          closedLost: adminStats.closedLost,
-          totalClosingAmount: adminStats.totalClosingAmount || 0,
-        },
-        membersAnalytics,
-        teamTotal,
+        adminAnalytics: teamData.adminAnalytics,
+        membersAnalytics: Object.values(teamData.membersAnalytics),
+        teamTotal: teamData.teamTotal,
       };
     });
 
     setDebugInfo(
-      `Found ${teamStatsResult.length} admin teams with ${users.length} total users`
+      `Found ${result.length} admin teams with ${users.length} total users`
     );
-    console.log("Team Stats Result:", teamStatsResult);
+    console.log("Team Stats Result:", result);
 
-    return teamStatsResult;
+    return result;
   }, [users, entries, role, dateRange]);
 
   // Modified useEffect to prevent multiple openings
