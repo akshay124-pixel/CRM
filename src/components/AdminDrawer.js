@@ -160,7 +160,6 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
             hot: 0,
             closedWon: 0,
             closedLost: 0,
-            totalClosingAmount: 0,
           };
         }
 
@@ -188,21 +187,6 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
             if (entry.closetype === "open") {
             } else if (entry.closetype === "Closed Won") {
               statsMap[creatorId].closedWon += 1;
-              if (
-                entry.closeamount != null &&
-                typeof entry.closeamount === "number" &&
-                !isNaN(entry.closeamount)
-              ) {
-                console.log(
-                  `Adding closeamount for entry ${entry._id} by ${creator.username}: ₹${entry.closeamount}`
-                );
-                statsMap[creatorId].totalClosingAmount += entry.closeamount;
-              } else {
-                console.warn(
-                  `Invalid closeamount for entry ${entry._id}:`,
-                  entry
-                );
-              }
             } else if (entry.closetype === "Closed Lost") {
               statsMap[creatorId].closedLost += 1;
             }
@@ -234,8 +218,6 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
       hot: acc.hot + user.hot,
       closedWon: acc.closedWon + user.closedWon,
       closedLost: acc.closedLost + user.closedLost,
-      totalClosingAmount:
-        acc.totalClosingAmount + (user.totalClosingAmount || 0),
     }),
     {
       total: 0,
@@ -245,7 +227,6 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
       hot: 0,
       closedWon: 0,
       closedLost: 0,
-      totalClosingAmount: 0,
     }
   );
 
@@ -265,7 +246,6 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
           Hot: overallStats.hot,
           Won: overallStats.closedWon,
           Lost: overallStats.closedLost,
-          "Total Closing Amount": overallStats.totalClosingAmount,
         },
         {
           Section: "",
@@ -277,7 +257,6 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
           Hot: "",
           Won: "",
           Lost: "",
-          "Total Closing Amount": "",
         },
         ...userStats.map((user) => ({
           Section: "User Statistics",
@@ -289,7 +268,6 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
           Hot: user.hot,
           Won: user.closedWon,
           Lost: user.closedLost,
-          "Total Closing Amount": user.totalClosingAmount || 0,
         })),
       ];
 
@@ -545,13 +523,6 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                       value: overallStats.closedLost,
                       color: "#e91e63",
                     },
-                    {
-                      label: "Total Closure",
-                      value: `₹${(
-                        overallStats.totalClosingAmount || 0
-                      ).toLocaleString("en-IN")}`,
-                      color: "lightgreen",
-                    },
                   ].map((stat, index) => (
                     <motion.div
                       key={stat.label}
@@ -669,13 +640,6 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                         label: "Lost",
                         value: user.closedLost,
                         color: "#e91e63",
-                      },
-                      {
-                        label: "Total Closure",
-                        value: `₹${(
-                          user.totalClosingAmount || 0
-                        ).toLocaleString("en-IN")}`,
-                        color: "lightgreen",
                       },
                     ].map((stat) => (
                       <Box
