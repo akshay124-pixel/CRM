@@ -280,18 +280,7 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
                           py: 1.5,
                         }}
                       >
-                        {user.role === "admin" ? (
-                          <Typography
-                            sx={{
-                              color: "white",
-                              fontSize: "0.9rem",
-                              fontStyle: "italic",
-                            }}
-                          >
-                            Admin (No Actions)
-                          </Typography>
-                        ) : user.assignedAdmin &&
-                          user.assignedAdmin === userId ? (
+                        {user.assignedAdmin && user.assignedAdmin === userId ? (
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
