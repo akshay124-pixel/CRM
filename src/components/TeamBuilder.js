@@ -30,13 +30,7 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      let fetchedUsers = response.data;
-      if (userRole === "admin") {
-        fetchedUsers = fetchedUsers.filter(
-          (user) => !user.assignedAdmin || user.assignedAdmin === userId
-        );
-      }
-      setUsers(fetchedUsers);
+      setUsers(response.data); // Backend handles all filtering
     } catch (error) {
       console.error("Error fetching users:", error);
       toast.error("Failed to fetch users!");
@@ -202,27 +196,31 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
               <Table>
                 <TableHead>
                   <TableRow>
-                    {["Username", "Email", "Assigned Admin", "Actions"].map(
-                      (header) => (
-                        <TableCell
-                          key={header}
-                          sx={{
-                            color: "white",
-                            fontWeight: "bold",
-                            fontSize: "1.1rem",
-                            background: "#1a3c7a",
-                            borderBottom: "1px solid rgba(255, 255, 255, 0.2)",
-                            textAlign: "center",
-                            py: 2,
-                            position: "sticky",
-                            top: 0,
-                            zIndex: 1,
-                          }}
-                        >
-                          {header}
-                        </TableCell>
-                      )
-                    )}
+                    {[
+                      "Username",
+                      "Email",
+                      "Role",
+                      "Assigned Admin",
+                      "Actions",
+                    ].map((header) => (
+                      <TableCell
+                        key={header}
+                        sx={{
+                          color: "white",
+                          fontWeight: "bold",
+                          fontSize: "1.1rem",
+                          background: "#1a3c7a",
+                          borderBottom: "1px solid rgba(255, 255, 255, 0.2)",
+                          textAlign: "center",
+                          py: 2,
+                          position: "sticky",
+                          top: 0,
+                          zIndex: 1,
+                        }}
+                      >
+                        {header}
+                      </TableCell>
+                    ))}
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -261,6 +259,16 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
                           py: 1.5,
                         }}
                       >
+                        {user.role}
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          color: "white",
+                          borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                          textAlign: "center",
+                          py: 1.5,
+                        }}
+                      >
                         {user.assignedAdmin
                           ? `Assigned (ID: ${user.assignedAdmin})`
                           : "Unassigned"}
@@ -272,15 +280,11 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
                           py: 1.5,
                         }}
                       >
-                        {user.assignedAdmin ? (
+                        {user.assignedAdmin && user.assignedAdmin === userId ? (
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={() => handleUnassign(user._id)}
-                            disabled={
-                              userRole === "admin" &&
-                              user.assignedAdmin !== userId
-                            }
                             style={{
                               padding: "8px 16px",
                               background:
@@ -290,11 +294,7 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
                               border: "none",
                               fontSize: "0.9rem",
                               fontWeight: "bold",
-                              cursor:
-                                userRole === "admin" &&
-                                user.assignedAdmin !== userId
-                                  ? "not-allowed"
-                                  : "pointer",
+                              cursor: "pointer",
                               boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
                               transition: "all 0.2s ease",
                             }}
@@ -306,21 +306,34 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={() => handleAssign(user._id)}
+                            disabled={
+                              user.assignedAdmin &&
+                              user.assignedAdmin !== userId
+                            }
                             style={{
                               padding: "8px 16px",
                               background:
-                                "linear-gradient(135deg, #2575fc, #6a11cb)",
+                                user.assignedAdmin &&
+                                user.assignedAdmin !== userId
+                                  ? "linear-gradient(90deg, #cccccc, #999999)"
+                                  : "linear-gradient(135deg, #2575fc, #6a11cb)",
                               color: "white",
                               borderRadius: "12px",
                               border: "none",
                               fontSize: "0.9rem",
                               fontWeight: "bold",
-                              cursor: "pointer",
+                              cursor:
+                                user.assignedAdmin &&
+                                user.assignedAdmin !== userId
+                                  ? "not-allowed"
+                                  : "pointer",
                               boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
                               transition: "all 0.2s ease",
                             }}
                           >
-                            Assign to Me
+                            {user.assignedAdmin
+                              ? "Assigned to Another Admin"
+                              : "Assign to Me"}
                           </motion.button>
                         )}
                       </TableCell>
