@@ -28,7 +28,6 @@ const ValueAnalyticsDrawer = ({
         let relevantUserIds = [];
 
         if (role === "superadmin") {
-          // Superadmin sees only admins and their team members
           const response = await axios.get(
             "https://crm-server-amz7.onrender.com/api/users",
             {
@@ -43,8 +42,7 @@ const ValueAnalyticsDrawer = ({
           const teamMembers = response.data.filter(
             (user) =>
               typeof user.role === "string" &&
-              user.role.toLowerCase() === "others" &&
-              user.assignedAdmin
+              user.role.toLowerCase() === "others"
           );
           relevantUserIds = [...admins, ...teamMembers].map((user) => ({
             _id: user._id,
