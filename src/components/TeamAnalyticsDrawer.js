@@ -25,7 +25,7 @@ import * as XLSX from "xlsx";
 import DOMPurify from "dompurify";
 import { FixedSizeList } from "react-window";
 
-// Custom hook for API calls with pagination
+// Custom hook for API calls with pagination (unchanged)
 const useCachedApi = (url, token) => {
   const [data, setData] = useState([]);
   const [error, setError] = useState(null);
@@ -96,7 +96,7 @@ const useCachedApi = (url, token) => {
   };
 };
 
-// Reusable StatCard component
+// Reusable StatCard component (unchanged)
 const StatCard = ({ label, value, color }) => (
   <Box
     sx={{
@@ -137,7 +137,7 @@ const TeamAnalyticsDrawer = ({
   const [showZeroEntries, setShowZeroEntries] = useState(true);
   const [debugInfo, setDebugInfo] = useState(null);
 
-  // Fetch users from API
+  // Fetch users from API (unchanged)
   const {
     data: users,
     error,
@@ -148,7 +148,7 @@ const TeamAnalyticsDrawer = ({
     localStorage.getItem("token")
   );
 
-  // Log props for debugging
+  // Log props for debugging (unchanged)
   useEffect(() => {
     if (isOpen) {
       console.log("TeamAnalytics Props:", { role, entries, dateRange });
@@ -350,7 +350,6 @@ const TeamAnalyticsDrawer = ({
       const status = entry.status ? entry.status.toLowerCase() : null;
       const closetype = entry.closetype ? entry.closetype.toLowerCase() : null;
 
-      // Align status checks with AdminDrawer
       switch (status) {
         case "not interested":
           targetAnalytics.cold += 1;
@@ -430,6 +429,14 @@ const TeamAnalyticsDrawer = ({
           totalClosingAmount: 0,
         },
       };
+
+      // Calculate teamTotal.totalClosingAmount as sum of admin and members' closure amounts
+      const membersTotalClosingAmount = Object.values(
+        teamData.membersAnalytics
+      ).reduce((sum, member) => sum + (member.totalClosingAmount || 0), 0);
+      teamData.teamTotal.totalClosingAmount =
+        teamData.adminAnalytics.totalClosingAmount + membersTotalClosingAmount;
+
       return {
         adminId: admin._id,
         adminName: admin.username,
@@ -449,7 +456,7 @@ const TeamAnalyticsDrawer = ({
     return result;
   }, [users, entries, role, dateRange]);
 
-  // Modified useEffect to prevent multiple openings
+  // Modified useEffect to prevent multiple openings (unchanged)
   useEffect(() => {
     let isMounted = true;
 
@@ -467,7 +474,7 @@ const TeamAnalyticsDrawer = ({
     };
   }, [isOpen, role, onClose, teamStatsMemo]);
 
-  // Calculate overall stats
+  // Calculate overall stats (unchanged)
   const overallStats = useMemo(() => {
     const stats = teamStats.reduce(
       (acc, team) => ({
@@ -496,7 +503,7 @@ const TeamAnalyticsDrawer = ({
     return stats;
   }, [teamStats]);
 
-  // Export analytics to Excel
+  // Export analytics to Excel (unchanged)
   const handleExport = useCallback(() => {
     try {
       const exportData = [
@@ -528,6 +535,7 @@ const TeamAnalyticsDrawer = ({
             Won: team.adminAnalytics.closedWon,
             Lost: team.adminAnalytics.closedLost,
             "Total Closing Amount": team.adminAnalytics.totalClosingAmount,
+            "Team Total Closure": team.teamTotal.totalClosingAmount,
           },
           ...team.membersAnalytics
             .filter((m) => showZeroEntries || m.allTimeEntries > 0)
@@ -618,6 +626,13 @@ const TeamAnalyticsDrawer = ({
       valueFormatter: ({ value }) =>
         value != null ? `₹${value.toLocaleString("en-IN")}` : "₹0",
     },
+    {
+      field: "teamTotalClosingAmount",
+      headerName: "Team Total Closure (₹)",
+      width: 150,
+      valueFormatter: ({ value }) =>
+        value != null ? `₹${value.toLocaleString("en-IN")}` : "₹0",
+    },
   ];
 
   const summaryRows = useMemo(() => {
@@ -632,12 +647,13 @@ const TeamAnalyticsDrawer = ({
       closedWon: team.teamTotal.closedWon,
       closedLost: team.teamTotal.closedLost,
       totalClosingAmount: team.teamTotal.totalClosingAmount || 0,
+      teamTotalClosingAmount: team.teamTotal.totalClosingAmount || 0,
     }));
     console.log("Summary Rows:", rows);
     return rows;
   }, [teamStats]);
 
-  // Lazy-loaded team member list
+  // Lazy-loaded team member list (unchanged)
   const MemberRow = ({ index, style, data }) => {
     const member = data.members[index];
     if (!member) return null;
@@ -1085,6 +1101,13 @@ const TeamAnalyticsDrawer = ({
                             team.adminAnalytics.totalClosingAmount || 0
                           ).toLocaleString("en-IN")}`,
                           color: "lightgreen",
+                        },
+                        {
+                          label: "Team Total Closure",
+                          value: `₹${(
+                            team.teamTotal.totalClosingAmount || 0
+                          ).toLocaleString("en-IN")}`,
+                          color: "cyan",
                         },
                       ].map((stat) => (
                         <StatCard
