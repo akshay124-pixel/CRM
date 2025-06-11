@@ -121,6 +121,11 @@ export const statesAndCities = {
     "Surendranagar",
   ],
   Haryana: [
+    "Ch. Dadri",
+    "Mahendragarh",
+    "Nuh",
+    "Palwal",
+    "Gohana",
     "Bahadurgarh",
     "Gurugram",
     "Faridabad",
