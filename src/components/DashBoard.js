@@ -726,55 +726,40 @@ function DashBoard() {
         const worksheet = workbook.Sheets[sheetName];
         const parsedData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
+        // Send data as is, matching export format
         const newEntries = parsedData.map((item) => ({
-          customerName: item.Customer_Name?.trim() || "",
-          mobileNumber: item.Mobile_Number?.trim() || "",
-          contactperson: item.Contact_Person?.trim() || "",
-          firstdate:
-            item.First_Date && item.First_Date !== "Not Set"
-              ? new Date(item.First_Date)
-              : undefined,
-          address: item.Address?.trim() || "",
-          state: item.State?.trim() || "",
-          city: item.City?.trim() || "",
-          products:
-            item.Products && item.Products !== "N/A"
-              ? item.Products.split("; ").map((p) => {
-                  const [name, rest] = p.split(" (");
-                  const [spec, sizeQty] = rest?.split(", ") || ["", ""];
-                  const size = sizeQty?.split(", Qty: ")[0] || "";
-                  const quantity = parseInt(sizeQty?.split(", Qty: ")[1]) || 1;
-                  return { name, specification: spec, size, quantity };
-                })
-              : [],
-          type: item.Type?.trim() || "Customer",
-          organization: item.Organization?.trim() || "",
-          category: item.Category?.trim() || "",
-          remarks: item.Remarks?.trim() || "",
-          createdAt: item.Created_At ? new Date(item.Created_At) : new Date(),
-          status: item.Status?.trim() || "Not Found",
-          expectedClosingDate:
-            item.Expected_Closing_Date &&
-            item.Expected_Closing_Date !== "Not Set"
-              ? new Date(item.Expected_Closing_Date)
-              : undefined,
-          followUpDate:
-            item.Follow_Up_Date && item.Follow_Up_Date !== "Not Set"
-              ? new Date(item.Follow_Up_Date)
-              : undefined,
-          estimatedValue: item.Estimated_Value
+          Customer_Name: item.Customer_Name || "",
+          Mobile_Number: item.Mobile_Number || "",
+          Contact_Person: item.Contact_Person || "",
+          Address: item.Address || "",
+          State: item.State || "",
+          City: item.City || "",
+          Organization: item.Organization || "",
+          Category: item.Category || "",
+          createdBy: item.createdBy || "",
+          Created_At: item.Created_At ? new Date(item.Created_At) : new Date(),
+          Expected_Closing_Date: item.Expected_Closing_Date
+            ? new Date(item.Expected_Closing_Date)
+            : "",
+          Follow_Up_Date: item.Follow_Up_Date
+            ? new Date(item.Follow_Up_Date)
+            : "",
+          Remarks: item.Remarks || "",
+          Products: item.Products || "",
+          Type: item.Type || "",
+          Status: item.Status || "",
+          Close_Type: item.Close_Type || "",
+          Assigned_To: item.Assigned_To || "",
+          Estimated_Value: item.Estimated_Value
             ? Number(item.Estimated_Value)
-            : undefined,
-          closeamount: item.Close_Amount
-            ? Number(item.Close_Amount)
-            : undefined,
-          closetype: item.Close_Type?.trim() || "",
-          nextAction: item.Next_Action?.trim() || "",
-          liveLocation: item.Live_Location?.trim() || "",
-          firstPersonMeet: item.First_Person_Met?.trim() || "",
-          secondPersonMeet: item.Second_Person_Met?.trim() || "",
-          thirdPersonMeet: item.Third_Person_Met?.trim() || "",
-          fourthPersonMeet: item.Fourth_Person_Met?.trim() || "",
+            : "",
+          Close_Amount: item.Close_Amount ? Number(item.Close_Amount) : "",
+          Next_Action: item.Next_Action || "",
+          Live_Location: item.Live_Location || "",
+          First_Person_Met: item.First_Person_Met || "",
+          Second_Person_Met: item.Second_Person_Met || "",
+          Third_Person_Met: item.Third_Person_Met || "",
+          Fourth_Person_Met: item.Fourth_Person_Met || "",
         }));
 
         const response = await axios.post(
