@@ -726,7 +726,7 @@ function DashBoard() {
         const worksheet = workbook.Sheets[sheetName];
         const parsedData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-        // Send data as is, matching export format
+        // Send data as is, matching export format, with minimal processing
         const newEntries = parsedData.map((item) => ({
           Customer_Name: item.Customer_Name || "",
           Mobile_Number: item.Mobile_Number || "",
@@ -736,24 +736,17 @@ function DashBoard() {
           City: item.City || "",
           Organization: item.Organization || "",
           Category: item.Category || "",
-          createdBy: item.createdBy || "",
-          Created_At: item.Created_At ? new Date(item.Created_At) : new Date(),
-          Expected_Closing_Date: item.Expected_Closing_Date
-            ? new Date(item.Expected_Closing_Date)
-            : "",
-          Follow_Up_Date: item.Follow_Up_Date
-            ? new Date(item.Follow_Up_Date)
-            : "",
+          Created_At: item.Created_At || new Date().toISOString(),
+          Expected_Closing_Date: item.Expected_Closing_Date || "",
+          Follow_Up_Date: item.Follow_Up_Date || "",
           Remarks: item.Remarks || "",
           Products: item.Products || "",
           Type: item.Type || "",
           Status: item.Status || "",
           Close_Type: item.Close_Type || "",
           Assigned_To: item.Assigned_To || "",
-          Estimated_Value: item.Estimated_Value
-            ? Number(item.Estimated_Value)
-            : "",
-          Close_Amount: item.Close_Amount ? Number(item.Close_Amount) : "",
+          Estimated_Value: item.Estimated_Value || "",
+          Close_Amount: item.Close_Amount || "",
           Next_Action: item.Next_Action || "",
           Live_Location: item.Live_Location || "",
           First_Person_Met: item.First_Person_Met || "",
