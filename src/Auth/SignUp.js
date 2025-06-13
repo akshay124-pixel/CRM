@@ -195,8 +195,8 @@ function Signup({ onAuthSuccess }) {
               className="input"
               required
             >
-              <option value="superadmin">Superadmin</option>
-              <option value="admin">Admin</option>
+              {/* <option value="superadmin">Superadmin</option>
+              <option value="admin">Admin</option> */}
               <option value="others">Others</option>
             </select>
           </div>
