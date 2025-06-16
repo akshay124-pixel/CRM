@@ -1230,8 +1230,8 @@ export const productOptions = [
   },
   {
     name: "Writing Board",
-    sizes: ["N/A"],
-    specifications: ["N/A"],
+    sizes: ["4X8", "4X10", "4X12"],
+    specifications: ["Green", "White"],
   },
   {
     name: "LED Video Wall",
