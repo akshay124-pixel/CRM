@@ -1,6 +1,20 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "react-bootstrap";
+import { FaBell } from "react-icons/fa";
+import {
+  Drawer,
+  List,
+  ListItem,
+  ListItemText,
+  Divider,
+  Box,
+  Typography,
+  Badge,
+  Button as MuiButton,
+} from "@mui/material";
+import axios from "axios";
+import io from "socket.io-client";
 
 const Navbar = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(
@@ -10,14 +24,19 @@ const Navbar = () => {
   const [userRole, setUserRole] = useState("");
   const [isDropdownOpen, setDropdownOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationPage, setNotificationPage] = useState(1);
+  const [hasMoreNotifications, setHasMoreNotifications] = useState(true);
   const navigate = useNavigate();
+  const [socket, setSocket] = useState(null);
 
   // Function to update auth state from localStorage
   const updateAuthState = useCallback(() => {
     const token = localStorage.getItem("token");
     const user = JSON.parse(localStorage.getItem("user") || "{}");
 
-    // Debugging: Log user data
     console.log("Navbar: Retrieved user from localStorage:", user);
 
     setIsAuthenticated(!!token);
@@ -25,18 +44,105 @@ const Navbar = () => {
     setUserRole(user.role || "");
   }, []);
 
+  // Replace the Socket.IO useEffect block with this
+  useEffect(() => {
+    if (isAuthenticated) {
+      const token = localStorage.getItem("token");
+      const socketInstance = io("http://localhost:4000", {
+        auth: { token: `Bearer ${token}` },
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+      });
+
+      socketInstance.on("connect", () => {
+        console.log("Socket connected:", socketInstance.id);
+      });
+
+      socketInstance.on("newNotification", (notification) => {
+        console.log("New notification received:", notification);
+        setNotifications((prev) => {
+          if (prev.some((n) => n._id === notification._id)) {
+            console.log("Duplicate notification ignored:", notification._id);
+            return prev;
+          }
+          return [notification, ...prev];
+        });
+        if (!notification.read) {
+          setUnreadCount((prev) => prev + 1);
+        }
+      });
+
+      socketInstance.on("notificationsCleared", () => {
+        console.log("Notifications cleared via socket");
+        setNotifications([]);
+        setUnreadCount(0);
+        setNotificationPage(1);
+        setHasMoreNotifications(false);
+      });
+
+      socketInstance.on("connect_error", (error) => {
+        console.error("Socket connection error:", error.message);
+        if (error.message.includes("Authentication error")) {
+          console.warn("Attempting to reconnect with new token");
+          socketInstance.auth.token = `Bearer ${localStorage.getItem("token")}`;
+          socketInstance.connect();
+        }
+      });
+
+      socketInstance.on("error", (error) => {
+        console.error("Socket error:", error.message);
+      });
+
+      setSocket(socketInstance);
+
+      return () => {
+        socketInstance.disconnect();
+        console.log("Socket disconnected");
+      };
+    }
+  }, [isAuthenticated]);
+
+  // Fetch initial notifications
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+        const response = await axios.get(
+          "http://localhost:4000/api/notifications",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            params: { page: notificationPage, limit: 10 },
+          }
+        );
+        const { data, pagination } = response.data;
+        setNotifications((prev) =>
+          notificationPage === 1 ? data : [...prev, ...data]
+        );
+        setUnreadCount(data.filter((n) => !n.read).length);
+        setHasMoreNotifications(pagination.currentPage < pagination.totalPages);
+      } catch (error) {
+        console.error("Error fetching notifications:", error);
+      }
+    };
+
+    if (isAuthenticated) {
+      fetchNotifications();
+    }
+  }, [isAuthenticated, notificationPage]);
+
   // Run on mount and listen for storage/auth changes
   useEffect(() => {
-    updateAuthState(); // Initial state
+    updateAuthState();
 
-    // Listen for storage changes (e.g., login in another tab)
     const handleStorageChange = () => {
       console.log("Navbar: Storage event triggered");
       updateAuthState();
     };
     window.addEventListener("storage", handleStorageChange);
 
-    // Listen for same-tab auth changes (triggered by login/signup)
     const handleAuthChange = () => {
       console.log("Navbar: Auth change event triggered");
       updateAuthState();
@@ -49,6 +155,51 @@ const Navbar = () => {
     };
   }, [updateAuthState]);
 
+  const handleMarkAsRead = async (notificationIds) => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      await axios.post(
+        "http://localhost:4000/api/notificationsread",
+        { notificationIds },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setNotifications((prev) =>
+        prev.map((n) =>
+          notificationIds.includes(n._id) ? { ...n, read: true } : n
+        )
+      );
+      setUnreadCount((prev) => prev - notificationIds.length);
+    } catch (error) {
+      console.error("Error marking notifications as read:", error);
+    }
+  };
+
+  const handleClearNotifications = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      await axios.delete("http://localhost:4000/api/notificationsdelete", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      // Socket event will handle state update
+    } catch (error) {
+      console.error("Error clearing notifications:", error);
+    }
+  };
+
+  const handleLoadMoreNotifications = () => {
+    if (hasMoreNotifications) {
+      setNotificationPage((prev) => prev + 1);
+    }
+  };
+
+  const toggleNotificationDrawer = () => {
+    setNotificationDrawerOpen((prev) => !prev);
+  };
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -57,6 +208,9 @@ const Navbar = () => {
     setIsAuthenticated(false);
     setUserName("User");
     setUserRole("");
+    setNotifications([]);
+    setUnreadCount(0);
+    if (socket) socket.disconnect();
     window.dispatchEvent(new Event("authChange"));
     navigate("/login");
   };
@@ -105,6 +259,18 @@ const Navbar = () => {
     }
   };
 
+  // Format timestamp
+  const formatTimestamp = (timestamp) => {
+    return new Date(timestamp).toLocaleString("en-US", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
   return (
     <>
       <style>
@@ -123,7 +289,7 @@ const Navbar = () => {
           }
           .navbar {
             animation: fadeIn 0.5s ease-out;
-              background: linear-gradient(135deg, #2575fc, #6a11cb);
+            background: linear-gradient(135deg, #2575fc, #6a11cb);
           }
           .menu-toggle {
             display: none;
@@ -134,6 +300,31 @@ const Navbar = () => {
             width: 20px;
             height: 20px;
             fill: white;
+          }
+          .navbar-notification {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: linear-gradient(90deg, rgba(255,255,255,0.2), transparent);
+            cursor: pointer;
+            transition: transform 0.2s ease, background 0.3s ease;
+          }
+          .navbar-notification:hover {
+            transform: scale(1.1);
+            background: white;
+          }
+          .navbar-notification .badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            font-size: 0.6rem;
+            min-width: 16px;
+            height: 16px;
+            padding: 0 4px;
           }
           @media (max-width: 767px) {
             .navbar {
@@ -219,6 +410,16 @@ const Navbar = () => {
               justify-content: center;
               align-items: center;
             }
+            .navbar-notification {
+              width: 28px;
+              height: 28px;
+            }
+            .navbar-notification .badge {
+              font-size: 0.5rem;
+              min-width: 14px;
+              height: 14px;
+              padding: 0 3px;
+            }
           }
         `}
       </style>
@@ -296,6 +497,22 @@ const Navbar = () => {
             paddingRight: "1rem",
           }}
         >
+          {isAuthenticated && (
+            <button
+              className="navbar-notification"
+              onClick={toggleNotificationDrawer}
+              aria-label="View notifications"
+            >
+              <FaBell size={16} color="white" />
+              {unreadCount > 0 && (
+                <Badge
+                  badgeContent={unreadCount}
+                  color="error"
+                  classes={{ badge: "badge" }}
+                />
+              )}
+            </button>
+          )}
           {isAuthenticated ? (
             <>
               <div
@@ -446,6 +663,171 @@ const Navbar = () => {
           )}
         </div>
       </nav>
+      <Drawer
+        anchor="right"
+        open={notificationDrawerOpen}
+        onClose={toggleNotificationDrawer}
+        sx={{
+          "& .MuiDrawer-paper": {
+            width: { xs: "80%", sm: "400px" },
+            bgcolor: "#f5f7fa",
+            borderLeft: "2px solid #2575fc",
+            boxShadow: "0 6px 18px rgba(0, 0, 0, 0.1)",
+          },
+        }}
+      >
+        <Box
+          sx={{
+            p: 2,
+            display: "flex",
+            flexDirection: "column",
+            height: "100%",
+          }}
+        >
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 2,
+            }}
+          >
+            <Typography variant="h6" sx={{ fontWeight: "bold", color: "#333" }}>
+              Notifications
+            </Typography>
+            <MuiButton
+              variant="text"
+              onClick={toggleNotificationDrawer}
+              sx={{
+                color: "#666",
+                fontSize: "1.2rem",
+                minWidth: "auto",
+                "&:hover": { color: "#2575fc" },
+              }}
+            >
+              ✕
+            </MuiButton>
+          </Box>
+          <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+            <MuiButton
+              variant="contained"
+              onClick={() =>
+                handleMarkAsRead(
+                  notifications.filter((n) => !n.read).map((n) => n._id)
+                )
+              }
+              disabled={unreadCount === 0}
+              sx={{
+                flex: 1,
+                background: "linear-gradient(135deg, #2575fc, #6a11cb)",
+                color: "white",
+                borderRadius: "12px",
+                fontWeight: "bold",
+                "&:hover": {
+                  background: "linear-gradient(135deg, #6a11cb, #2575fc)",
+                },
+              }}
+            >
+              Mark All as Read
+            </MuiButton>
+            <MuiButton
+              variant="contained"
+              onClick={handleClearNotifications}
+              disabled={notifications.length === 0}
+              sx={{
+                flex: 1,
+                background: "linear-gradient(135deg, #ff4d4f, #cf1322)",
+                color: "white",
+                borderRadius: "12px",
+                fontWeight: "bold",
+                "&:hover": {
+                  background: "linear-gradient(135deg, #cf1322, #ff4d4f)",
+                },
+              }}
+            >
+              Clear All
+            </MuiButton>
+          </Box>
+          <Divider sx={{ mb: 2, bgcolor: "#ddd" }} />
+          <Box sx={{ flex: 1, overflowY: "auto" }}>
+            <List>
+              {notifications.length === 0 ? (
+                <ListItem>
+                  <ListItemText
+                    primary="No notifications"
+                    primaryTypographyProps={{
+                      color: "#666",
+                      textAlign: "center",
+                    }}
+                  />
+                </ListItem>
+              ) : (
+                notifications.map((notification) => (
+                  <ListItem
+                    key={notification._id}
+                    button
+                    onClick={() => {
+                      if (notification.entryId) {
+                        navigate(
+                          `/dashboard?entryId=${notification.entryId._id}`
+                        );
+                        toggleNotificationDrawer();
+                      }
+                      if (!notification.read) {
+                        handleMarkAsRead([notification._id]);
+                      }
+                    }}
+                    sx={{
+                      bgcolor: notification.read
+                        ? "transparent"
+                        : "rgba(37, 117, 252, 0.1)",
+                      mb: 1,
+                      borderRadius: "8px",
+                      "&:hover": {
+                        bgcolor: "rgba(37, 117, 252, 0.2)",
+                      },
+                      transition: "all 0.3s ease",
+                    }}
+                  >
+                    <ListItemText
+                      primary={notification.message}
+                      secondary={formatTimestamp(notification.timestamp)}
+                      primaryTypographyProps={{
+                        fontWeight: notification.read ? "normal" : "bold",
+                        fontSize: "0.9rem",
+                        color: "#333",
+                      }}
+                      secondaryTypographyProps={{
+                        fontSize: "0.8rem",
+                        color: "#555",
+                      }}
+                    />
+                  </ListItem>
+                ))
+              )}
+            </List>
+          </Box>
+          {hasMoreNotifications && (
+            <MuiButton
+              fullWidth
+              variant="outlined"
+              onClick={handleLoadMoreNotifications}
+              sx={{
+                mt: 2,
+                borderColor: "#2575fc",
+                color: "#2575fc",
+                borderRadius: "12px",
+                "&:hover": {
+                  bgcolor: "rgba(37, 117, 252, 0.1)",
+                  borderColor: "#6a11cb",
+                },
+              }}
+            >
+              Load More
+            </MuiButton>
+          )}
+        </Box>
+      </Drawer>
     </>
   );
 };
