@@ -48,7 +48,7 @@ const Navbar = () => {
   useEffect(() => {
     if (isAuthenticated) {
       const token = localStorage.getItem("token");
-      const socketInstance = io("http://localhost:4000", {
+      const socketInstance = io("https://crm-server-amz7.onrender.com", {
         auth: { token: `Bearer ${token}` },
         reconnection: true,
         reconnectionAttempts: 5,
@@ -111,7 +111,7 @@ const Navbar = () => {
         const token = localStorage.getItem("token");
         if (!token) return;
         const response = await axios.get(
-          "http://localhost:4000/api/notifications",
+          "https://crm-server-amz7.onrender.com/api/notifications",
           {
             headers: { Authorization: `Bearer ${token}` },
             params: { page: notificationPage, limit: 10 },
@@ -160,7 +160,7 @@ const Navbar = () => {
       const token = localStorage.getItem("token");
       if (!token) return;
       await axios.post(
-        "http://localhost:4000/api/notificationsread",
+        "https://crm-server-amz7.onrender.com/api/notificationsread",
         { notificationIds },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -181,9 +181,12 @@ const Navbar = () => {
     try {
       const token = localStorage.getItem("token");
       if (!token) return;
-      await axios.delete("http://localhost:4000/api/notificationsdelete", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await axios.delete(
+        "https://crm-server-amz7.onrender.com/api/notificationsdelete",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       // Socket event will handle state update
     } catch (error) {
       console.error("Error clearing notifications:", error);
