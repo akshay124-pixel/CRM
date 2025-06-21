@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Drawer, Box, Typography, IconButton } from "@mui/material";
 import { FaTimes } from "react-icons/fa";
@@ -11,45 +11,9 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
   const [userStats, setUserStats] = useState([]);
   const [loading, setLoading] = useState(false);
   const [debugInfo, setDebugInfo] = useState(null);
-  const [cachedUsers, setCachedUsers] = useState(null);
 
-  // Normalize ID from various formats
-  const normalizeId = (idObj) => {
-    if (!idObj) return null;
-    return (
-      idObj.$oid?.toString() || idObj.toString() || idObj.id?.toString() || null
-    );
-  };
-
-  // Filter entries based on date range
-  const filteredEntries = useMemo(() => {
-    if (!dateRange?.[0]?.startDate || !dateRange?.[0]?.endDate) {
-      console.warn("Invalid date range, using all entries");
-      return entries;
-    }
-
-    const startDate = new Date(dateRange[0].startDate);
-    const endDate = new Date(dateRange[0].endDate);
-    if (isNaN(startDate) || isNaN(endDate)) {
-      console.warn("Invalid date range values:", dateRange);
-      return entries;
-    }
-
-    return entries.filter((entry) => {
-      const createdAt = new Date(entry.createdAt);
-      return (
-        !isNaN(createdAt) && createdAt >= startDate && createdAt <= endDate
-      );
-    });
-  }, [entries, dateRange]);
-
-  // Fetch users with caching
+  // Fetch users from API
   const fetchUsers = useCallback(async () => {
-    if (cachedUsers) {
-      console.log("Using cached users:", cachedUsers.length);
-      return cachedUsers;
-    }
-
     setLoading(true);
     setDebugInfo(null);
     try {
@@ -67,43 +31,37 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
       let hasMore = true;
 
       while (hasMore) {
-        try {
-          const response = await axios.get(apiUrl, {
-            headers: { Authorization: `Bearer ${token}` },
-            params: { limit: 100, page },
-            timeout: 10000,
-          });
+        const response = await axios.get(apiUrl, {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { limit: 100, page },
+        });
+        console.log(`API Response (Page ${page}):`, response.data);
 
-          const normalizedPage = response.data.map((user) => ({
-            _id: normalizeId(user._id) || normalizeId(user.id) || "",
-            username: DOMPurify.sanitize(user.username || "Unknown"),
-            role:
-              typeof user.role === "string"
-                ? user.role.toLowerCase()
-                : "unknown",
-            assignedAdmins: Array.isArray(user.assignedAdmins)
-              ? user.assignedAdmins.map(normalizeId).filter(Boolean)
-              : [],
-          }));
+        const normalizedPage = response.data.map((user) => ({
+          _id:
+            user._id?.$oid?.toString() ||
+            user._id?.toString() ||
+            user.id?.toString() ||
+            "",
+          username: DOMPurify.sanitize(user.username || "Unknown"),
+          role:
+            typeof user.role === "string" ? user.role.toLowerCase() : "unknown",
+          assignedAdmins: Array.isArray(user.assignedAdmins)
+            ? user.assignedAdmins.map(
+                (id) => id?.$oid?.toString() || id?.toString() || id
+              )
+            : [],
+        }));
 
-          allUsers = [...allUsers, ...normalizedPage];
-          hasMore = response.data.length === 100;
-          page += 1;
-        } catch (pageError) {
-          console.error(`Error fetching page ${page}:`, pageError);
-          setDebugInfo(`Failed to fetch users for page ${page}`);
-          break;
-        }
+        allUsers = [...allUsers, ...normalizedPage];
+        hasMore = response.data.length === 100;
+        page += 1;
       }
 
-      if (!allUsers.length) {
-        setDebugInfo("No users fetched from API");
-        return [];
-      }
+      console.log("Normalized Users:", allUsers);
+      console.log(`Total Users Fetched: ${allUsers.length}`);
 
-      console.log("Normalized Users:", allUsers.length);
-
-      // Filter relevant users
+      // Filter users based on role
       let relevantUsers;
       if (role === "superadmin") {
         relevantUsers = allUsers.filter(
@@ -119,11 +77,12 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
         relevantUsers = allUsers.filter((user) => user._id === userId);
       }
 
-      if (!relevantUsers.length) {
-        setDebugInfo("No relevant users found for role: " + role);
+      console.log("Relevant Users:", relevantUsers);
+
+      if (relevantUsers.length === 0) {
+        setDebugInfo("No relevant users found for the given role");
       }
 
-      setCachedUsers(relevantUsers);
       return relevantUsers;
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -133,150 +92,201 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
     } finally {
       setLoading(false);
     }
-  }, [role, userId, cachedUsers]);
-
-  // Calculate stats
-  const calculateStats = useCallback(async () => {
-    const users = await fetchUsers();
-    if (!users.length) {
-      setUserStats([]);
-      setDebugInfo("No relevant users found");
-      return;
-    }
-
-    if (!filteredEntries.length) {
-      setUserStats([]);
-      setDebugInfo("No entries found for the selected date range");
-      return;
-    }
-
-    console.log("Filtered Entries Count:", filteredEntries.length);
-
-    const statsMap = {};
-    const processedEntryIds = new Set();
-
-    filteredEntries.forEach((entry) => {
-      if (!entry._id || processedEntryIds.has(entry._id)) return;
-      processedEntryIds.add(entry._id);
-
-      const creatorId = normalizeId(entry.createdBy?._id || entry.createdBy);
-      const assignedTo = Array.isArray(entry.assignedTo)
-        ? entry.assignedTo.map((user) => normalizeId(user._id || user))
-        : [];
-
-      const uniqueUserIds = new Set([creatorId, ...assignedTo].filter(Boolean));
-
-      uniqueUserIds.forEach((uId) => {
-        const user = users.find((u) => u._id === uId);
-        if (!user) {
-          console.warn(`User ${uId} not found for entry ${entry._id}`);
-          return;
-        }
-
-        if (!statsMap[uId]) {
-          let displayName = user.username;
-          if (role === "superadmin" && user.role === "admin") {
-            displayName = `${user.username} (Admin)`;
-          } else if (role === "superadmin" && user.role === "others") {
-            displayName = user.username;
-          } else if (uId === userId && role === "admin") {
-            displayName = `${user.username} (Admin)`;
-          }
-          statsMap[uId] = {
-            _id: uId,
-            username: displayName,
-            allTimeEntries: 0,
-            monthEntries: 0,
-            cold: 0,
-            warm: 0,
-            hot: 0,
-            closedWon: 0,
-            closedLost: 0,
-          };
-        }
-
-        statsMap[uId].allTimeEntries += 1;
-
-        const entryDate = new Date(entry.createdAt);
-        const now = new Date();
-        if (
-          !isNaN(entryDate) &&
-          entryDate.getMonth() === now.getMonth() &&
-          entryDate.getFullYear() === now.getFullYear()
-        ) {
-          statsMap[uId].monthEntries += 1;
-        }
-
-        const status = entry.status?.toLowerCase() || "";
-        const closetype = entry.closetype?.toLowerCase() || "";
-
-        switch (status) {
-          case "not interested":
-            statsMap[uId].cold += 1;
-            break;
-          case "maybe":
-            statsMap[uId].warm += 1;
-            break;
-          case "interested":
-            statsMap[uId].hot += 1;
-            break;
-          case "closed":
-            if (closetype === "closed won") {
-              statsMap[uId].closedWon += 1;
-            } else if (closetype === "closed lost") {
-              statsMap[uId].closedLost += 1;
-            }
-            break;
-          default:
-            console.warn(`Unknown status for entry ${entry._id}: ${status}`);
-            break;
-        }
-      });
-    });
-
-    const result = Object.values(statsMap);
-    console.log("Calculated User Stats:", result);
-    setUserStats(result);
-
-    if (!result.length && filteredEntries.length) {
-      setDebugInfo("No stats generated; check user IDs or entry data");
-    }
-  }, [filteredEntries, fetchUsers, role, userId]);
+  }, [role, userId]);
 
   useEffect(() => {
-    if (isOpen) {
-      calculateStats();
-    } else {
-      setCachedUsers(null); // Clear cache when drawer closes
-    }
-  }, [isOpen, calculateStats]);
+    if (!isOpen) return;
+
+    const calculateStats = async () => {
+      const users = await fetchUsers();
+      if (!users.length) {
+        setUserStats([]);
+        return;
+      }
+
+      const statsMap = {};
+      const filteredEntries = entries.filter((entry) => {
+        const createdAt = new Date(entry.createdAt);
+        return (
+          !dateRange[0]?.startDate ||
+          !dateRange[0]?.endDate ||
+          (createdAt >= new Date(dateRange[0].startDate) &&
+            createdAt <= new Date(dateRange[0].endDate))
+        );
+      });
+
+      console.log("Filtered Entries Count:", filteredEntries.length);
+      filteredEntries.forEach((entry, index) => {
+        console.log(`Entry ${index + 1}:`, {
+          id: entry._id,
+          createdBy: entry.createdBy,
+          assignedTo: entry.assignedTo,
+          status: entry.status,
+          closetype: entry.closetype,
+          createdAt: entry.createdAt,
+        });
+      });
+
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      filteredEntries.forEach((entry) => {
+        // Process createdBy
+        const creatorId = entry.createdBy
+          ? entry.createdBy._id?.toString() ||
+            entry.createdBy.$oid?.toString() ||
+            entry.createdBy.toString()
+          : null;
+        if (creatorId) {
+          const creator = users.find((user) => user._id === creatorId);
+          if (creator) {
+            processUserStats(
+              creator,
+              entry,
+              statsMap,
+              role,
+              userId,
+              currentMonth,
+              currentYear
+            );
+          } else {
+            console.warn(
+              `Creator ${creatorId} not found in relevant users for entry:`,
+              entry._id
+            );
+          }
+        }
+
+        // Process assignedTo
+        const assignedTo = Array.isArray(entry.assignedTo)
+          ? entry.assignedTo
+          : [];
+        assignedTo.forEach((user) => {
+          const assignedUserId =
+            user._id?.toString() || user.$oid?.toString() || user.toString();
+          const assignedUser = users.find((u) => u._id === assignedUserId);
+          if (assignedUser) {
+            processUserStats(
+              assignedUser,
+              entry,
+              statsMap,
+              role,
+              userId,
+              currentMonth,
+              currentYear
+            );
+          } else {
+            console.warn(
+              `Assigned user ${assignedUserId} not found for entry:`,
+              entry._id
+            );
+          }
+        });
+      });
+
+      const result = Object.values(statsMap);
+      console.log("Calculated User Stats:", result);
+      setUserStats(result);
+
+      if (result.length === 0 && filteredEntries.length > 0) {
+        setDebugInfo("No matching stats generated; check user IDs in entries");
+      }
+    };
+
+    const processUserStats = (
+      user,
+      entry,
+      statsMap,
+      role,
+      userId,
+      currentMonth,
+      currentYear
+    ) => {
+      const uId = user._id;
+      if (!statsMap[uId]) {
+        let displayName = user.username;
+        if (role === "superadmin" && user.role === "admin") {
+          displayName = `${user.username} (Admin)`;
+        } else if (role === "superadmin" && user.role === "others") {
+          displayName = user.username;
+        } else if (uId === userId && role === "admin") {
+          displayName = `${user.username} (Admin)`;
+        }
+        statsMap[uId] = {
+          _id: uId,
+          username: displayName,
+          allTimeEntries: 0,
+          monthEntries: 0,
+          cold: 0,
+          warm: 0,
+          hot: 0,
+          closedWon: 0,
+          closedLost: 0,
+        };
+      }
+
+      statsMap[uId].allTimeEntries += 1;
+
+      const entryDate = new Date(entry.createdAt);
+      if (
+        entryDate.getMonth() === currentMonth &&
+        entryDate.getFullYear() === currentYear
+      ) {
+        statsMap[uId].monthEntries += 1;
+      }
+
+      switch (entry.status) {
+        case "Not Interested":
+          statsMap[uId].cold += 1;
+          break;
+        case "Maybe":
+          statsMap[uId].warm += 1;
+          break;
+        case "Interested":
+          statsMap[uId].hot += 1;
+          break;
+        case "Closed":
+          if (entry.closetype === "Closed Won") {
+            statsMap[uId].closedWon += 1;
+          } else if (entry.closetype === "Closed Lost") {
+            statsMap[uId].closedLost += 1;
+          }
+          break;
+        default:
+          break;
+      }
+    };
+
+    calculateStats();
+  }, [isOpen, entries, dateRange, fetchUsers, role, userId]);
 
   // Calculate overall statistics
-  const overallStats = useMemo(() => {
-    return userStats.reduce(
-      (acc, user) => ({
-        total: acc.total + user.allTimeEntries,
-        monthTotal: acc.monthTotal + user.monthEntries,
-        cold: acc.cold + user.cold,
-        warm: acc.warm + user.warm,
-        hot: acc.hot + user.hot,
-        closedWon: acc.closedWon + user.closedWon,
-        closedLost: acc.closedLost + user.closedLost,
-      }),
-      {
-        total: 0,
-        monthTotal: 0,
-        cold: 0,
-        warm: 0,
-        hot: 0,
-        closedWon: 0,
-        closedLost: 0,
-      }
-    );
-  }, [userStats]);
+  const overallStats = userStats.reduce(
+    (acc, user) => ({
+      total: acc.total + user.allTimeEntries,
+      monthTotal: acc.monthTotal + user.monthEntries,
+      cold: acc.cold + user.cold,
+      warm: acc.warm + user.warm,
+      hot: acc.hot + user.hot,
+      closedWon: acc.closedWon + user.closedWon,
+      closedLost: acc.closedLost + user.closedLost,
+    }),
+    {
+      total: 0,
+      monthTotal: 0,
+      cold: 0,
+      warm: 0,
+      hot: 0,
+      closedWon: 0,
+      closedLost: 0,
+    }
+  );
 
-  // Export to Excel
-  const handleExport = useCallback(() => {
+  console.log("Overall Analytics Stats:", overallStats);
+
+  // Handle export to Excel
+  const handleExport = () => {
     try {
       const exportData = [
         {
@@ -322,7 +332,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
         wch: Math.min(Math.max(key.length, 15) + 2, 50),
       }));
 
-      const dateStr = dateRange?.[0]?.startDate
+      const dateStr = dateRange[0]?.startDate
         ? `${new Date(dateRange[0].startDate)
             .toISOString()
             .slice(0, 10)}_to_${new Date(dateRange[0].endDate)
@@ -335,7 +345,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
       console.error("Error exporting analytics:", error);
       toast.error("Failed to export analytics!");
     }
-  }, [overallStats, dateRange]);
+  };
 
   return (
     <Drawer
@@ -355,6 +365,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
         },
       }}
     >
+      {/* Header */}
       <Box
         sx={{
           padding: "24px",
@@ -389,6 +400,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
         </IconButton>
       </Box>
 
+      {/* Content */}
       <Box sx={{ flex: 1, overflowY: "auto", px: 3, py: 4 }}>
         {loading ? (
           <Box
@@ -412,7 +424,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
               Loading Analytics...
             </Typography>
           </Box>
-        ) : debugInfo || !userStats.length ? (
+        ) : debugInfo || userStats.length === 0 ? (
           <Box
             sx={{
               display: "flex",
@@ -439,6 +451,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
           </Box>
         ) : (
           <>
+            {/* Overall Statistics Section */}
             <Box sx={{ mb: 3 }}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -610,6 +623,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
               </motion.div>
             </Box>
 
+            {/* Individual User Stats */}
             {userStats.map((user, index) => (
               <Box key={user._id || user.username + index} sx={{ mb: 3 }}>
                 <motion.div
@@ -723,6 +737,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
         )}
       </Box>
 
+      {/* Footer */}
       <Box
         sx={{
           p: 3,
