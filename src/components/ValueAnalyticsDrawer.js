@@ -48,10 +48,9 @@ const ValueAnalyticsDrawer = ({
             _id: user._id,
             username: user.username,
             role: user.role,
-            assignedAdmin: user.assignedAdmin,
+            assignedAdmins: user.assignedAdmins || [],
           }));
         } else if (role === "admin") {
-          // Admin sees their own data and assigned users' data
           const response = await axios.get(
             "https://crm-server-amz7.onrender.com/api/users",
             {
@@ -60,25 +59,31 @@ const ValueAnalyticsDrawer = ({
           );
           relevantUserIds = response.data
             .filter(
-              (user) => user.assignedAdmin === userId || user._id === userId
+              (user) =>
+                user.assignedAdmins?.includes(userId) || user._id === userId
             )
             .map((user) => ({
               _id: user._id,
               username: user.username,
               role: user.role,
-              assignedAdmin: user.assignedAdmin,
+              assignedAdmins: user.assignedAdmins || [],
             }));
         } else {
-          // Role 'others' sees only their own data
           relevantUserIds = [{ _id: userId, username: "Self", role: "others" }];
         }
 
-        const statsMap = {};
-        let totalClose = 0;
-        let totalHot = 0;
-        let totalWarm = 0;
+        console.log(
+          "Relevant User IDs:",
+          relevantUserIds.map((u) => ({
+            id: u._id,
+            username: u.username,
+            role: u.role,
+          }))
+        );
 
-        // Filter entries by date range
+        const statsMap = {};
+        const totals = { totalClose: 0, totalHot: 0, totalWarm: 0 };
+
         const filteredEntries = entries.filter((entry) => {
           const createdAt = new Date(entry.createdAt);
           return (
@@ -89,89 +94,71 @@ const ValueAnalyticsDrawer = ({
           );
         });
 
-        filteredEntries.forEach((entry) => {
-          const creatorId =
-            entry.createdBy?._id ||
-            entry.createdBy?.$oid ||
-            entry.createdBy ||
-            null;
-          const creator = relevantUserIds.find((u) => u._id === creatorId);
-          if (!creator) {
+        console.log("Filtered Entries Count:", filteredEntries.length);
+
+        filteredEntries.forEach((entry, index) => {
+          console.log(`Entry ${index + 1}:`, {
+            id: entry._id,
+            createdBy: entry.createdBy,
+            assignedTo: entry.assignedTo,
+            closetype: entry.closetype,
+            closeamount: entry.closeamount,
+            status: entry.status,
+            estimatedValue: entry.estimatedValue,
+          });
+
+          // Process createdBy
+          const creatorId = entry.createdBy
+            ? entry.createdBy._id?.toString() ||
+              entry.createdBy.$oid?.toString() ||
+              entry.createdBy.toString()
+            : null;
+          const creator = relevantUserIds.find(
+            (u) => u._id.toString() === creatorId
+          );
+          if (creator) {
+            processUserStats(creator, entry, statsMap, totals, role, userId);
+          } else {
             console.warn(
-              `ValueAnalytics: Creator not found for entry ${entry._id}:`,
-              entry
+              `Creator not found for entry ${entry._id}:`,
+              creatorId
             );
-            return;
           }
 
-          const uId = creator._id;
-          const username = creator.username;
-          const userRole =
-            typeof creator.role === "string"
-              ? creator.role.toLowerCase()
-              : "user";
-
-          if (
-            (role === "superadmin" &&
-              (userRole === "admin" || userRole === "others")) ||
-            (role === "admin" &&
-              (uId === userId || creator.assignedAdmin === userId)) ||
-            (role === "others" && uId === userId)
-          ) {
-            if (!statsMap[uId]) {
-              let displayName = username;
-              if (userRole === "superadmin") {
-                displayName = `${username} (Superadmin)`;
-              } else if (userRole === "admin") {
-                displayName = `${username} (Admin)`;
-              }
-              statsMap[uId] = {
-                username: displayName,
-                totalClosingAmount: 0,
-                hotValue: 0,
-                warmValue: 0,
-              };
-            }
-            if (
-              entry.closeamount != null &&
-              entry.closetype === "Closed Won" &&
-              typeof entry.closeamount === "number" &&
-              !isNaN(entry.closeamount)
-            ) {
-              console.log(
-                `ValueAnalytics: Adding closeamount for entry ${entry._id} by ${username}: ₹${entry.closeamount}`
+          // Process assignedTo
+          const assignedTo = Array.isArray(entry.assignedTo)
+            ? entry.assignedTo
+            : [];
+          assignedTo.forEach((user) => {
+            const userId =
+              user._id?.toString() || user.$oid?.toString() || user.toString();
+            const assignedUser = relevantUserIds.find(
+              (u) => u._id.toString() === userId
+            );
+            if (assignedUser) {
+              processUserStats(
+                assignedUser,
+                entry,
+                statsMap,
+                totals,
+                role,
+                userId
               );
-              statsMap[uId].totalClosingAmount += entry.closeamount;
-              totalClose += entry.closeamount;
-            } else if (
-              entry.closetype === "Closed Won" &&
-              (entry.closeamount == null || isNaN(entry.closeamount))
-            ) {
+            } else {
               console.warn(
-                `ValueAnalytics: Invalid closeamount for entry ${entry._id}:`,
-                entry
+                `Assigned user not found for entry ${entry._id}:`,
+                userId
               );
             }
-            if (
-              entry.estimatedValue != null &&
-              typeof entry.estimatedValue === "number" &&
-              !isNaN(entry.estimatedValue)
-            ) {
-              if (entry.status === "Interested") {
-                statsMap[uId].hotValue += entry.estimatedValue;
-                totalHot += entry.estimatedValue;
-              } else if (entry.status === "Maybe") {
-                statsMap[uId].warmValue += entry.estimatedValue;
-                totalWarm += entry.estimatedValue;
-              }
-            }
-          }
+          });
         });
 
+        console.log("Stats Map:", statsMap);
+
         setValueStats(Object.values(statsMap));
-        setTotalClosingAmount(totalClose);
-        setTotalHotValue(totalHot);
-        setTotalWarmValue(totalWarm);
+        setTotalClosingAmount(totals.totalClose);
+        setTotalHotValue(totals.totalHot);
+        setTotalWarmValue(totals.totalWarm);
       } catch (error) {
         console.error("Error fetching value analytics:", error);
         toast.error("Failed to load value analytics!");
@@ -180,23 +167,80 @@ const ValueAnalyticsDrawer = ({
       }
     };
 
+    const processUserStats = (user, entry, statsMap, totals, role, userId) => {
+      const uId = user._id.toString();
+      const username = user.username;
+      const userRole =
+        typeof user.role === "string" ? user.role.toLowerCase() : "user";
+
+      if (
+        (role === "superadmin" &&
+          (userRole === "admin" || userRole === "others")) ||
+        (role === "admin" &&
+          (uId === userId || user.assignedAdmins?.includes(userId))) ||
+        (role === "others" && uId === userId)
+      ) {
+        if (!statsMap[uId]) {
+          let displayName = username;
+          if (userRole === "superadmin")
+            displayName = `${username} (Superadmin)`;
+          else if (userRole === "admin") displayName = `${username} (Admin)`;
+          statsMap[uId] = {
+            username: displayName,
+            totalClosingAmount: 0,
+            hotValue: 0,
+            warmValue: 0,
+          };
+        }
+        if (
+          entry.closeamount != null &&
+          entry.closetype === "Closed Won" &&
+          typeof entry.closeamount === "number" &&
+          !isNaN(entry.closeamount)
+        ) {
+          console.log(
+            `Adding closeamount for ${username} on entry ${entry._id}: ₹${entry.closeamount}`
+          );
+          statsMap[uId].totalClosingAmount += entry.closeamount;
+          totals.totalClose += entry.closeamount;
+        } else if (
+          entry.closetype === "Closed Won" &&
+          (entry.closeamount == null || isNaN(entry.closeamount))
+        ) {
+          console.warn(
+            `Invalid closeamount for entry ${entry._id}:`,
+            entry.closeamount
+          );
+        }
+        if (
+          entry.estimatedValue != null &&
+          typeof entry.estimatedValue === "number" &&
+          !isNaN(entry.estimatedValue)
+        ) {
+          if (entry.status === "Interested") {
+            statsMap[uId].hotValue += entry.estimatedValue;
+            totals.totalHot += entry.estimatedValue;
+          } else if (entry.status === "Maybe") {
+            statsMap[uId].warmValue += entry.estimatedValue;
+            totals.totalWarm += entry.estimatedValue;
+          }
+        }
+      }
+    };
+
     if (isOpen) fetchAssignedUsersAndCalculateValueStats();
   }, [entries, isOpen, role, userId, dateRange]);
 
-  // Handle export to Excel
   const handleExport = () => {
     try {
-      // Prepare data for export
       const exportData = [
-        // Overall Statistics
         {
           Section: "Overall Totals",
           Username: "",
           "Total Closing Amount": totalClosingAmount,
           "Hot Value": totalHotValue,
-          "Warm Value": totalWarmValue,
+          " Warm Value": totalWarmValue,
         },
-        // Separator row
         {
           Section: "",
           Username: "",
@@ -204,7 +248,6 @@ const ValueAnalyticsDrawer = ({
           "Hot Value": "",
           "Warm Value": "",
         },
-        // User Statistics
         ...valueStats.map((user) => ({
           Section: "User Statistics",
           Username: user.username,
@@ -214,12 +257,10 @@ const ValueAnalyticsDrawer = ({
         })),
       ];
 
-      // Create worksheet
       const worksheet = XLSX.utils.json_to_sheet(exportData);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Value Analytics");
 
-      // Auto-size columns
       const colWidths = Object.keys(exportData[0]).map((key) => {
         const maxLength = Math.max(
           key.length,
@@ -229,7 +270,6 @@ const ValueAnalyticsDrawer = ({
       });
       worksheet["!cols"] = colWidths;
 
-      // Generate and download Excel file
       XLSX.writeFile(
         workbook,
         `value_analytics_${new Date().toISOString().slice(0, 10)}.xlsx`
@@ -259,7 +299,6 @@ const ValueAnalyticsDrawer = ({
         },
       }}
     >
-      {/* Header */}
       <Box
         sx={{
           padding: "24px",
@@ -291,7 +330,6 @@ const ValueAnalyticsDrawer = ({
         </IconButton>
       </Box>
 
-      {/* Content */}
       <Box sx={{ flex: 1, overflowY: "auto", px: 2, py: 3 }}>
         {loading ? (
           <Typography
@@ -323,7 +361,6 @@ const ValueAnalyticsDrawer = ({
           </Typography>
         ) : (
           <>
-            {/* Total Amounts Section */}
             <Box
               sx={{
                 background: "rgba(255, 255, 255, 0.08)",
@@ -447,7 +484,6 @@ const ValueAnalyticsDrawer = ({
                 my: 1,
               }}
             />
-            {/* User Stats Section */}
             {valueStats.map((user, index) => (
               <Box key={user.username + index}>
                 <motion.div
@@ -585,7 +621,6 @@ const ValueAnalyticsDrawer = ({
         )}
       </Box>
 
-      {/* Footer */}
       <Box sx={{ p: 2, borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}>
         <motion.button
           whileHover={{ scale: 1.02 }}

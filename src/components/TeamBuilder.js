@@ -19,21 +19,52 @@ import { FaTimes } from "react-icons/fa";
 function TeamBuilder({ isOpen, onClose, userRole, userId }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isAssigned, setIsAssigned] = useState(false);
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get(
-        "https://crm-server-amz7.onrender.com/api/fetch-team",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      setUsers(response.data);
+      if (!token) {
+        throw new Error("No authentication token found. Please log in.");
+      }
+
+      const [usersResponse, userResponse] = await Promise.all([
+        axios
+          .get("https://crm-server-amz7.onrender.com/api/fetch-team", {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          .catch((err) => {
+            throw new Error(
+              `Failed to fetch team: ${
+                err.response?.data?.message || err.message
+              }`
+            );
+          }),
+        axios
+          .get("https://crm-server-amz7.onrender.com/api/current-user", {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          .catch((err) => {
+            throw new Error(
+              `Failed to fetch current user: ${
+                err.response?.data?.message || err.message
+              }`
+            );
+          }),
+      ]);
+
+      console.log("Fetched users:", usersResponse.data);
+      console.log("Current user:", userResponse.data);
+      setUsers(usersResponse.data || []);
+      setIsAssigned(userResponse.data?.data?.assignedAdmins?.length > 0);
     } catch (error) {
-      console.error("Error fetching users:", error);
-      toast.error("Failed to fetch users!");
+      console.error("Error fetching users:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+      toast.error(error.message || "Failed to fetch users");
     } finally {
       setLoading(false);
     }
@@ -48,33 +79,63 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
   const handleAssign = async (userIdToAssign) => {
     try {
       const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
       const response = await axios.post(
         "https://crm-server-amz7.onrender.com/api/assign-user",
         { userId: userIdToAssign },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       toast.success(response.data.message);
-      fetchUsers();
+      await fetchUsers();
     } catch (error) {
       console.error("Error assigning user:", error);
-      toast.error(error.response?.data?.message || "Failed to assign user!");
+      toast.error(error.response?.data?.message || "Failed to assign user");
     }
   };
 
   const handleUnassign = async (userIdToUnassign) => {
     try {
       const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
       const response = await axios.post(
         "https://crm-server-amz7.onrender.com/api/unassign-user",
         { userId: userIdToUnassign },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       toast.success(response.data.message);
-      fetchUsers();
+      await fetchUsers();
     } catch (error) {
       console.error("Error unassigning user:", error);
-      toast.error(error.response?.data?.message || "Failed to unassign user!");
+      toast.error(error.response?.data?.message || "Failed to unassign user");
     }
+  };
+
+  const buttonStyles = {
+    base: {
+      padding: "8px 16px",
+      color: "white",
+      borderRadius: "12px",
+      border: "none",
+      fontSize: "0.9rem",
+      fontWeight: "bold",
+      boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+      transition: "all 0.2s ease",
+      cursor: "pointer",
+    },
+    assign: {
+      background: "linear-gradient(135deg, #2575fc, #6a11cb)",
+    },
+    assigned: {
+      background: "linear-gradient(90deg, #cccccc, #999999)",
+      cursor: "not-allowed",
+    },
+    unassign: {
+      background: "linear-gradient(90deg, #ff4444, #cc0000)",
+    },
   };
 
   if (!isOpen) return null;
@@ -145,6 +206,7 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
                 color: "white",
                 "&:hover": { color: "#ff8e53" },
               }}
+              aria-label="Close Team Builder"
             >
               <FaTimes size={24} />
             </IconButton>
@@ -167,6 +229,27 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
                 }}
               >
                 Loading...
+              </Typography>
+            </Box>
+          ) : users.length === 0 ? (
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                minHeight: "200px",
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: "1.2rem",
+                  opacity: 0.8,
+                  fontStyle: "italic",
+                }}
+              >
+                {isAssigned
+                  ? "You are assigned to an admin and cannot view team"
+                  : "No users available to assign"}
               </Typography>
             </Box>
           ) : (
@@ -200,7 +283,7 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
                       "Username",
                       "Email",
                       "Role",
-                      "Assigned Admin",
+                      "Assigned Admin(s)",
                       "Actions",
                     ].map((header) => (
                       <TableCell
@@ -224,146 +307,143 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {users.map((user, index) => (
-                    <motion.tr
-                      key={user._id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                    >
-                      <TableCell
-                        sx={{
-                          color: "white",
-                          borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-                          textAlign: "center",
-                          py: 1.5,
-                        }}
+                  {users.map((user, index) => {
+                    const isAssignedToCurrent =
+                      user.assignedAdmins?.includes(userId);
+                    const isAssignedToOthers =
+                      user.assignedAdmins?.length > 0 && !isAssignedToCurrent;
+                    const isSuperAdmin = user.role === "superadmin";
+                    const isAssignedBySuperAdmin = user.assignedAdmins?.some(
+                      (adminId) => {
+                        const admin = users.find((u) => u._id === adminId);
+                        return admin?.role === "superadmin";
+                      }
+                    );
+
+                    return (
+                      <TableRow
+                        key={user._id}
+                        component={motion.tr}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
                       >
-                        {user.username}
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          color: "white",
-                          borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-                          textAlign: "center",
-                          py: 1.5,
-                        }}
-                      >
-                        {user.email}
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          color: "white",
-                          borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-                          textAlign: "center",
-                          py: 1.5,
-                        }}
-                      >
-                        {user.role}
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          color: "white",
-                          borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-                          textAlign: "center",
-                          py: 1.5,
-                        }}
-                      >
-                        {user.assignedAdminUsername}
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-                          textAlign: "center",
-                          py: 1.5,
-                        }}
-                      >
-                        {user.role === "superadmin" ? (
-                          <Typography
-                            sx={{
-                              color: "white",
-                              fontSize: "0.9rem",
-                              fontStyle: "italic",
-                            }}
-                          >
-                            Superadmin (No Actions)
-                          </Typography>
-                        ) : userRole === "superadmin" && user.assignedAdmin ? (
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => handleUnassign(user._id)}
-                            style={{
-                              padding: "8px 16px",
-                              background:
-                                "linear-gradient(90deg, #ff4444, #cc0000)",
-                              color: "white",
-                              borderRadius: "12px",
-                              border: "none",
-                              fontSize: "0.9rem",
-                              fontWeight: "bold",
-                              cursor: "pointer",
-                              boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
-                              transition: "all 0.2s ease",
-                            }}
-                          >
-                            Unassign
-                          </motion.button>
-                        ) : user.assignedAdmin &&
-                          user.assignedAdmin === userId ? (
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => handleUnassign(user._id)}
-                            style={{
-                              padding: "8px 16px",
-                              background:
-                                "linear-gradient(90deg, #ff4444, #cc0000)",
-                              color: "white",
-                              borderRadius: "12px",
-                              border: "none",
-                              fontSize: "0.9rem",
-                              fontWeight: "bold",
-                              cursor: "pointer",
-                              boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
-                              transition: "all 0.2s ease",
-                            }}
-                          >
-                            Unassign
-                          </motion.button>
-                        ) : (
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => handleAssign(user._id)}
-                            disabled={
-                              userRole === "admin" && user.assignedAdmin
-                            }
-                            style={{
-                              padding: "8px 16px",
-                              background:
-                                userRole === "admin" && user.assignedAdmin
-                                  ? "linear-gradient(90deg, #cccccc, #999999)"
-                                  : "linear-gradient(135deg, #2575fc, #6a11cb)",
-                              color: "white",
-                              borderRadius: "12px",
-                              border: "none",
-                              fontSize: "0.9rem",
-                              fontWeight: "bold",
-                              cursor:
-                                userRole === "admin" && user.assignedAdmin
-                                  ? "not-allowed"
-                                  : "pointer",
-                              boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
-                              transition: "all 0.2s ease",
-                            }}
-                          >
-                            Assign to Me
-                          </motion.button>
-                        )}
-                      </TableCell>
-                    </motion.tr>
-                  ))}
+                        <TableCell
+                          sx={{
+                            color: "white",
+                            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                            textAlign: "center",
+                            py: 1.5,
+                          }}
+                        >
+                          {user.username || "N/A"}
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            color: "white",
+                            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                            textAlign: "center",
+                            py: 1.5,
+                          }}
+                        >
+                          {user.email || "N/A"}
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            color: "white",
+                            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                            textAlign: "center",
+                            py: 1.5,
+                          }}
+                        >
+                          {user.role || "N/A"}
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            color: "white",
+                            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                            textAlign: "center",
+                            py: 1.5,
+                          }}
+                        >
+                          {user.assignedAdminUsernames || "Unassigned"}
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+                            textAlign: "center",
+                            py: 1.5,
+                          }}
+                        >
+                          {isSuperAdmin ? (
+                            <Typography
+                              sx={{
+                                color: "white",
+                                fontSize: "0.9rem",
+                                fontStyle: "italic",
+                              }}
+                            >
+                              Superadmin (No Actions)
+                            </Typography>
+                          ) : isAssignedToCurrent ? (
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => handleUnassign(user._id)}
+                              style={{
+                                ...buttonStyles.base,
+                                ...buttonStyles.unassign,
+                              }}
+                              aria-label={`Unassign ${user.username}`}
+                            >
+                              Unassign
+                            </motion.button>
+                          ) : isAssignedToOthers ? (
+                            userRole === "superadmin" ||
+                            (!isAssignedBySuperAdmin &&
+                              userRole === "admin") ? (
+                              <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => handleUnassign(user._id)}
+                                style={{
+                                  ...buttonStyles.base,
+                                  ...buttonStyles.unassign,
+                                }}
+                                aria-label={`Unassign ${user.username}`}
+                              >
+                                Unassign
+                              </motion.button>
+                            ) : (
+                              <motion.button
+                                style={{
+                                  ...buttonStyles.base,
+                                  ...buttonStyles.assigned,
+                                }}
+                                disabled
+                                aria-label={`${user.username} is assigned`}
+                              >
+                                Assigned
+                              </motion.button>
+                            )
+                          ) : (
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => handleAssign(user._id)}
+                              style={{
+                                ...buttonStyles.base,
+                                ...buttonStyles.assign,
+                              }}
+                              aria-label={`Assign ${user.username} to me`}
+                            >
+                              Assign to Me
+                            </motion.button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>

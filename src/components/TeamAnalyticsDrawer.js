@@ -25,7 +25,7 @@ import * as XLSX from "xlsx";
 import DOMPurify from "dompurify";
 import { FixedSizeList } from "react-window";
 
-// Custom hook for API calls with pagination (unchanged)
+// Custom hook for API calls with pagination
 const useCachedApi = (url, token) => {
   const [data, setData] = useState([]);
   const [error, setError] = useState(null);
@@ -61,6 +61,9 @@ const useCachedApi = (url, token) => {
             user.assignedAdmin?._id ||
             user.assignedAdmin ||
             null,
+          assignedAdmins: Array.isArray(user.assignedAdmins)
+            ? user.assignedAdmins.map((id) => id.$oid || id._id || id)
+            : [],
           username: DOMPurify.sanitize(user.username || "Unknown"),
         }));
 
@@ -96,7 +99,7 @@ const useCachedApi = (url, token) => {
   };
 };
 
-// Reusable StatCard component (unchanged)
+// Reusable StatCard component
 const StatCard = ({ label, value, color }) => (
   <Box
     sx={{
@@ -137,7 +140,7 @@ const TeamAnalyticsDrawer = ({
   const [showZeroEntries, setShowZeroEntries] = useState(true);
   const [debugInfo, setDebugInfo] = useState(null);
 
-  // Fetch users from API (unchanged)
+  // Fetch users from API
   const {
     data: users,
     error,
@@ -148,13 +151,14 @@ const TeamAnalyticsDrawer = ({
     localStorage.getItem("token")
   );
 
-  // Log props for debugging (unchanged)
+  // Log props for debugging
   useEffect(() => {
     if (isOpen) {
       console.log("TeamAnalytics Props:", { role, entries, dateRange });
       console.log("Sample Entries:", entries.slice(0, 5));
+      console.log("Users:", users);
     }
-  }, [isOpen, role, entries, dateRange]);
+  }, [isOpen, role, entries, dateRange, users]);
 
   // Calculate team stats
   const teamStatsMemo = useMemo(() => {
@@ -174,17 +178,27 @@ const TeamAnalyticsDrawer = ({
         return userRole === "admin";
       })
       .map((admin) => {
-        const adminId = admin._id;
+        const adminId = admin._id?.toString();
         const teamMembers = users
           .filter((u) => {
             const userRole =
               typeof u.role === "string" ? u.role.toLowerCase() : "unknown";
             if (userRole !== "others") return false;
-            const assignedAdmin = u.assignedAdmin;
+            const assignedAdmin = u.assignedAdmin?.toString();
+            const assignedAdmins = Array.isArray(u.assignedAdmins)
+              ? u.assignedAdmins.map((id) => id.toString())
+              : [];
             console.log(
-              `Checking team member: ${u.username}, AssignedAdmin: ${assignedAdmin}, AdminId: ${adminId}`
+              `Checking team member: ${
+                u.username
+              }, AssignedAdmin: ${assignedAdmin}, AssignedAdmins: ${JSON.stringify(
+                assignedAdmins
+              )}, AdminId: ${adminId}`
             );
-            return assignedAdmin === adminId;
+            return (
+              (assignedAdmin === adminId || assignedAdmins.includes(adminId)) &&
+              u._id?.toString() !== adminId
+            );
           })
           .map((u) => ({
             _id: u._id,
@@ -269,9 +283,9 @@ const TeamAnalyticsDrawer = ({
 
     filteredEntries.forEach((entry, index) => {
       const creatorId =
-        entry.createdBy?._id ||
-        entry.createdBy?.$oid ||
-        entry.createdBy ||
+        entry.createdBy?._id?.toString() ||
+        entry.createdBy?.$oid?.toString() ||
+        entry.createdBy?.toString() ||
         null;
       if (!creatorId) {
         console.warn(
@@ -281,7 +295,7 @@ const TeamAnalyticsDrawer = ({
         return;
       }
 
-      const creator = users.find((user) => user._id === creatorId);
+      const creator = users.find((user) => user._id?.toString() === creatorId);
       if (!creator) {
         console.warn(
           `Creator not found for entry ${index} (ID: ${entry._id}):`,
@@ -294,112 +308,127 @@ const TeamAnalyticsDrawer = ({
         typeof creator.role === "string"
           ? creator.role.toLowerCase()
           : "unknown";
-      const adminId =
-        creatorRole === "admin" ? creator._id : creator.assignedAdmin || null;
+      const assignedAdmins = Array.isArray(creator.assignedAdmins)
+        ? creator.assignedAdmins.map((id) => id.toString())
+        : [];
+      const adminIds =
+        creatorRole === "admin"
+          ? [creator._id?.toString()]
+          : [creator.assignedAdmin?.toString(), ...assignedAdmins].filter(
+              (id) => id
+            );
 
-      const admin = admins.find((a) => a._id === adminId);
-      if (!admin || !adminId) {
+      if (adminIds.length === 0) {
         console.warn(
-          `Admin not found for creator in entry ${index} (ID: ${entry._id}):`,
+          `No valid admin ID for creator in entry ${index} (ID: ${entry._id}):`,
           creator
         );
         return;
       }
 
-      if (!statsMap[adminId]) {
-        console.warn(`Stats map not initialized for admin ${adminId}`);
-        return;
-      }
-
-      const memberId = creator._id;
-      const memberName = creator.username;
-      let targetAnalytics;
-
-      if (creatorRole === "admin") {
-        targetAnalytics = statsMap[adminId].adminAnalytics;
-      } else {
-        if (!statsMap[adminId].membersAnalytics[memberId]) {
-          statsMap[adminId].membersAnalytics[memberId] = {
-            username: memberName,
-            allTimeEntries: 0,
-            monthEntries: 0,
-            cold: 0,
-            warm: 0,
-            hot: 0,
-            closedWon: 0,
-            closedLost: 0,
-            totalClosingAmount: 0,
-          };
+      adminIds.forEach((adminId) => {
+        const admin = admins.find((a) => a._id === adminId);
+        if (!admin || !statsMap[adminId]) {
+          console.warn(
+            `Admin not found for ID ${adminId} in entry ${index} (ID: ${entry._id}):`,
+            creator
+          );
+          return;
         }
-        targetAnalytics = statsMap[adminId].membersAnalytics[memberId];
-      }
 
-      targetAnalytics.allTimeEntries += 1;
-      statsMap[adminId].teamTotal.allTimeEntries += 1;
+        const memberId = creator._id?.toString();
+        const memberName = creator.username;
+        let targetAnalytics;
 
-      const entryDate = new Date(entry.createdAt);
-      if (
-        !isNaN(entryDate) &&
-        entryDate.getMonth() === currentMonth &&
-        entryDate.getFullYear() === currentYear
-      ) {
-        targetAnalytics.monthEntries += 1;
-        statsMap[adminId].teamTotal.monthEntries += 1;
-      }
+        if (creatorRole === "admin") {
+          targetAnalytics = statsMap[adminId].adminAnalytics;
+        } else {
+          if (!statsMap[adminId].membersAnalytics[memberId]) {
+            statsMap[adminId].membersAnalytics[memberId] = {
+              username: memberName,
+              allTimeEntries: 0,
+              monthEntries: 0,
+              cold: 0,
+              warm: 0,
+              hot: 0,
+              closedWon: 0,
+              closedLost: 0,
+              totalClosingAmount: 0,
+            };
+          }
+          targetAnalytics = statsMap[adminId].membersAnalytics[memberId];
+        }
 
-      const status = entry.status ? entry.status.toLowerCase() : null;
-      const closetype = entry.closetype ? entry.closetype.toLowerCase() : null;
+        targetAnalytics.allTimeEntries += 1;
+        statsMap[adminId].teamTotal.allTimeEntries += 1;
 
-      switch (status) {
-        case "not interested":
-          targetAnalytics.cold += 1;
-          statsMap[adminId].teamTotal.cold += 1;
-          break;
-        case "maybe":
-          targetAnalytics.warm += 1;
-          statsMap[adminId].teamTotal.warm += 1;
-          break;
-        case "interested":
-          targetAnalytics.hot += 1;
-          statsMap[adminId].teamTotal.hot += 1;
-          break;
-        case "closed":
-          if (closetype === "closed won") {
-            targetAnalytics.closedWon += 1;
-            statsMap[adminId].teamTotal.closedWon += 1;
-            const closeAmount =
-              typeof entry.closeamount === "number" && !isNaN(entry.closeamount)
-                ? entry.closeamount
-                : 0;
-            if (closeAmount > 0) {
-              console.log(
-                `Adding closeamount for entry ${index} (ID: ${entry._id}) by ${creator.username}: ₹${closeAmount}`
-              );
-              targetAnalytics.totalClosingAmount += closeAmount;
-              statsMap[adminId].teamTotal.totalClosingAmount += closeAmount;
+        const entryDate = new Date(entry.createdAt);
+        if (
+          !isNaN(entryDate) &&
+          entryDate.getMonth() === currentMonth &&
+          entryDate.getFullYear() === currentYear
+        ) {
+          targetAnalytics.monthEntries += 1;
+          statsMap[adminId].teamTotal.monthEntries += 1;
+        }
+
+        const status = entry.status ? entry.status.toLowerCase() : null;
+        const closetype = entry.closetype
+          ? entry.closetype.toLowerCase()
+          : null;
+
+        switch (status) {
+          case "not interested":
+            targetAnalytics.cold += 1;
+            statsMap[adminId].teamTotal.cold += 1;
+            break;
+          case "maybe":
+            targetAnalytics.warm += 1;
+            statsMap[adminId].teamTotal.warm += 1;
+            break;
+          case "interested":
+            targetAnalytics.hot += 1;
+            statsMap[adminId].teamTotal.hot += 1;
+            break;
+          case "closed":
+            if (closetype === "closed won") {
+              targetAnalytics.closedWon += 1;
+              statsMap[adminId].teamTotal.closedWon += 1;
+              const closeAmount =
+                typeof entry.closeamount === "number" &&
+                !isNaN(entry.closeamount)
+                  ? entry.closeamount
+                  : 0;
+              if (closeAmount > 0) {
+                console.log(
+                  `Adding closeamount for entry ${index} (ID: ${entry._id}) by ${creator.username}: ₹${closeAmount}`
+                );
+                targetAnalytics.totalClosingAmount += closeAmount;
+                statsMap[adminId].teamTotal.totalClosingAmount += closeAmount;
+              } else {
+                console.warn(
+                  `Invalid or zero closeamount for entry ${index} (ID: ${entry._id}):`,
+                  entry
+                );
+              }
+            } else if (closetype === "closed lost") {
+              targetAnalytics.closedLost += 1;
+              statsMap[adminId].teamTotal.closedLost += 1;
             } else {
               console.warn(
-                `Invalid or zero closeamount for entry ${index} (ID: ${entry._id}):`,
+                `Invalid closetype for closed entry ${index} (ID: ${entry._id}): ${closetype}`,
                 entry
               );
             }
-          } else if (closetype === "closed lost") {
-            targetAnalytics.closedLost += 1;
-            statsMap[adminId].teamTotal.closedLost += 1;
-          } else {
+            break;
+          default:
             console.warn(
-              `Invalid closetype for closed entry ${index} (ID: ${entry._id}): ${closetype}`,
+              `Invalid status for entry ${index} (ID: ${entry._id}): ${status}`,
               entry
             );
-          }
-          break;
-        default:
-          console.warn(
-            `Invalid status for entry ${index} (ID: ${entry._id}): ${status}`,
-            entry
-          );
-          break;
-      }
+            break;
+        }
+      });
     });
 
     console.log("Stats Map:", statsMap);
@@ -456,7 +485,7 @@ const TeamAnalyticsDrawer = ({
     return result;
   }, [users, entries, role, dateRange]);
 
-  // Modified useEffect to prevent multiple openings (unchanged)
+  // Modified useEffect to prevent multiple openings and update teamStats
   useEffect(() => {
     let isMounted = true;
 
@@ -466,15 +495,22 @@ const TeamAnalyticsDrawer = ({
         onClose();
       } else if (teamStatsMemo.length > 0) {
         setTeamStats(teamStatsMemo);
+      } else {
+        setTeamStats(teamStatsMemo);
+        if (users.length > 0 && teamStatsMemo.length === 0) {
+          toast.warn(
+            "No admin teams found. Check if admins have assigned team members."
+          );
+        }
       }
     }
 
     return () => {
       isMounted = false;
     };
-  }, [isOpen, role, onClose, teamStatsMemo]);
+  }, [isOpen, role, onClose, teamStatsMemo, users]);
 
-  // Calculate overall stats (unchanged)
+  // Calculate overall stats
   const overallStats = useMemo(() => {
     const stats = teamStats.reduce(
       (acc, team) => ({
@@ -503,7 +539,7 @@ const TeamAnalyticsDrawer = ({
     return stats;
   }, [teamStats]);
 
-  // Export analytics to Excel (unchanged)
+  // Export analytics to Excel
   const handleExport = useCallback(() => {
     try {
       const exportData = [
@@ -653,7 +689,7 @@ const TeamAnalyticsDrawer = ({
     return rows;
   }, [teamStats]);
 
-  // Lazy-loaded team member list (unchanged)
+  // Lazy-loaded team member list
   const MemberRow = ({ index, style, data }) => {
     const member = data.members[index];
     if (!member) return null;

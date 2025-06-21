@@ -23,7 +23,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
       }
 
       let allUsers = [];
-      let apiUrl =
+      const apiUrl =
         role === "superadmin"
           ? "https://crm-server-amz7.onrender.com/api/allusers"
           : "https://crm-server-amz7.onrender.com/api/users";
@@ -38,15 +38,19 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
         console.log(`API Response (Page ${page}):`, response.data);
 
         const normalizedPage = response.data.map((user) => ({
-          _id: user._id?.$oid || user._id || user.id || "",
+          _id:
+            user._id?.$oid?.toString() ||
+            user._id?.toString() ||
+            user.id?.toString() ||
+            "",
           username: DOMPurify.sanitize(user.username || "Unknown"),
           role:
             typeof user.role === "string" ? user.role.toLowerCase() : "unknown",
-          assignedAdmin:
-            user.assignedAdmin?.$oid ||
-            user.assignedAdmin?._id ||
-            user.assignedAdmin ||
-            null,
+          assignedAdmins: Array.isArray(user.assignedAdmins)
+            ? user.assignedAdmins.map(
+                (id) => id?.$oid?.toString() || id?.toString() || id
+              )
+            : [],
         }));
 
         allUsers = [...allUsers, ...normalizedPage];
@@ -67,7 +71,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
         relevantUsers = allUsers.filter(
           (user) =>
             user._id === userId ||
-            (user.assignedAdmin === userId && user.role === "others")
+            (user.assignedAdmins?.includes(userId) && user.role === "others")
         );
       } else {
         relevantUsers = allUsers.filter((user) => user._id === userId);
@@ -111,89 +115,74 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
         );
       });
 
-      console.log("Filtered Entries:", filteredEntries);
-
-      if (filteredEntries.length === 0) {
-        setDebugInfo("No entries found in the selected date range");
-      }
+      console.log("Filtered Entries Count:", filteredEntries.length);
+      filteredEntries.forEach((entry, index) => {
+        console.log(`Entry ${index + 1}:`, {
+          id: entry._id,
+          createdBy: entry.createdBy,
+          assignedTo: entry.assignedTo,
+          status: entry.status,
+          closetype: entry.closetype,
+          createdAt: entry.createdAt,
+        });
+      });
 
       const now = new Date();
       const currentMonth = now.getMonth();
       const currentYear = now.getFullYear();
 
       filteredEntries.forEach((entry) => {
-        const creatorId =
-          entry.createdBy?._id ||
-          entry.createdBy?.$oid ||
-          entry.createdBy ||
-          null;
-        if (!creatorId) {
-          console.warn(`No creator found for entry:`, entry);
-          return;
-        }
-
-        const creator = users.find((user) => user._id === creatorId);
-        if (!creator) {
-          console.warn(
-            `Creator ${creatorId} not found in relevant users:`,
-            entry
-          );
-          return;
-        }
-
-        if (!statsMap[creatorId]) {
-          let displayName = creator.username;
-          if (role === "superadmin" && creator.role === "admin") {
-            displayName = `${creator.username} (Admin)`;
-          } else if (role === "superadmin" && creator.role === "others") {
-            displayName = creator.username;
-          } else if (creator._id === userId && role === "admin") {
-            displayName = `${creator.username} (Admin)`;
+        // Process createdBy
+        const creatorId = entry.createdBy
+          ? entry.createdBy._id?.toString() ||
+            entry.createdBy.$oid?.toString() ||
+            entry.createdBy.toString()
+          : null;
+        if (creatorId) {
+          const creator = users.find((user) => user._id === creatorId);
+          if (creator) {
+            processUserStats(
+              creator,
+              entry,
+              statsMap,
+              role,
+              userId,
+              currentMonth,
+              currentYear
+            );
+          } else {
+            console.warn(
+              `Creator ${creatorId} not found in relevant users for entry:`,
+              entry._id
+            );
           }
-          statsMap[creatorId] = {
-            _id: creatorId,
-            username: displayName,
-            allTimeEntries: 0,
-            monthEntries: 0,
-            cold: 0,
-            warm: 0,
-            hot: 0,
-            closedWon: 0,
-            closedLost: 0,
-          };
         }
 
-        statsMap[creatorId].allTimeEntries += 1;
-
-        const entryDate = new Date(entry.createdAt);
-        if (
-          entryDate.getMonth() === currentMonth &&
-          entryDate.getFullYear() === currentYear
-        ) {
-          statsMap[creatorId].monthEntries += 1;
-        }
-
-        switch (entry.status) {
-          case "Not Interested":
-            statsMap[creatorId].cold += 1;
-            break;
-          case "Maybe":
-            statsMap[creatorId].warm += 1;
-            break;
-          case "Interested":
-            statsMap[creatorId].hot += 1;
-            break;
-          case "Closed":
-            if (entry.closetype === "open") {
-            } else if (entry.closetype === "Closed Won") {
-              statsMap[creatorId].closedWon += 1;
-            } else if (entry.closetype === "Closed Lost") {
-              statsMap[creatorId].closedLost += 1;
-            }
-            break;
-          default:
-            break;
-        }
+        // Process assignedTo
+        const assignedTo = Array.isArray(entry.assignedTo)
+          ? entry.assignedTo
+          : [];
+        assignedTo.forEach((user) => {
+          const assignedUserId =
+            user._id?.toString() || user.$oid?.toString() || user.toString();
+          const assignedUser = users.find((u) => u._id === assignedUserId);
+          if (assignedUser) {
+            processUserStats(
+              assignedUser,
+              entry,
+              statsMap,
+              role,
+              userId,
+              currentMonth,
+              currentYear
+            );
+          } else {
+            console.warn(
+              `Assigned user ${assignedUserId} not found for entry:`,
+              entry._id
+            );
+          }
+        });
       });
 
       const result = Object.values(statsMap);
@@ -202,6 +191,70 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
 
       if (result.length === 0 && filteredEntries.length > 0) {
         setDebugInfo("No matching stats generated; check user IDs in entries");
+      }
+    };
+
+    const processUserStats = (
+      user,
+      entry,
+      statsMap,
+      role,
+      userId,
+      currentMonth,
+      currentYear
+    ) => {
+      const uId = user._id;
+      if (!statsMap[uId]) {
+        let displayName = user.username;
+        if (role === "superadmin" && user.role === "admin") {
+          displayName = `${user.username} (Admin)`;
+        } else if (role === "superadmin" && user.role === "others") {
+          displayName = user.username;
+        } else if (uId === userId && role === "admin") {
+          displayName = `${user.username} (Admin)`;
+        }
+        statsMap[uId] = {
+          _id: uId,
+          username: displayName,
+          allTimeEntries: 0,
+          monthEntries: 0,
+          cold: 0,
+          warm: 0,
+          hot: 0,
+          closedWon: 0,
+          closedLost: 0,
+        };
+      }
+
+      statsMap[uId].allTimeEntries += 1;
+
+      const entryDate = new Date(entry.createdAt);
+      if (
+        entryDate.getMonth() === currentMonth &&
+        entryDate.getFullYear() === currentYear
+      ) {
+        statsMap[uId].monthEntries += 1;
+      }
+
+      switch (entry.status) {
+        case "Not Interested":
+          statsMap[uId].cold += 1;
+          break;
+        case "Maybe":
+          statsMap[uId].warm += 1;
+          break;
+        case "Interested":
+          statsMap[uId].hot += 1;
+          break;
+        case "Closed":
+          if (entry.closetype === "Closed Won") {
+            statsMap[uId].closedWon += 1;
+          } else if (entry.closetype === "Closed Lost") {
+            statsMap[uId].closedLost += 1;
+          }
+          break;
+        default:
+          break;
       }
     };
 
@@ -275,7 +328,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Team Analytics");
 
-      worksheet["cols"] = Object.keys(exportData[0]).map((key) => ({
+      worksheet["!cols"] = Object.keys(exportData[0]).map((key) => ({
         wch: Math.min(Math.max(key.length, 15) + 2, 50),
       }));
 
