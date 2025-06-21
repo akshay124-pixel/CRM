@@ -71,10 +71,10 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
   };
 
   useEffect(() => {
-    if (isOpen && (userRole === "admin" || userRole === "superadmin")) {
+    if (isOpen) {
       fetchUsers();
     }
-  }, [isOpen, userRole]);
+  }, [isOpen]);
 
   const handleAssign = async (userIdToAssign) => {
     try {
@@ -247,8 +247,10 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
                   fontStyle: "italic",
                 }}
               >
-                {isAssigned
-                  ? "You are assigned to an admin and cannot view team"
+                {userRole === "others" && isAssigned
+                  ? "You are assigned to an admin"
+                  : userRole === "others"
+                  ? "No assigned admins available"
                   : "No users available to assign"}
               </Typography>
             </Box>
@@ -284,7 +286,9 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
                       "Email",
                       "Role",
                       "Assigned Admin(s)",
-                      "Actions",
+                      ...(userRole === "admin" || userRole === "superadmin"
+                        ? ["Actions"]
+                        : []),
                     ].map((header) => (
                       <TableCell
                         key={header}
@@ -368,40 +372,27 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
                         >
                           {user.assignedAdminUsernames || "Unassigned"}
                         </TableCell>
-                        <TableCell
-                          sx={{
-                            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-                            textAlign: "center",
-                            py: 1.5,
-                          }}
-                        >
-                          {isSuperAdmin ? (
-                            <Typography
-                              sx={{
-                                color: "white",
-                                fontSize: "0.9rem",
-                                fontStyle: "italic",
-                              }}
-                            >
-                              Superadmin (No Actions)
-                            </Typography>
-                          ) : isAssignedToCurrent ? (
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => handleUnassign(user._id)}
-                              style={{
-                                ...buttonStyles.base,
-                                ...buttonStyles.unassign,
-                              }}
-                              aria-label={`Unassign ${user.username}`}
-                            >
-                              Unassign
-                            </motion.button>
-                          ) : isAssignedToOthers ? (
-                            userRole === "superadmin" ||
-                            (!isAssignedBySuperAdmin &&
-                              userRole === "admin") ? (
+                        {(userRole === "admin" ||
+                          userRole === "superadmin") && (
+                          <TableCell
+                            sx={{
+                              borderBottom:
+                                "1px solid rgba(255, 255, 255, 0.1)",
+                              textAlign: "center",
+                              py: 1.5,
+                            }}
+                          >
+                            {isSuperAdmin ? (
+                              <Typography
+                                sx={{
+                                  color: "white",
+                                  fontSize: "0.9rem",
+                                  fontStyle: "italic",
+                                }}
+                              >
+                                Superadmin (No Actions)
+                              </Typography>
+                            ) : isAssignedToCurrent ? (
                               <motion.button
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
@@ -414,33 +405,50 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
                               >
                                 Unassign
                               </motion.button>
+                            ) : isAssignedToOthers ? (
+                              userRole === "superadmin" ||
+                              (!isAssignedBySuperAdmin &&
+                                userRole === "admin") ? (
+                                <motion.button
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => handleUnassign(user._id)}
+                                  style={{
+                                    ...buttonStyles.base,
+                                    ...buttonStyles.unassign,
+                                  }}
+                                  aria-label={`Unassign ${user.username}`}
+                                >
+                                  Unassign
+                                </motion.button>
+                              ) : (
+                                <motion.button
+                                  style={{
+                                    ...buttonStyles.base,
+                                    ...buttonStyles.assigned,
+                                  }}
+                                  disabled
+                                  aria-label={`${user.username} is assigned`}
+                                >
+                                  Assigned
+                                </motion.button>
+                              )
                             ) : (
                               <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => handleAssign(user._id)}
                                 style={{
                                   ...buttonStyles.base,
-                                  ...buttonStyles.assigned,
+                                  ...buttonStyles.assign,
                                 }}
-                                disabled
-                                aria-label={`${user.username} is assigned`}
+                                aria-label={`Assign ${user.username} to me`}
                               >
-                                Assigned
+                                Assign to Me
                               </motion.button>
-                            )
-                          ) : (
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => handleAssign(user._id)}
-                              style={{
-                                ...buttonStyles.base,
-                                ...buttonStyles.assign,
-                              }}
-                              aria-label={`Assign ${user.username} to me`}
-                            >
-                              Assign to Me
-                            </motion.button>
-                          )}
-                        </TableCell>
+                            )}
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })}
