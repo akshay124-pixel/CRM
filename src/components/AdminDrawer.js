@@ -21,6 +21,28 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
     );
   };
 
+  // Filter entries based on date range
+  const filteredEntries = useMemo(() => {
+    if (!dateRange?.[0]?.startDate || !dateRange?.[0]?.endDate) {
+      console.warn("Invalid date range, using all entries");
+      return entries;
+    }
+
+    const startDate = new Date(dateRange[0].startDate);
+    const endDate = new Date(dateRange[0].endDate);
+    if (isNaN(startDate) || isNaN(endDate)) {
+      console.warn("Invalid date range values:", dateRange);
+      return entries;
+    }
+
+    return entries.filter((entry) => {
+      const createdAt = new Date(entry.createdAt);
+      return (
+        !isNaN(createdAt) && createdAt >= startDate && createdAt <= endDate
+      );
+    });
+  }, [entries, dateRange]);
+
   // Fetch users with caching
   const fetchUsers = useCallback(async () => {
     if (cachedUsers) {
@@ -111,41 +133,20 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
     } finally {
       setLoading(false);
     }
-  }, [role, userId]);
+  }, [role, userId, cachedUsers]);
 
   // Calculate stats
   const calculateStats = useCallback(async () => {
     const users = await fetchUsers();
     if (!users.length) {
       setUserStats([]);
+      setDebugInfo("No relevant users found");
       return;
     }
 
-    const filteredEntries = useMemo(() => {
-      if (!dateRange?.[0]?.startDate || !dateRange?.[0]?.endDate) {
-        console.warn("Invalid date range, using all entries");
-        return entries;
-      }
-
-      const startDate = new Date(dateRange[0].startDate);
-      const endDate = new Date(dateRange[0].endDate);
-      if (isNaN(startDate) || isNaN(endDate)) {
-        console.warn("Invalid date range values:", dateRange);
-        setDebugInfo("Invalid date range provided");
-        return entries;
-      }
-
-      return entries.filter((entry) => {
-        const createdAt = new Date(entry.createdAt);
-        return (
-          !isNaN(createdAt) && createdAt >= startDate && createdAt <= endDate
-        );
-      });
-    }, [entries, dateRange]);
-
     if (!filteredEntries.length) {
-      setDebugInfo("No entries found for the selected date range");
       setUserStats([]);
+      setDebugInfo("No entries found for the selected date range");
       return;
     }
 
@@ -240,7 +241,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
     if (!result.length && filteredEntries.length) {
       setDebugInfo("No stats generated; check user IDs or entry data");
     }
-  }, [entries, dateRange, fetchUsers, role, userId]);
+  }, [filteredEntries, fetchUsers, role, userId]);
 
   useEffect(() => {
     if (isOpen) {
