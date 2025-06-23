@@ -717,46 +717,82 @@ function DashBoard() {
       return;
     }
 
+    console.log("Token:", token);
+
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
+        console.log("Parsing file...");
         const data = new Uint8Array(event.target.result);
         const workbook = XLSX.read(data, { type: "array" });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const parsedData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+        const parsedData = XLSX.utils.sheet_to_json(worksheet, {
+          defval: "", // Missing cells as empty strings
+          blankrows: false, // Skip empty rows
+        });
+        console.log("Parsed data:", JSON.stringify(parsedData, null, 2));
 
-        // Send data as is, matching export format, with minimal processing
-        const newEntries = parsedData.map((item) => ({
-          Customer_Name: item.Customer_Name || "",
-          Mobile_Number: item.Mobile_Number || "",
-          Contact_Person: item.Contact_Person || "",
-          Address: item.Address || "",
-          State: item.State || "",
-          City: item.City || "",
-          Organization: item.Organization || "",
-          Category: item.Category || "",
-          Created_At: item.Created_At || new Date().toISOString(),
-          Expected_Closing_Date: item.Expected_Closing_Date || "",
-          Follow_Up_Date: item.Follow_Up_Date || "",
-          Remarks: item.Remarks || "",
-          Products: item.Products || "",
-          Type: item.Type || "",
-          Status: item.Status || "",
-          Close_Type: item.Close_Type || "",
-          Assigned_To: item.Assigned_To || "",
-          Estimated_Value: item.Estimated_Value || "",
-          Close_Amount: item.Close_Amount || "",
-          Next_Action: item.Next_Action || "",
-          Live_Location: item.Live_Location || "",
-          First_Person_Met: item.First_Person_Met || "",
-          Second_Person_Met: item.Second_Person_Met || "",
-          Third_Person_Met: item.Third_Person_Met || "",
-          Fourth_Person_Met: item.Fourth_Person_Met || "",
-        }));
+        if (!parsedData.length) {
+          toast.error("No data found in file!");
+          return;
+        }
 
+        // Map to schema fields without validation
+        const newEntries = parsedData.map((item) => {
+          // Parse Products and Assigned_To as arrays if comma-separated
+          const parseArrayField = (value) => {
+            if (Array.isArray(value)) return value;
+            if (typeof value === "string" && value.trim()) {
+              try {
+                // Try parsing as JSON array
+                const parsed = JSON.parse(value);
+                return Array.isArray(parsed)
+                  ? parsed
+                  : value.split(",").map((v) => v.trim());
+              } catch {
+                // Split by commas
+                return value.split(",").map((v) => v.trim());
+              }
+            }
+            return [];
+          };
+
+          // No date validation, just pass as-is
+          return {
+            customerName: item.Customer_Name || "",
+            mobileNumber: item.Mobile_Number ? String(item.Mobile_Number) : "",
+            contactperson: item.Contact_Person || "",
+            address: item.Address || "",
+            state: item.State || "",
+            city: item.City || "",
+            organization: item.Organization || "",
+            category: item.Category || "",
+            type: item.Type || "",
+            status: item.Status || "Not Found",
+            closetype: item.Close_Type || "",
+            estimatedValue: item.Estimated_Value
+              ? Number(item.Estimated_Value)
+              : 0,
+            closeamount: item.Close_Amount ? Number(item.Close_Amount) : 0,
+            remarks: item.Remarks || "",
+            liveLocation: item.Live_Location || "",
+            nextAction: item.Next_Action || "",
+            firstPersonMeet: item.First_Person_Met || "",
+            secondPersonMeet: item.Second_Person_Met || "",
+            thirdPersonMeet: item.Third_Person_Met || "",
+            fourthPersonMeet: item.Fourth_Person_Met || "",
+            expectedClosingDate: item.Expected_Closing_Date || null,
+            followUpDate: item.Follow_Up_Date || null,
+            products: parseArrayField(item.Products),
+            assignedTo: parseArrayField(item.Assigned_To),
+            // Exclude createdBy and createdAt
+          };
+        });
+
+        console.log(`Sending ${newEntries.length} entries to API`);
         const response = await axios.post(
-          "https://crm-server-amz7.onrender.com/api/entries",
+          "http://localhost:4000/api/entries",
           newEntries,
           {
             headers: {
@@ -766,18 +802,24 @@ function DashBoard() {
           }
         );
 
-        if (response.status === 200 || response.status === 201) {
-          setEntries((prev) => [...newEntries, ...prev]);
-          toast.success("Entries uploaded successfully!");
-          fetchEntries();
-        }
+        console.log("API response:", response.data);
+        toast.success(`Uploaded ${response.data.count} entries!`);
+        setEntries((prev) => [...newEntries, ...prev]);
+        fetchEntries();
       } catch (error) {
-        console.error("File parsing or API error:", error.message);
-        toast.error("Failed to upload entries!");
+        console.error("Upload error:", error.message, error.response?.data);
+        if (error.response?.status === 401) {
+          toast.error("Authentication failed. Please log in again.");
+        } else {
+          toast.error(
+            `Upload failed: ${error.response?.data?.message || error.message}`
+          );
+        }
       }
     };
     reader.onerror = () => {
-      toast.error("Error reading the file!");
+      console.error("File read error");
+      toast.error("Error reading file!");
     };
     reader.readAsArrayBuffer(file);
   };
