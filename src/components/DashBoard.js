@@ -792,7 +792,7 @@ function DashBoard() {
 
         console.log(`Sending ${newEntries.length} entries to API`);
         const response = await axios.post(
-          "http://localhost:4000/api/entries",
+          "https://crm-server-amz7.onrender.com/api/entries",
           newEntries,
           {
             headers: {
