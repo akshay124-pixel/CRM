@@ -62,8 +62,8 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
       let allUsers = [];
       const apiUrl =
         role === "superadmin"
-          ? "https://crm-server-amz7.onrender.com/api/allusers"
-          : "https://crm-server-amz7.onrender.com/api/users";
+          ? "https://crm-server-eylc.onrender.com/api/allusers"
+          : "https://crm-server-eylc.onrender.com/api/users";
       let page = 1;
       let hasMore = true;
 

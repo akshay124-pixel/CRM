@@ -29,7 +29,7 @@ const ValueAnalyticsDrawer = ({
 
         if (role === "superadmin") {
           const response = await axios.get(
-            "https://crm-server-amz7.onrender.com/api/users",
+            "https://crm-server-eylc.onrender.com/api/users",
             {
               headers: { Authorization: `Bearer ${token}` },
             }
@@ -52,7 +52,7 @@ const ValueAnalyticsDrawer = ({
           }));
         } else if (role === "admin") {
           const response = await axios.get(
-            "https://crm-server-amz7.onrender.com/api/users",
+            "https://crm-server-eylc.onrender.com/api/users",
             {
               headers: { Authorization: `Bearer ${token}` },
             }
