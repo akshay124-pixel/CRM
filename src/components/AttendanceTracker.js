@@ -36,7 +36,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
   const navigate = useNavigate();
 
   const apiUrl =
-    process.env.REACT_APP_API_URL || "https://crm-server-eylc.onrender.com/api";
+    process.env.REACT_APP_API_URL || "https://crm-server-lhtq.onrender.com/api";
 
   // Retry utility for API calls
   const withRetry = async (fn, retries = 3, delay = 1000) => {
