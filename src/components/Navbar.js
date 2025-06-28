@@ -48,7 +48,7 @@ const Navbar = () => {
   useEffect(() => {
     if (isAuthenticated) {
       const token = localStorage.getItem("token");
-      const socketInstance = io("https://crm-server-eylc.onrender.com", {
+      const socketInstance = io("https://crm-server-lhtq.onrender.com", {
         auth: { token: `Bearer ${token}` },
         reconnection: true,
         reconnectionAttempts: 5,
@@ -111,7 +111,7 @@ const Navbar = () => {
         const token = localStorage.getItem("token");
         if (!token) return;
         const response = await axios.get(
-          "https://crm-server-eylc.onrender.com/api/notifications",
+          "https://crm-server-lhtq.onrender.com/api/notifications",
           {
             headers: { Authorization: `Bearer ${token}` },
             params: { page: notificationPage, limit: 10 },
@@ -160,7 +160,7 @@ const Navbar = () => {
       const token = localStorage.getItem("token");
       if (!token) return;
       await axios.post(
-        "https://crm-server-eylc.onrender.com/api/notificationsread",
+        "https://crm-server-lhtq.onrender.com/api/notificationsread",
         { notificationIds },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -182,7 +182,7 @@ const Navbar = () => {
       const token = localStorage.getItem("token");
       if (!token) return;
       await axios.delete(
-        "https://crm-server-eylc.onrender.com/api/notificationsdelete",
+        "https://crm-server-lhtq.onrender.com/api/notificationsdelete",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
