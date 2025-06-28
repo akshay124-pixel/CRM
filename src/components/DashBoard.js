@@ -276,7 +276,7 @@ function DashBoard() {
       if (!token) throw new Error("No token found");
       const decoded = jwtDecode(token);
       const response = await axios.get(
-        "https://crm-server-eylc.onrender.com/api/user-role",
+        "https://crm-server-lhtq.onrender.com/api/user-role",
         {
           headers: { Authorization: `Bearer ${token}` },
           timeout: 5000,
@@ -305,7 +305,7 @@ function DashBoard() {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("No token found");
       const response = await axios.get(
-        "https://crm-server-eylc.onrender.com/api/fetch-entry",
+        "https://crm-server-lhtq.onrender.com/api/fetch-entry",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -403,7 +403,7 @@ function DashBoard() {
         try {
           const token = localStorage.getItem("token");
           const response = await axios.get(
-            "https://crm-server-eylc.onrender.com/api/users",
+            "https://crm-server-lhtq.onrender.com/api/users",
             {
               headers: { Authorization: `Bearer ${token}` },
             }
@@ -792,7 +792,7 @@ function DashBoard() {
 
         console.log(`Sending ${newEntries.length} entries to API`);
         const response = await axios.post(
-          "https://crm-server-eylc.onrender.com/api/entries",
+          "https://crm-server-lhtq.onrender.com/api/entries",
           newEntries,
           {
             headers: {
