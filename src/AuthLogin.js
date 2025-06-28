@@ -35,7 +35,7 @@ function Login({ onAuthSuccess }) {
 
     try {
       const response = await axios.post(
-        "https://crm-server-eylc.onrender.com/auth/login",
+        "https://crm-server-lhtq.onrender.com/auth/login",
         formData
       );
 
