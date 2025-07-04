@@ -308,7 +308,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       }
 
       const response = await axios.put(
-        `https://crm-server-eylc.onrender.com/api/editentry/${entry._id}`,
+        `https://crm-server-lhtq.onrender.com/api/editentry/${entry._id}`,
         payload,
         {
           headers: {
@@ -369,7 +369,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       try {
         const token = localStorage.getItem("token");
         const response = await axios.get(
-          "https://crm-server-eylc.onrender.com/api/tag-users",
+          "https://crm-server-lhtq.onrender.com/api/tag-users",
           {
             headers: { Authorization: `Bearer ${token}` },
           }
