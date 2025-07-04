@@ -17,7 +17,7 @@ import {
 import { FaClock, FaFileExcel } from "react-icons/fa";
 import axios from "axios";
 import { toast } from "react-toastify";
-import * as XLSX from "xlsx";
+
 import { useNavigate } from "react-router-dom";
 
 const AttendanceTracker = ({ open, onClose, userId, role }) => {
@@ -32,6 +32,8 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [limit] = useState(10); // Records per page
   const navigate = useNavigate();
 
@@ -345,52 +347,85 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
     }
   };
 
-  const handleExport = useCallback(() => {
+  const handleExport = useCallback(async () => {
     if (auth.status !== "authenticated") {
       toast.error("Please log in to export attendance.", { autoClose: 5000 });
       return;
     }
 
-    setAuth((prev) => ({ ...prev, error: null })); // Clear previous error
+    if (!startDate || !endDate) {
+      toast.error("Please select a valid date range.", { autoClose: 5000 });
+      return;
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (start > end) {
+      toast.error("Start date cannot be later than end date.", {
+        autoClose: 5000,
+      });
+      return;
+    }
+
+    setLoadingAction("export");
+    setAuth((prev) => ({ ...prev, error: null }));
     try {
-      const exportData = attendance.map((record) => ({
-        Date: new Date(record.date).toLocaleDateString(),
-        User: record.user?.username || "Unknown",
-        CheckIn: record.checkIn
-          ? new Date(record.checkIn).toLocaleTimeString()
-          : "N/A",
-        CheckOut: record.checkOut
-          ? new Date(record.checkOut).toLocaleTimeString()
-          : "N/A",
-        Status: record.status || "N/A",
-        Remarks: record.remarks || "N/A",
-      }));
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setAuth({
+          status: "unauthenticated",
+          error: "No authentication token found. Please log in.",
+        });
+        toast.error("No authentication token found. Please log in.", {
+          autoClose: 5000,
+        });
+        return;
+      }
 
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-      worksheet["!cols"] = [
-        { wch: 15 },
-        { wch: 20 },
-        { wch: 15 },
-        { wch: 15 },
-        { wch: 10 },
-        { wch: 30 },
-      ];
+      const response = await withRetry(() =>
+        axios.get(`${apiUrl}/export-attendance`, {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 10000,
+          params: { startDate, endDate },
+          responseType: "arraybuffer",
+        })
+      ).catch(async (error) => {
+        if (error.response?.status === 401) {
+          const newToken = await withRetry(refreshToken);
+          return await withRetry(() =>
+            axios.get(`${apiUrl}/export-attendance`, {
+              headers: { Authorization: `Bearer ${newToken}` },
+              timeout: 10000,
+              params: { startDate, endDate },
+              responseType: "arraybuffer",
+            })
+          );
+        }
+        throw error;
+      });
 
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
-      XLSX.writeFile(
-        workbook,
-        `Attendance_${new Date().toISOString().split("T")[0]}.xlsx`
-      );
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Attendance_${startDate}_to_${endDate}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
       toast.success("Attendance exported successfully!", { autoClose: 3000 });
-      setAuth((prev) => ({ ...prev, error: null })); // Clear error on success
+      setAuth((prev) => ({ ...prev, error: null }));
     } catch (error) {
-      const errorMessage = "Failed to export attendance";
+      const errorMessage = error.message || "Failed to export attendance";
       setAuth((prev) => ({ ...prev, error: errorMessage }));
       toast.error(errorMessage, { autoClose: 5000 });
+    } finally {
+      setLoadingAction(null);
     }
-  }, [auth.status, attendance]);
-
+  }, [auth.status, startDate, endDate]);
   const handleLoginRedirect = () => {
     navigate("/login");
     onClose();
@@ -624,21 +659,53 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
                 )}
               </Button>
               {(role === "superadmin" || role === "admin") && (
-                <Button
-                  onClick={handleExport}
-                  startIcon={<FaFileExcel />}
-                  variant="contained"
-                  disabled={loadingAction !== null || attendance.length === 0}
-                  sx={{
-                    bgcolor: "#33cabb",
-                    color: "white",
-                    fontWeight: "bold",
-                    "&:hover": { bgcolor: "#2db7aa" },
-                    minWidth: "120px",
-                  }}
-                >
-                  Export
-                </Button>
+                <>
+                  <TextField
+                    label="Start Date"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                    sx={{
+                      bgcolor: "white",
+                      borderRadius: 1,
+                      minWidth: "120px",
+                    }}
+                  />
+                  <TextField
+                    label="End Date"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                    sx={{
+                      bgcolor: "white",
+                      borderRadius: 1,
+                      minWidth: "120px",
+                    }}
+                  />
+                  <Button
+                    onClick={handleExport}
+                    startIcon={<FaFileExcel />}
+                    variant="contained"
+                    disabled={loadingAction !== null || !startDate || !endDate}
+                    sx={{
+                      bgcolor: "#33cabb",
+                      color: "white",
+                      fontWeight: "bold",
+                      "&:hover": { bgcolor: "#2db7aa" },
+                      minWidth: "120px",
+                    }}
+                  >
+                    {loadingAction === "export" ? (
+                      <CircularProgress size={20} color="inherit" />
+                    ) : (
+                      "Export"
+                    )}
+                  </Button>
+                </>
               )}
             </Box>
 
