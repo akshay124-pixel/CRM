@@ -100,14 +100,13 @@ const ValueAnalyticsDrawer = ({
           console.log(`Entry ${index + 1}:`, {
             id: entry._id,
             createdBy: entry.createdBy,
-            assignedTo: entry.assignedTo,
             closetype: entry.closetype,
             closeamount: entry.closeamount,
             status: entry.status,
             estimatedValue: entry.estimatedValue,
           });
 
-          // Process createdBy
+          // Process createdBy only
           const creatorId = entry.createdBy
             ? entry.createdBy._id?.toString() ||
               entry.createdBy.$oid?.toString() ||
@@ -124,33 +123,6 @@ const ValueAnalyticsDrawer = ({
               creatorId
             );
           }
-
-          // Process assignedTo
-          const assignedTo = Array.isArray(entry.assignedTo)
-            ? entry.assignedTo
-            : [];
-          assignedTo.forEach((user) => {
-            const userId =
-              user._id?.toString() || user.$oid?.toString() || user.toString();
-            const assignedUser = relevantUserIds.find(
-              (u) => u._id.toString() === userId
-            );
-            if (assignedUser) {
-              processUserStats(
-                assignedUser,
-                entry,
-                statsMap,
-                totals,
-                role,
-                userId
-              );
-            } else {
-              console.warn(
-                `Assigned user not found for entry ${entry._id}:`,
-                userId
-              );
-            }
-          });
         });
 
         console.log("Stats Map:", statsMap);
@@ -193,8 +165,8 @@ const ValueAnalyticsDrawer = ({
           };
         }
         if (
-          entry.closeamount != null &&
           entry.closetype === "Closed Won" &&
+          entry.closeamount != null &&
           typeof entry.closeamount === "number" &&
           !isNaN(entry.closeamount)
         ) {
@@ -239,7 +211,7 @@ const ValueAnalyticsDrawer = ({
           Username: "",
           "Total Closing Amount": totalClosingAmount,
           "Hot Value": totalHotValue,
-          " Warm Value": totalWarmValue,
+          "Warm Value": totalWarmValue,
         },
         {
           Section: "",

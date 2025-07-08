@@ -137,6 +137,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
   }, [role, userId, cachedUsers]);
 
   // Calculate stats
+  // Calculate stats
   const calculateStats = useCallback(async () => {
     const users = await fetchUsers();
     if (!users.length) {
@@ -161,78 +162,75 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
       processedEntryIds.add(entry._id);
 
       const creatorId = normalizeId(entry.createdBy?._id || entry.createdBy);
-      const assignedTo = Array.isArray(entry.assignedTo)
-        ? entry.assignedTo.map((user) => normalizeId(user._id || user))
-        : [];
+      if (!creatorId) {
+        console.warn(`No valid creatorId for entry ${entry._id}`);
+        return;
+      }
 
-      const uniqueUserIds = new Set([creatorId, ...assignedTo].filter(Boolean));
+      const user = users.find((u) => u._id === creatorId);
+      if (!user) {
+        console.warn(`User ${creatorId} not found for entry ${entry._id}`);
+        return;
+      }
 
-      uniqueUserIds.forEach((uId) => {
-        const user = users.find((u) => u._id === uId);
-        if (!user) {
-          console.warn(`User ${uId} not found for entry ${entry._id}`);
-          return;
+      if (!statsMap[creatorId]) {
+        let displayName = user.username;
+        if (role === "superadmin" && user.role === "admin") {
+          displayName = `${user.username} (Admin)`;
+        } else if (role === "superadmin" && user.role === "others") {
+          displayName = user.username;
+        } else if (creatorId === userId && role === "admin") {
+          displayName = `${user.username} (Admin)`;
         }
+        statsMap[creatorId] = {
+          _id: creatorId,
+          username: displayName,
+          allTimeEntries: 0,
+          monthEntries: 0,
+          cold: 0,
+          warm: 0,
+          hot: 0,
+          closedWon: 0,
+          closedLost: 0,
+        };
+      }
 
-        if (!statsMap[uId]) {
-          let displayName = user.username;
-          if (role === "superadmin" && user.role === "admin") {
-            displayName = `${user.username} (Admin)`;
-          } else if (role === "superadmin" && user.role === "others") {
-            displayName = user.username;
-          } else if (uId === userId && role === "admin") {
-            displayName = `${user.username} (Admin)`;
+      statsMap[creatorId].allTimeEntries += 1;
+
+      const entryDate = new Date(entry.createdAt);
+      const now = new Date();
+      if (
+        !isNaN(entryDate) &&
+        entryDate.getMonth() === now.getMonth() &&
+        entryDate.getFullYear() === now.getFullYear()
+      ) {
+        statsMap[creatorId].monthEntries += 1;
+      }
+
+      const status = entry.status?.toLowerCase() || "";
+      const closetype = entry.closetype?.toLowerCase() || "";
+
+      switch (status) {
+        case "not interested":
+          statsMap[creatorId].cold += 1;
+          break;
+        case "maybe":
+          statsMap[creatorId].warm += 1;
+          break;
+        case "interested":
+          statsMap[creatorId].hot += 1;
+          break;
+        case "closed":
+          if (closetype === "closed won") {
+            statsMap[creatorId].closedWon += 1;
+          } else if (closetype === "closed lost") {
+            statsMap[creatorId].closedLost += 1;
           }
-          statsMap[uId] = {
-            _id: uId,
-            username: displayName,
-            allTimeEntries: 0,
-            monthEntries: 0,
-            cold: 0,
-            warm: 0,
-            hot: 0,
-            closedWon: 0,
-            closedLost: 0,
-          };
-        }
-
-        statsMap[uId].allTimeEntries += 1;
-
-        const entryDate = new Date(entry.createdAt);
-        const now = new Date();
-        if (
-          !isNaN(entryDate) &&
-          entryDate.getMonth() === now.getMonth() &&
-          entryDate.getFullYear() === now.getFullYear()
-        ) {
-          statsMap[uId].monthEntries += 1;
-        }
-
-        const status = entry.status?.toLowerCase() || "";
-        const closetype = entry.closetype?.toLowerCase() || "";
-
-        switch (status) {
-          case "not interested":
-            statsMap[uId].cold += 1;
-            break;
-          case "maybe":
-            statsMap[uId].warm += 1;
-            break;
-          case "interested":
-            statsMap[uId].hot += 1;
-            break;
-          case "closed":
-            if (closetype === "closed won") {
-              statsMap[uId].closedWon += 1;
-            } else if (closetype === "closed lost") {
-              statsMap[uId].closedLost += 1;
-            }
-            break;
-          default:
-            console.warn(`Unknown status for entry ${entry._id}: ${status}`);
-            break;
-        }
-      });
+          break;
+        default:
+          console.warn(`Unknown status for entry ${entry._id}: ${status}`);
+          break;
+      }
     });
 
     const result = Object.values(statsMap);
@@ -243,7 +241,6 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
       setDebugInfo("No stats generated; check user IDs or entry data");
     }
   }, [filteredEntries, fetchUsers, role, userId]);
-
   useEffect(() => {
     if (isOpen) {
       calculateStats();
