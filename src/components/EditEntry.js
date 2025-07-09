@@ -1262,10 +1262,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         <Form.Group controlId="customerName">
           <Form.Label>👤 Customer Name</Form.Label>
           <Form.Control
-            {...register("customerName", {
-              required: "Customer name is required",
-              maxLength: { value: 100, message: "Max 100 characters" },
-            })}
+            {...register("customerName")}
             isInvalid={!!errors.customerName}
             aria-label="Customer Name"
             onChange={(e) =>
@@ -1280,10 +1277,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         <Form.Group controlId="mobileNumber">
           <Form.Label>📱 Mobile Number</Form.Label>
           <Form.Control
-            {...register("mobileNumber", {
-              required: "Mobile number is required",
-              pattern: { value: /^\d{10}$/, message: "Must be 10 digits" },
-            })}
+            {...register("mobileNumber")}
             isInvalid={!!errors.mobileNumber}
             aria-label="Mobile Number"
             onChange={(e) =>
@@ -1301,13 +1295,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         <Form.Group controlId="contactPerson">
           <Form.Label>👤 Contact Person Name</Form.Label>
           <Form.Control
-            {...register("contactperson", {
-              required: "Contact person name is required",
-              pattern: {
-                value: /^[A-Za-z\s]+$/,
-                message: "Only alphabets are allowed",
-              },
-            })}
+            {...register("contactperson")}
             isInvalid={!!errors.contactperson}
             aria-label="Contact Person Name"
             placeholder="Enter Contact Person Name"
@@ -1341,7 +1329,6 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
                 <Controller
                   name={`products.${index}.name`}
                   control={control}
-                  rules={{ required: "Product name is required" }}
                   render={({ field }) => (
                     <Form.Control
                       as="select"
@@ -1350,7 +1337,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
                       aria-label={`Product ${index + 1} Name`}
                       onChange={(e) => {
                         field.onChange(e);
-                        // Reset specification and size when product changes
+
                         setValue(`products.${index}.specification`, "", {
                           shouldValidate: true,
                         });
@@ -1377,7 +1364,6 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
                 <Controller
                   name={`products.${index}.specification`}
                   control={control}
-                  rules={{ required: "Specification is required" }}
                   render={({ field }) => (
                     <Form.Control
                       as="select"
@@ -1407,7 +1393,6 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
                 <Controller
                   name={`products.${index}.size`}
                   control={control}
-                  rules={{ required: "Size is required" }}
                   render={({ field }) => (
                     <Form.Control
                       as="select"
@@ -1436,11 +1421,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
                 <Form.Label>Quantity</Form.Label>
                 <Form.Control
                   type="number"
-                  {...register(`products.${index}.quantity`, {
-                    required: "Quantity is required",
-                    min: { value: 1, message: "Quantity must be at least 1" },
-                    valueAsNumber: true,
-                  })}
+                  {...register(`products.${index}.quantity`)}
                   isInvalid={!!errors.products?.[index]?.quantity}
                   aria-label={`Product ${index + 1} Quantity`}
                 />
@@ -1463,7 +1444,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         <Form.Group controlId="type">
           <Form.Label>👥 Customer Type</Form.Label>
           <Form.Select
-            {...register("type", { required: "Customer type is required" })}
+            {...register("type")}
             isInvalid={!!errors.type}
             aria-label="Customer Type"
             onChange={(e) =>
@@ -1483,10 +1464,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           <Form.Label>🏠 Address</Form.Label>
           <Form.Control
             as="textarea"
-            {...register("address", {
-              required: "Address is required",
-              minLength: { value: 5, message: "Min 5 characters" },
-            })}
+            {...register("address")}
             isInvalid={!!errors.address}
             rows={2}
             aria-label="Address"
@@ -1504,7 +1482,6 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           <Controller
             name="state"
             control={control}
-            rules={{ required: "State is required" }}
             render={({ field }) => (
               <Form.Control
                 as="select"
@@ -1535,7 +1512,6 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           <Controller
             name="city"
             control={control}
-            rules={{ required: "City is required" }}
             render={({ field }) => (
               <Form.Control
                 as="select"
@@ -1562,9 +1538,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         <Form.Group controlId="formOrganization" className="mb-3">
           <Form.Label>🏢 Organization</Form.Label>
           <Form.Select
-            {...register("organization", {
-              required: "Organization is required",
-            })}
+            {...register("organization")}
             isInvalid={!!errors.organization}
             aria-label="Organization"
             name="organization"
@@ -1594,7 +1568,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         <Form.Group controlId="category">
           <Form.Label>📁 Category</Form.Label>
           <Form.Select
-            {...register("category", { required: "Category is required" })}
+            {...register("category")}
             isInvalid={!!errors.category}
             aria-label="Category"
           >
