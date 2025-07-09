@@ -136,7 +136,6 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
     }
   }, [role, userId, cachedUsers]);
 
-  // Calculate stats
   // Update the calculateStats function
   const calculateStats = useCallback(async () => {
     const users = await fetchUsers();
@@ -199,12 +198,20 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
       statsMap[creatorId].allTimeEntries += 1;
       statsMap[creatorId].totalVisits += entry.history?.length || 0;
 
-      const entryDate = new Date(entry.updatedAt || entry.createdAt); // Use updatedAt, fallback to createdAt
+      const createdAt = new Date(entry.createdAt);
+      const updatedAt = new Date(entry.updatedAt || entry.createdAt); // Fallback to createdAt if updatedAt is missing
+      const createdMonth = createdAt.getMonth();
+      const createdYear = createdAt.getFullYear();
+      const updatedMonth = updatedAt.getMonth();
+      const updatedYear = updatedAt.getFullYear();
       const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      // Include entry if either createdAt or updatedAt is in the current month and year
       if (
-        !isNaN(entryDate) &&
-        entryDate.getMonth() === now.getMonth() &&
-        entryDate.getFullYear() === now.getFullYear()
+        (createdMonth === currentMonth && createdYear === currentYear) ||
+        (updatedMonth === currentMonth && updatedYear === currentYear)
       ) {
         statsMap[creatorId].monthEntries += 1;
       }
@@ -243,6 +250,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
       setDebugInfo("No stats generated; check user IDs or entry data");
     }
   }, [filteredEntries, fetchUsers, role, userId]);
+
   useEffect(() => {
     if (isOpen) {
       calculateStats();
