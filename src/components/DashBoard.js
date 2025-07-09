@@ -892,17 +892,34 @@ function DashBoard() {
     setItemIdToDelete(null);
     setIsDeleteModalOpen(true);
   }, [selectedEntries]);
-
   const { total, monthly } = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    const total = entries.reduce((sum, entry) => {
+    // Filter entries based on role, userId, selectedUsername, and dateRange
+    const filteredEntries = entries.filter((entry) => {
+      const createdAt = new Date(entry.createdAt);
+      return (
+        (role === "superadmin" ||
+          role === "admin" ||
+          entry.createdBy?._id === userId ||
+          entry.assignedTo?._id === userId) &&
+        (!selectedUsername ||
+          entry.createdBy?.username === selectedUsername ||
+          entry.assignedTo?.username === selectedUsername) &&
+        (!dateRange[0].startDate ||
+          !dateRange[0].endDate ||
+          (createdAt >= new Date(dateRange[0].startDate) &&
+            createdAt <= new Date(dateRange[0].endDate)))
+      );
+    });
+
+    const total = filteredEntries.reduce((sum, entry) => {
       return sum + (entry.history?.length || 0);
     }, 0);
 
-    const monthly = entries.reduce((sum, entry) => {
+    const monthly = filteredEntries.reduce((sum, entry) => {
       const entryDate = new Date(entry.createdAt);
       const entryMonth = entryDate.getMonth();
       const entryYear = entryDate.getFullYear();
@@ -914,7 +931,7 @@ function DashBoard() {
     }, 0);
 
     return { total, monthly };
-  }, [entries]);
+  }, [entries, role, userId, selectedUsername, dateRange]);
 
   useEffect(() => {
     setTotalVisits(total);

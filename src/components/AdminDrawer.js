@@ -137,7 +137,6 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
   }, [role, userId, cachedUsers]);
 
   // Calculate stats
-  // Calculate stats
   const calculateStats = useCallback(async () => {
     const users = await fetchUsers();
     if (!users.length) {
@@ -187,6 +186,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
           username: displayName,
           allTimeEntries: 0,
           monthEntries: 0,
+          totalVisits: 0, // Added totalVisits
           cold: 0,
           warm: 0,
           hot: 0,
@@ -196,6 +196,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
       }
 
       statsMap[creatorId].allTimeEntries += 1;
+      statsMap[creatorId].totalVisits += entry.history?.length || 0; // Calculate total visits from history length
 
       const entryDate = new Date(entry.createdAt);
       const now = new Date();
@@ -658,6 +659,15 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
                         }}
                       >
                         This Month: {user.monthEntries}
+                      </Typography>
+                      <Typography
+                        sx={{
+                          fontSize: "1rem",
+                          fontWeight: 600,
+                          color: "cyan",
+                        }}
+                      >
+                        Total Visits: {user.totalVisits}
                       </Typography>
                     </Box>
                   </Box>
