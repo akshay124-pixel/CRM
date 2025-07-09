@@ -920,18 +920,11 @@ function DashBoard() {
     }, 0);
 
     const monthly = filteredEntries.reduce((sum, entry) => {
-      const createdAt = new Date(entry.createdAt);
-      const updatedAt = new Date(entry.updatedAt); // No fallback needed since updatedAt defaults to Date.now
-      const createdMonth = createdAt.getMonth();
-      const createdYear = createdAt.getFullYear();
-      const updatedMonth = updatedAt.getMonth();
-      const updatedYear = updatedAt.getFullYear();
+      const entryDate = new Date(entry.createdAt);
+      const entryMonth = entryDate.getMonth();
+      const entryYear = entryDate.getFullYear();
 
-      // Include entry if either createdAt or updatedAt is in the current month and year
-      if (
-        (createdMonth === currentMonth && createdYear === currentYear) ||
-        (updatedMonth === currentMonth && updatedYear === currentYear)
-      ) {
+      if (entryMonth === currentMonth && entryYear === currentYear) {
         return sum + (entry.history?.length || 0);
       }
       return sum;
