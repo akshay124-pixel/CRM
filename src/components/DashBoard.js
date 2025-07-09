@@ -892,7 +892,6 @@ function DashBoard() {
     setItemIdToDelete(null);
     setIsDeleteModalOpen(true);
   }, [selectedEntries]);
-  // Update the useMemo hook for total and monthly visits
   const { total, monthly } = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -921,18 +920,11 @@ function DashBoard() {
     }, 0);
 
     const monthly = filteredEntries.reduce((sum, entry) => {
-      const createdAt = new Date(entry.createdAt);
-      const updatedAt = new Date(entry.updatedAt || entry.createdAt); // Fallback to createdAt if updatedAt is missing
-      const createdMonth = createdAt.getMonth();
-      const createdYear = createdAt.getFullYear();
-      const updatedMonth = updatedAt.getMonth();
-      const updatedYear = updatedAt.getFullYear();
+      const entryDate = new Date(entry.createdAt);
+      const entryMonth = entryDate.getMonth();
+      const entryYear = entryDate.getFullYear();
 
-      // Include entry if either createdAt or updatedAt is in the current month and year
-      if (
-        (createdMonth === currentMonth && createdYear === currentYear) ||
-        (updatedMonth === currentMonth && updatedYear === currentYear)
-      ) {
+      if (entryMonth === currentMonth && entryYear === currentYear) {
         return sum + (entry.history?.length || 0);
       }
       return sum;
@@ -941,7 +933,11 @@ function DashBoard() {
     return { total, monthly };
   }, [entries, role, userId, selectedUsername, dateRange]);
 
-  // Update the useEffect hook for monthly visits
+  useEffect(() => {
+    setTotalVisits(total);
+    setMonthlyVisits(monthly);
+  }, [total, monthly]);
+
   useEffect(() => {
     const checkMonthChange = () => {
       const now = new Date();
@@ -949,18 +945,11 @@ function DashBoard() {
       const currentYear = now.getFullYear();
 
       const monthly = entries.reduce((sum, entry) => {
-        const createdAt = new Date(entry.createdAt);
-        const updatedAt = new Date(entry.updatedAt || entry.createdAt); // Fallback to createdAt if updatedAt is missing
-        const createdMonth = createdAt.getMonth();
-        const createdYear = createdAt.getFullYear();
-        const updatedMonth = updatedAt.getMonth();
-        const updatedYear = updatedAt.getFullYear();
+        const entryDate = new Date(entry.createdAt);
+        const entryMonth = entryDate.getMonth();
+        const entryYear = entryDate.getFullYear();
 
-        // Include entry if either createdAt or updatedAt is in the current month and year
-        if (
-          (createdMonth === currentMonth && createdYear === currentYear) ||
-          (updatedMonth === currentMonth && updatedYear === currentYear)
-        ) {
+        if (entryMonth === currentMonth && entryYear === currentYear) {
           return sum + (entry.history?.length || 0);
         }
         return sum;
