@@ -892,6 +892,7 @@ function DashBoard() {
     setItemIdToDelete(null);
     setIsDeleteModalOpen(true);
   }, [selectedEntries]);
+  // Update the useMemo hook for total and monthly visits
   const { total, monthly } = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -920,11 +921,18 @@ function DashBoard() {
     }, 0);
 
     const monthly = filteredEntries.reduce((sum, entry) => {
-      const entryDate = new Date(entry.updatedAt || entry.createdAt); // Use updatedAt, fallback to createdAt
-      const entryMonth = entryDate.getMonth();
-      const entryYear = entryDate.getFullYear();
+      const createdAt = new Date(entry.createdAt);
+      const updatedAt = new Date(entry.updatedAt || entry.createdAt); // Fallback to createdAt if updatedAt is missing
+      const createdMonth = createdAt.getMonth();
+      const createdYear = createdAt.getFullYear();
+      const updatedMonth = updatedAt.getMonth();
+      const updatedYear = updatedAt.getFullYear();
 
-      if (entryMonth === currentMonth && entryYear === currentYear) {
+      // Include entry if either createdAt or updatedAt is in the current month and year
+      if (
+        (createdMonth === currentMonth && createdYear === currentYear) ||
+        (updatedMonth === currentMonth && updatedYear === currentYear)
+      ) {
         return sum + (entry.history?.length || 0);
       }
       return sum;
@@ -941,11 +949,18 @@ function DashBoard() {
       const currentYear = now.getFullYear();
 
       const monthly = entries.reduce((sum, entry) => {
-        const entryDate = new Date(entry.updatedAt || entry.createdAt); // Use updatedAt, fallback to createdAt
-        const entryMonth = entryDate.getMonth();
-        const entryYear = entryDate.getFullYear();
+        const createdAt = new Date(entry.createdAt);
+        const updatedAt = new Date(entry.updatedAt || entry.createdAt); // Fallback to createdAt if updatedAt is missing
+        const createdMonth = createdAt.getMonth();
+        const createdYear = createdAt.getFullYear();
+        const updatedMonth = updatedAt.getMonth();
+        const updatedYear = updatedAt.getFullYear();
 
-        if (entryMonth === currentMonth && entryYear === currentYear) {
+        // Include entry if either createdAt or updatedAt is in the current month and year
+        if (
+          (createdMonth === currentMonth && createdYear === currentYear) ||
+          (updatedMonth === currentMonth && updatedYear === currentYear)
+        ) {
           return sum + (entry.history?.length || 0);
         }
         return sum;
