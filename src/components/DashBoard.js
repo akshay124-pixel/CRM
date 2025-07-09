@@ -920,7 +920,7 @@ function DashBoard() {
     }, 0);
 
     const monthly = filteredEntries.reduce((sum, entry) => {
-      const entryDate = new Date(entry.createdAt);
+      const entryDate = new Date(entry.updatedAt || entry.createdAt); // Use updatedAt, fallback to createdAt
       const entryMonth = entryDate.getMonth();
       const entryYear = entryDate.getFullYear();
 
@@ -933,11 +933,7 @@ function DashBoard() {
     return { total, monthly };
   }, [entries, role, userId, selectedUsername, dateRange]);
 
-  useEffect(() => {
-    setTotalVisits(total);
-    setMonthlyVisits(monthly);
-  }, [total, monthly]);
-
+  // Update the useEffect hook for monthly visits
   useEffect(() => {
     const checkMonthChange = () => {
       const now = new Date();
@@ -945,7 +941,7 @@ function DashBoard() {
       const currentYear = now.getFullYear();
 
       const monthly = entries.reduce((sum, entry) => {
-        const entryDate = new Date(entry.createdAt);
+        const entryDate = new Date(entry.updatedAt || entry.createdAt); // Use updatedAt, fallback to createdAt
         const entryMonth = entryDate.getMonth();
         const entryYear = entryDate.getFullYear();
 

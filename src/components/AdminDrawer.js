@@ -137,6 +137,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
   }, [role, userId, cachedUsers]);
 
   // Calculate stats
+  // Update the calculateStats function
   const calculateStats = useCallback(async () => {
     const users = await fetchUsers();
     if (!users.length) {
@@ -186,7 +187,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
           username: displayName,
           allTimeEntries: 0,
           monthEntries: 0,
-          totalVisits: 0, // Added totalVisits
+          totalVisits: 0,
           cold: 0,
           warm: 0,
           hot: 0,
@@ -196,9 +197,9 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
       }
 
       statsMap[creatorId].allTimeEntries += 1;
-      statsMap[creatorId].totalVisits += entry.history?.length || 0; // Calculate total visits from history length
+      statsMap[creatorId].totalVisits += entry.history?.length || 0;
 
-      const entryDate = new Date(entry.createdAt);
+      const entryDate = new Date(entry.updatedAt || entry.createdAt); // Use updatedAt, fallback to createdAt
       const now = new Date();
       if (
         !isNaN(entryDate) &&
