@@ -17,7 +17,6 @@ import {
 import { FaClock, FaFileExcel } from "react-icons/fa";
 import axios from "axios";
 import { toast } from "react-toastify";
-import * as XLSX from "xlsx";
 import { useNavigate } from "react-router-dom";
 
 const AttendanceTracker = ({ open, onClose, userId, role }) => {
@@ -32,6 +31,8 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [limit] = useState(10); // Records per page
   const navigate = useNavigate();
 
@@ -86,7 +87,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
     if (auth.error) {
       const timer = setTimeout(() => {
         setAuth((prev) => ({ ...prev, error: null }));
-      }, 5000); // Match toast autoClose duration
+      }, 5000);
       return () => clearTimeout(timer);
     }
   }, [auth.error]);
@@ -194,14 +195,31 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
           status: "unauthenticated",
           error: "No authentication token found. Please log in.",
         });
+        toast.error("No authentication token found. Please log in.", {
+          autoClose: 5000,
+        });
         return;
+      }
+
+      const params = { page: currentPage, limit };
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+          throw new Error("Invalid date format");
+        }
+        if (start > end) {
+          throw new Error("Start date cannot be later than end date.");
+        }
+        params.startDate = startDate;
+        params.endDate = endDate;
       }
 
       const response = await withRetry(() =>
         axios.get(`${apiUrl}/attendance`, {
           headers: { Authorization: `Bearer ${token}` },
           timeout: 5000,
-          params: { page: currentPage, limit },
+          params,
         })
       ).catch(async (error) => {
         if (error.response?.status === 401) {
@@ -210,7 +228,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
             axios.get(`${apiUrl}/attendance`, {
               headers: { Authorization: `Bearer ${newToken}` },
               timeout: 5000,
-              params: { page: currentPage, limit },
+              params,
             })
           );
         }
@@ -221,47 +239,27 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
         throw new Error(response.data.message || "Failed to fetch attendance");
       }
 
-      // Sort attendance by checkIn timestamp in descending order (newest first)
-      const sortedAttendance = (response.data.data || []).sort((a, b) => {
-        const checkInA =
-          a.checkIn && !isNaN(new Date(a.checkIn))
-            ? new Date(a.checkIn)
-            : new Date(0);
-        const checkInB =
-          b.checkIn && !isNaN(new Date(b.checkIn))
-            ? new Date(b.checkIn)
-            : new Date(0);
-        return checkInB - checkInA; // Newest check-in first
-      });
-
-      console.log("Raw API data:", response.data.data); // Debug: Log raw data
-      console.log(
-        "Sorted attendance by checkIn:",
-        sortedAttendance.map((record) => ({
-          checkIn: record.checkIn,
-          formatted: record.checkIn
-            ? new Date(record.checkIn).toLocaleString()
-            : "N/A",
-        }))
-      ); // Debug: Log sorted check-in timestamps
-
-      setAttendance(sortedAttendance);
-      setTotalPages(response.data.pagination.totalPages || 1);
-      setTotalRecords(response.data.pagination.totalRecords || 0);
+      const { data, pagination } = response.data;
+      setAttendance(data || []);
+      setTotalPages(pagination.totalPages || 1);
+      setTotalRecords(pagination.totalRecords || 0);
     } catch (error) {
-      const errorMessage = error.message || "Failed to fetch attendance";
+      const errorMessage =
+        error.response?.status === 400
+          ? error.response.data.message
+          : error.message || "Failed to fetch attendance";
       setAuth((prev) => ({ ...prev, error: errorMessage }));
       toast.error(errorMessage, { autoClose: 5000 });
     } finally {
       setLoadingAction(null);
     }
-  }, [auth.status, currentPage, limit]);
+  }, [auth.status, currentPage, limit, startDate, endDate]);
 
   useEffect(() => {
     if (open && auth.status === "authenticated") {
       fetchAttendance();
     }
-  }, [open, auth.status, fetchAttendance, currentPage]);
+  }, [open, auth.status, fetchAttendance, currentPage, startDate, endDate]);
 
   const handleAction = async (type) => {
     if (auth.status !== "authenticated") {
@@ -272,7 +270,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
     }
 
     setLoadingAction(type);
-    setAuth((prev) => ({ ...prev, error: null })); // Clear previous error
+    setAuth((prev) => ({ ...prev, error: null }));
     try {
       const token = localStorage.getItem("token");
       if (!token) {
@@ -331,7 +329,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
       );
       setRemarks("");
       setLocationStatus("idle");
-      setAuth((prev) => ({ ...prev, error: null })); // Clear error on success
+      setAuth((prev) => ({ ...prev, error: null }));
       await fetchAttendance();
     } catch (error) {
       const errorMessage =
@@ -351,48 +349,68 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
       return;
     }
 
+    if (!startDate || !endDate) {
+      toast.error("Please select a valid date range.", { autoClose: 5000 });
+      return;
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      toast.error("Invalid date format.", { autoClose: 5000 });
+      return;
+    }
+    if (start > end) {
+      toast.error("Start date cannot be later than end date.", {
+        autoClose: 5000,
+      });
+      return;
+    }
+
     setLoadingAction("export");
     setAuth((prev) => ({ ...prev, error: null }));
     try {
-      // Prepare data for Excel
-      const exportData = attendance.map((record) => ({
-        Date: new Date(record.date).toLocaleDateString(),
-        Employee: record.user?.username || "Unknown",
-        "Check In": record.checkIn
-          ? new Date(record.checkIn).toLocaleTimeString()
-          : "N/A",
-        "Check Out": record.checkOut
-          ? new Date(record.checkOut).toLocaleTimeString()
-          : "N/A",
-        Status: record.status || "N/A",
-        Remarks: record.remarks || "N/A",
-        "Check In Location": record.checkInLocation
-          ? `${record.checkInLocation.latitude}, ${record.checkInLocation.longitude}`
-          : "N/A",
-        "Check Out Location": record.checkOutLocation
-          ? `${record.checkOutLocation.latitude}, ${record.checkOutLocation.longitude}`
-          : "N/A",
-      }));
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setAuth({
+          status: "unauthenticated",
+          error: "No authentication token found. Please log in.",
+        });
+        toast.error("No authentication token found. Please log in.", {
+          autoClose: 5000,
+        });
+        return;
+      }
 
-      // Create a new workbook and worksheet
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
-
-      // Generate Excel file and trigger download
-      const excelBuffer = XLSX.write(workbook, {
-        bookType: "xlsx",
-        type: "array",
+      const response = await withRetry(() =>
+        axios.get(`${apiUrl}/export-attendance`, {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 10000,
+          params: { startDate, endDate },
+          responseType: "arraybuffer",
+        })
+      ).catch(async (error) => {
+        if (error.response?.status === 401) {
+          const newToken = await withRetry(refreshToken);
+          return await withRetry(() =>
+            axios.get(`${apiUrl}/export-attendance`, {
+              headers: { Authorization: `Bearer ${newToken}` },
+              timeout: 10000,
+              params: { startDate, endDate },
+              responseType: "arraybuffer",
+            })
+          );
+        }
+        throw error;
       });
-      const blob = new Blob([excelBuffer], {
+
+      const blob = new Blob([response.data], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `Attendance_${
-        new Date().toISOString().split("T")[0]
-      }.xlsx`;
+      link.download = `Attendance_${startDate}_to_${endDate}.xlsx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -401,35 +419,38 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
       toast.success("Attendance exported successfully!", { autoClose: 3000 });
       setAuth((prev) => ({ ...prev, error: null }));
     } catch (error) {
-      const errorMessage = error.message || "Failed to export attendance";
+      const errorMessage =
+        error.response?.status === 404
+          ? "No attendance records found for the selected date range"
+          : error.response?.data?.message || "Failed to export attendance";
       setAuth((prev) => ({ ...prev, error: errorMessage }));
       toast.error(errorMessage, { autoClose: 5000 });
     } finally {
       setLoadingAction(null);
     }
-  }, [auth.status, attendance]);
+  }, [auth.status, startDate, endDate]);
 
   const handleLoginRedirect = () => {
     navigate("/login");
     onClose();
   };
 
-  // Clear error when drawer closes
   const handleClose = () => {
     setAuth((prev) => ({ ...prev, error: null }));
     setRemarks("");
     setLocationStatus("idle");
     setCurrentPage(1);
+    setStartDate("");
+    setEndDate("");
+    setAttendance([]);
     onClose();
   };
 
-  // Handle page change
   const handlePageChange = (event, value) => {
     setCurrentPage(value);
-    setAuth((prev) => ({ ...prev, error: null })); // Clear error on page change
+    setAuth((prev) => ({ ...prev, error: null }));
   };
 
-  // Memoize table rows
   const tableRows = useMemo(() => {
     return attendance.map((record) => (
       <TableRow key={record._id} hover>
@@ -641,25 +662,54 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
                   "Check Out"
                 )}
               </Button>
-              <Button
-                onClick={handleExport}
-                startIcon={<FaFileExcel />}
-                variant="contained"
-                disabled={loadingAction !== null}
-                sx={{
-                  bgcolor: "#33cabb",
-                  color: "white",
-                  fontWeight: "bold",
-                  "&:hover": { bgcolor: "#2db7aa" },
-                  minWidth: "120px",
-                }}
-              >
-                {loadingAction === "export" ? (
-                  <CircularProgress size={20} color="inherit" />
-                ) : (
-                  "Export"
-                )}
-              </Button>
+
+              <>
+                <TextField
+                  label="Start Date"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                  sx={{
+                    bgcolor: "white",
+                    borderRadius: 1,
+                    minWidth: "120px",
+                  }}
+                />
+                <TextField
+                  label="End Date"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                  sx={{
+                    bgcolor: "white",
+                    borderRadius: 1,
+                    minWidth: "120px",
+                  }}
+                />
+                <Button
+                  onClick={handleExport}
+                  startIcon={<FaFileExcel />}
+                  variant="contained"
+                  disabled={loadingAction !== null || !startDate || !endDate}
+                  sx={{
+                    bgcolor: "#33cabb",
+                    color: "white",
+                    fontWeight: "bold",
+                    "&:hover": { bgcolor: "#2db7aa" },
+                    minWidth: "120px",
+                  }}
+                >
+                  {loadingAction === "export" ? (
+                    <CircularProgress size={20} color="inherit" />
+                  ) : (
+                    "Export"
+                  )}
+                </Button>
+              </>
             </Box>
 
             <Box
@@ -701,7 +751,9 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
                   {attendance.length === 0 && !loadingAction ? (
                     <TableRow>
                       <TableCell colSpan={8} align="center">
-                        No attendance records found
+                        {startDate && endDate
+                          ? "No attendance records found for the selected date range"
+                          : "No attendance records found"}
                       </TableCell>
                     </TableRow>
                   ) : (
