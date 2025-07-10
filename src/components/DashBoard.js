@@ -920,19 +920,25 @@ function DashBoard() {
     }, 0);
 
     const monthly = filteredEntries.reduce((sum, entry) => {
-      const entryDate = new Date(entry.createdAt);
-      const entryMonth = entryDate.getMonth();
-      const entryYear = entryDate.getFullYear();
+      const createdAt = new Date(entry.createdAt);
+      const updatedAt = new Date(entry.updatedAt || entry.createdAt); // Fallback to createdAt if updatedAt is missing
+      const createdMonth = createdAt.getMonth();
+      const createdYear = createdAt.getFullYear();
+      const updatedMonth = updatedAt.getMonth();
+      const updatedYear = updatedAt.getFullYear();
 
-      if (entryMonth === currentMonth && entryYear === currentYear) {
-        return sum + (entry.history?.length || 0);
+      // Include entry if either createdAt or updatedAt is in the current month and year
+      if (
+        (createdMonth === currentMonth && createdYear === currentYear) ||
+        (updatedMonth === currentMonth && updatedYear === currentYear)
+      ) {
+        return sum + 1; // Count the entry itself
       }
       return sum;
     }, 0);
 
     return { total, monthly };
   }, [entries, role, userId, selectedUsername, dateRange]);
-
   useEffect(() => {
     setTotalVisits(total);
     setMonthlyVisits(monthly);
