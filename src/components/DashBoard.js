@@ -942,7 +942,7 @@ function DashBoard() {
   useEffect(() => {
     setTotalVisits(total);
     setMonthlyVisits(monthly);
-  }, [total, monthly]);
+  });
 
   useEffect(() => {
     const checkMonthChange = () => {
