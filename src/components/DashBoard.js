@@ -354,6 +354,13 @@ function DashBoard() {
           ? new Date(dateRange[0].endDate.setHours(23, 59, 59, 999))
           : null;
 
+        // Check if selectedUsername matches createdBy or any user in assignedTo array
+        const usernameMatch =
+          !selectedUsername ||
+          row.createdBy?.username === selectedUsername ||
+          (Array.isArray(row.assignedTo) &&
+            row.assignedTo.some((user) => user.username === selectedUsername));
+
         return (
           (!searchTerm ||
             row.customerName
@@ -362,9 +369,7 @@ function DashBoard() {
             row.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             row.mobileNumber?.includes(searchTerm) ||
             productNameMatch) &&
-          (!selectedUsername ||
-            row.createdBy?.username === selectedUsername ||
-            row.assignedTo?.username === selectedUsername) &&
+          usernameMatch &&
           (!selectedState || row.state === selectedState) &&
           (!selectedCity || row.city === selectedCity) &&
           (dashboardFilter === "total" ||
