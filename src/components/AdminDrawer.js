@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import PropTypes from "prop-types";
 import { motion } from "framer-motion";
-import { Drawer, Box, Typography, IconButton } from "@mui/material";
-import { FaTimes } from "react-icons/fa";
+import { Drawer, Box, Typography, IconButton, TextField } from "@mui/material";
+import { FaTimes, FaSearch } from "react-icons/fa";
 import axios from "axios";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
@@ -13,6 +13,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
   const [loading, setLoading] = useState(false);
   const [debugInfo, setDebugInfo] = useState(null);
   const [cachedUsers, setCachedUsers] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Normalize ID from various formats
   const normalizeId = (idObj) => {
@@ -256,8 +257,17 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
       calculateStats();
     } else {
       setCachedUsers(null); // Clear cache when drawer closes
+      setSearchTerm(""); // Reset search term when drawer closes
     }
   }, [isOpen, calculateStats]);
+
+  // Filter userStats based on search term
+  const filteredUserStats = useMemo(() => {
+    if (!searchTerm.trim()) return userStats;
+    return userStats.filter((user) =>
+      user.username.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [userStats, searchTerm]);
 
   // Calculate overall statistics
   const overallStats = useMemo(() => {
@@ -309,7 +319,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
           Won: "",
           Lost: "",
         },
-        ...userStats.map((user) => ({
+        ...filteredUserStats.map((user) => ({
           Section: "User Statistics",
           Username: user.username,
           "Total Entries": user.allTimeEntries,
@@ -343,7 +353,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
       console.error("Error exporting analytics:", error);
       toast.error("Failed to export analytics!");
     }
-  }, [overallStats, dateRange]);
+  }, [overallStats, dateRange, filteredUserStats]);
 
   return (
     <Drawer
@@ -397,7 +407,51 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
         </IconButton>
       </Box>
 
-      <Box sx={{ flex: 1, overflowY: "auto", px: 3, py: 4 }}>
+      {(role === "superadmin" || role === "admin") && (
+        <Box sx={{ px: 3, py: 2 }}>
+          <TextField
+            fullWidth
+            placeholder="Search by username..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <FaSearch
+                  style={{
+                    color: "rgba(255, 255, 255, 0.7)",
+                    marginRight: "8px",
+                  }}
+                />
+              ),
+              sx: {
+                background: "rgba(255, 255, 255, 0.1)",
+                borderRadius: "12px",
+                color: "white",
+                "& .MuiInputBase-input::placeholder": {
+                  color: "rgba(255, 255, 255, 0.6)",
+                  opacity: 1,
+                },
+                "& .MuiOutlinedInput-notchedOutline": {
+                  border: "1px solid rgba(255, 255, 255, 0.3)",
+                },
+                "&:hover .MuiOutlinedInput-notchedOutline": {
+                  border: "1px solid rgba(255, 255, 255, 0.5)",
+                },
+                "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                  border: "1px solid #2575fc",
+                },
+              },
+            }}
+            sx={{
+              "& .MuiInputBase-input": {
+                padding: "10px 12px",
+                fontSize: "0.9rem",
+              },
+            }}
+          />
+        </Box>
+      )}
+      <Box sx={{ flex: 1, overflowY: "auto", px: 3, py: 2 }}>
         {loading ? (
           <Box
             sx={{
@@ -420,7 +474,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
               Loading Analytics...
             </Typography>
           </Box>
-        ) : debugInfo || !userStats.length ? (
+        ) : debugInfo || !filteredUserStats.length ? (
           <Box
             sx={{
               display: "flex",
@@ -618,7 +672,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
               </motion.div>
             </Box>
 
-            {userStats.map((user, index) => (
+            {filteredUserStats.map((user, index) => (
               <Box key={user._id || user.username + index} sx={{ mb: 3 }}>
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}

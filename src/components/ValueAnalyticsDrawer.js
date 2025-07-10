@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Drawer, Box, Typography, IconButton } from "@mui/material";
-import { FaTimes } from "react-icons/fa";
+import { Drawer, Box, Typography, IconButton, TextField } from "@mui/material";
+import { FaTimes, FaSearch } from "react-icons/fa";
 import axios from "axios";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
@@ -19,6 +19,7 @@ const ValueAnalyticsDrawer = ({
   const [totalHotValue, setTotalHotValue] = useState(0);
   const [totalWarmValue, setTotalWarmValue] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const fetchAssignedUsersAndCalculateValueStats = async () => {
@@ -200,8 +201,20 @@ const ValueAnalyticsDrawer = ({
       }
     };
 
-    if (isOpen) fetchAssignedUsersAndCalculateValueStats();
+    if (isOpen) {
+      fetchAssignedUsersAndCalculateValueStats();
+      setSearchTerm(""); // Reset search term when drawer opens
+    }
   }, [entries, isOpen, role, userId, dateRange]);
+
+  // Filter valueStats based on search term for superadmin and admin roles
+  const filteredValueStats = useMemo(() => {
+    if (role !== "superadmin" && role !== "admin") return valueStats; // No filtering for 'others'
+    if (!searchTerm.trim()) return valueStats;
+    return valueStats.filter((user) =>
+      user.username.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [valueStats, searchTerm, role]);
 
   const handleExport = () => {
     try {
@@ -220,7 +233,7 @@ const ValueAnalyticsDrawer = ({
           "Hot Value": "",
           "Warm Value": "",
         },
-        ...valueStats.map((user) => ({
+        ...filteredValueStats.map((user) => ({
           Section: "User Statistics",
           Username: user.username,
           "Total Closing Amount": user.totalClosingAmount,
@@ -242,10 +255,14 @@ const ValueAnalyticsDrawer = ({
       });
       worksheet["!cols"] = colWidths;
 
-      XLSX.writeFile(
-        workbook,
-        `value_analytics_${new Date().toISOString().slice(0, 10)}.xlsx`
-      );
+      const dateStr = dateRange?.[0]?.startDate
+        ? `${new Date(dateRange[0].startDate)
+            .toISOString()
+            .slice(0, 10)}_to_${new Date(dateRange[0].endDate)
+            .toISOString()
+            .slice(0, 10)}`
+        : new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(workbook, `value_analytics_${dateStr}.xlsx`);
       toast.success("Value analytics exported successfully!");
     } catch (error) {
       console.error("Error exporting value analytics:", error);
@@ -302,6 +319,51 @@ const ValueAnalyticsDrawer = ({
         </IconButton>
       </Box>
 
+      {(role === "superadmin" || role === "admin") && (
+        <Box sx={{ px: 2, py: 2 }}>
+          <TextField
+            fullWidth
+            placeholder="Search by username..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <FaSearch
+                  style={{
+                    color: "rgba(255, 255, 255, 0.7)",
+                    marginRight: "8px",
+                  }}
+                />
+              ),
+              sx: {
+                background: "rgba(255, 255, 255, 0.1)",
+                borderRadius: "12px",
+                color: "white",
+                "& .MuiInputBase-input::placeholder": {
+                  color: "rgba(255, 255, 255, 0.6)",
+                  opacity: 1,
+                },
+                "& .MuiOutlinedInput-notchedOutline": {
+                  border: "1px solid rgba(255, 255, 255, 0.3)",
+                },
+                "&:hover .MuiOutlinedInput-notchedOutline": {
+                  border: "1px solid rgba(255, 255, 255, 0.5)",
+                },
+                "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                  border: "1px solid #2575fc",
+                },
+              },
+            }}
+            sx={{
+              "& .MuiInputBase-input": {
+                padding: "10px 12px",
+                fontSize: "0.9rem",
+              },
+            }}
+          />
+        </Box>
+      )}
+
       <Box sx={{ flex: 1, overflowY: "auto", px: 2, py: 3 }}>
         {loading ? (
           <Typography
@@ -317,7 +379,7 @@ const ValueAnalyticsDrawer = ({
           >
             Loading...
           </Typography>
-        ) : valueStats.length === 0 ? (
+        ) : filteredValueStats.length === 0 ? (
           <Typography
             sx={{
               textAlign: "center",
@@ -456,7 +518,7 @@ const ValueAnalyticsDrawer = ({
                 my: 1,
               }}
             />
-            {valueStats.map((user, index) => (
+            {filteredValueStats.map((user, index) => (
               <Box key={user.username + index}>
                 <motion.div
                   initial={{ opacity: 0, x: 20 }}
@@ -578,7 +640,7 @@ const ValueAnalyticsDrawer = ({
                     </Box>
                   </Box>
                 </motion.div>
-                {index < valueStats.length - 1 && (
+                {index < filteredValueStats.length - 1 && (
                   <Box
                     sx={{
                       height: "1px",

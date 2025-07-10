@@ -10,6 +10,7 @@ import {
   Skeleton,
   Switch,
   FormControlLabel,
+  TextField,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import {
@@ -18,6 +19,7 @@ import {
   FaChevronDown,
   FaChevronUp,
   FaDownload,
+  FaSearch,
 } from "react-icons/fa";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -139,6 +141,7 @@ const TeamAnalyticsDrawer = ({
   const [expandedTeams, setExpandedTeams] = useState({});
   const [showZeroEntries, setShowZeroEntries] = useState(true);
   const [debugInfo, setDebugInfo] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Fetch users from API
   const {
@@ -157,6 +160,7 @@ const TeamAnalyticsDrawer = ({
       console.log("TeamAnalytics Props:", { role, entries, dateRange });
       console.log("Sample Entries:", entries.slice(0, 5));
       console.log("Users:", users);
+      setSearchTerm(""); // Reset search term when drawer opens
     }
   }, [isOpen, role, entries, dateRange, users]);
 
@@ -485,6 +489,15 @@ const TeamAnalyticsDrawer = ({
     return result;
   }, [users, entries, role, dateRange]);
 
+  // Filter teamStats based on search term for superadmin and admin roles
+  const filteredTeamStats = useMemo(() => {
+    if (role !== "superadmin" && role !== "admin") return teamStats; // No filtering for 'others'
+    if (!searchTerm.trim()) return teamStats;
+    return teamStats.filter((team) =>
+      team.adminName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [teamStats, searchTerm, role]);
+
   // Modified useEffect to prevent multiple openings and update teamStats
   useEffect(() => {
     let isMounted = true;
@@ -512,7 +525,7 @@ const TeamAnalyticsDrawer = ({
 
   // Calculate overall stats
   const overallStats = useMemo(() => {
-    const stats = teamStats.reduce(
+    const stats = filteredTeamStats.reduce(
       (acc, team) => ({
         total: acc.total + team.teamTotal.allTimeEntries,
         monthTotal: acc.monthTotal + team.teamTotal.monthEntries,
@@ -537,7 +550,7 @@ const TeamAnalyticsDrawer = ({
     );
     console.log("TeamAnalytics Overall Stats:", stats);
     return stats;
-  }, [teamStats]);
+  }, [filteredTeamStats]);
 
   // Export analytics to Excel
   const handleExport = useCallback(() => {
@@ -557,7 +570,7 @@ const TeamAnalyticsDrawer = ({
           Lost: overallStats.closedLost,
           "Total Closing Amount": overallStats.totalClosingAmount,
         },
-        ...teamStats.flatMap((team) => [
+        ...filteredTeamStats.flatMap((team) => [
           {
             Section: "Admin Statistics",
             Team: team.adminName,
@@ -627,7 +640,7 @@ const TeamAnalyticsDrawer = ({
       toast.error("Failed to export team analytics!");
       console.error("Export error:", error);
     }
-  }, [teamStats, overallStats, dateRange, showZeroEntries]);
+  }, [filteredTeamStats, overallStats, dateRange, showZeroEntries]);
 
   const toggleTeamMembers = useCallback((adminId) => {
     setExpandedTeams((prev) => ({
@@ -655,24 +668,10 @@ const TeamAnalyticsDrawer = ({
     { field: "warm", headerName: "Warm", width: 100 },
     { field: "closedWon", headerName: "Won", width: 100 },
     { field: "closedLost", headerName: "Lost", width: 100 },
-    {
-      field: "totalClosingAmount",
-      headerName: "Total Closure (₹)",
-      width: 150,
-      valueFormatter: ({ value }) =>
-        value != null ? `₹${value.toLocaleString("en-IN")}` : "₹0",
-    },
-    {
-      field: "teamTotalClosingAmount",
-      headerName: "Team Total Closure (₹)",
-      width: 150,
-      valueFormatter: ({ value }) =>
-        value != null ? `₹${value.toLocaleString("en-IN")}` : "₹0",
-    },
   ];
 
   const summaryRows = useMemo(() => {
-    const rows = teamStats.map((team) => ({
+    const rows = filteredTeamStats.map((team) => ({
       id: team.adminId,
       adminName: team.adminName,
       totalEntries: team.teamTotal.allTimeEntries,
@@ -687,7 +686,7 @@ const TeamAnalyticsDrawer = ({
     }));
     console.log("Summary Rows:", rows);
     return rows;
-  }, [teamStats]);
+  }, [filteredTeamStats]);
 
   // Lazy-loaded team member list
   const MemberRow = ({ index, style, data }) => {
@@ -802,6 +801,49 @@ const TeamAnalyticsDrawer = ({
         </IconButton>
       </Box>
 
+      <Box sx={{ px: 3, py: 2 }}>
+        <TextField
+          fullWidth
+          placeholder="Search by team leader..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <FaSearch
+                style={{
+                  color: "rgba(255, 255, 255, 0.7)",
+                  marginRight: "8px",
+                }}
+              />
+            ),
+            sx: {
+              background: "rgba(255, 255, 255, 0.1)",
+              borderRadius: "12px",
+              color: "white",
+              "& .MuiInputBase-input::placeholder": {
+                color: "rgba(255, 255, 255, 0.6)",
+                opacity: 1,
+              },
+              "& .MuiOutlinedInput-notchedOutline": {
+                border: "1px solid rgba(255, 255, 255, 0.3)",
+              },
+              "&:hover .MuiOutlinedInput-notchedOutline": {
+                border: "1px solid rgba(255, 255, 255, 0.5)",
+              },
+              "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                border: "1px solid #2575fc",
+              },
+            },
+          }}
+          sx={{
+            "& .MuiInputBase-input": {
+              padding: "10px 12px",
+              fontSize: "0.9rem",
+            },
+          }}
+        />
+      </Box>
+
       <Box sx={{ flex: 1, overflowY: "auto", px: 3, py: 4 }}>
         {loading ? (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -861,7 +903,7 @@ const TeamAnalyticsDrawer = ({
               No users found in the system. Please contact support.
             </Typography>
           </Box>
-        ) : !teamStats.length ? (
+        ) : !filteredTeamStats.length ? (
           <Box
             sx={{
               display: "flex",
@@ -1023,7 +1065,7 @@ const TeamAnalyticsDrawer = ({
               sx={{ mb: 2, color: "rgba(255, 255, 255, 0.9)" }}
             />
 
-            {teamStats.map((team, index) => (
+            {filteredTeamStats.map((team, index) => (
               <Box key={team.adminId} sx={{ mb: 4 }}>
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
