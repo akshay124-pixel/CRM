@@ -54,6 +54,7 @@ export const statesAndCities = {
   ],
   Bihar: [
     "Patna",
+    "Aurangabad",
     "Mirzapur",
     "Jehanabad",
     "Mithapur",
@@ -555,7 +556,7 @@ export const statesAndCities = {
   ],
   "Uttar Pradesh": [
     "Agra",
-    "Aurangabad",
+
     "Aligarh",
     "Ambedkar Nagar",
     "Amethi",
