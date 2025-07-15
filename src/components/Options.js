@@ -834,7 +834,7 @@ export const statesAndCities = {
 export const productOptions = [
   {
     name: "IFPD",
-    sizes: ["65 inch", "75 inch", "86 inch", "98 inch"],
+    sizes: ["65 inch", "75 inch", "86 inch", "98 inch", "110 inch"],
     specifications: [
       "Android 9, 4GB RAM, 32GB ROM",
       "Android 8, 4GB RAM, 32GB ROM",
