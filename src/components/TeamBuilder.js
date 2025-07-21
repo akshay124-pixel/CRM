@@ -31,7 +31,7 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
 
       const [usersResponse, userResponse] = await Promise.all([
         axios
-          .get("https://crm-server-lhtq.onrender.com/api/fetch-team", {
+          .get("https://crm-server-vrck.onrender.com/api/fetch-team", {
             headers: { Authorization: `Bearer ${token}` },
           })
           .catch((err) => {
@@ -42,7 +42,7 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
             );
           }),
         axios
-          .get("https://crm-server-lhtq.onrender.com/api/current-user", {
+          .get("https://crm-server-vrck.onrender.com/api/current-user", {
             headers: { Authorization: `Bearer ${token}` },
           })
           .catch((err) => {
@@ -83,7 +83,7 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
         throw new Error("No authentication token found");
       }
       const response = await axios.post(
-        "https://crm-server-lhtq.onrender.com/api/assign-user",
+        "https://crm-server-vrck.onrender.com/api/assign-user",
         { userId: userIdToAssign },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -102,7 +102,7 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
         throw new Error("No authentication token found");
       }
       const response = await axios.post(
-        "https://crm-server-lhtq.onrender.com/api/unassign-user",
+        "https://crm-server-vrck.onrender.com/api/unassign-user",
         { userId: userIdToUnassign },
         { headers: { Authorization: `Bearer ${token}` } }
       );

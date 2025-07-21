@@ -30,7 +30,7 @@ const ValueAnalyticsDrawer = ({
 
         if (role === "superadmin") {
           const response = await axios.get(
-            "https://crm-server-lhtq.onrender.com/api/users",
+            "https://crm-server-vrck.onrender.com/api/users",
             {
               headers: { Authorization: `Bearer ${token}` },
             }
@@ -53,7 +53,7 @@ const ValueAnalyticsDrawer = ({
           }));
         } else if (role === "admin") {
           const response = await axios.get(
-            "https://crm-server-lhtq.onrender.com/api/users",
+            "https://crm-server-vrck.onrender.com/api/users",
             {
               headers: { Authorization: `Bearer ${token}` },
             }
