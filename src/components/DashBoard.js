@@ -642,103 +642,104 @@ function DashBoard() {
   };
   const handleExport = async () => {
     try {
-      const exportData = filteredData.map((entry) => {
-        // Format history entries for better readability in Excel
-        const historyFormatted = entry.history?.length
-          ? entry.history
-              .map((h, index) => {
-                const products = h.products?.length
-                  ? h.products
-                      .map(
-                        (p) =>
-                          `${p.name} (Spec: ${p.specification}, Size: ${p.size}, Qty: ${p.quantity})`
-                      )
-                      .join("; ")
-                  : "None";
-                const assignedTo = h.assignedTo?.length
-                  ? h.assignedTo
-                      .map((user) => user.username || "Unknown")
-                      .join(", ")
-                  : "Unassigned";
-                return (
-                  `History Entry ${index + 1}:\n` +
-                  `  Status: ${h.status || "N/A"}\n` +
-                  `  Remarks: ${h.remarks || "None"}\n` +
-                  `  Products: ${products}\n` +
-                  `  Assigned To: ${assignedTo}\n` +
-                  `  Timestamp: ${
-                    h.timestamp
-                      ? new Date(h.timestamp).toLocaleString("en-GB", {
-                          timeZone: "Asia/Kolkata",
-                        })
-                      : "N/A"
-                  }\n` +
-                  `  First Person: ${h.firstPersonMeet || "N/A"}\n` +
-                  `  Second Person: ${h.secondPersonMeet || "N/A"}\n` +
-                  `  Third Person: ${h.thirdPersonMeet || "N/A"}\n` +
-                  `  Fourth Person: ${h.fourthPersonMeet || "N/A"}\n`
-                );
-              })
-              .join("----------------------------------------\n")
-          : "No history available";
+      // Main data for Filtered Entries sheet
+      const exportData = filteredData.map((entry) => ({
+        Customer_Name: entry.customerName || "",
+        Mobile_Number: entry.mobileNumber || "",
+        Contact_Person: entry.contactperson || "",
+        Address: entry.address || "",
+        State: entry.state || "",
+        City: entry.city || "",
+        Organization: entry.organization || "",
+        Category: entry.category || "",
+        Created_By: entry.createdBy?.username || "",
+        Created_At: entry.createdAt
+          ? new Date(entry.createdAt).toLocaleDateString("en-GB", {
+              timeZone: "Asia/Kolkata",
+            })
+          : "",
+        Expected_Closing_Date: entry.expectedClosingDate
+          ? new Date(entry.expectedClosingDate).toLocaleDateString("en-GB", {
+              timeZone: "Asia/Kolkata",
+            })
+          : "",
+        Follow_Up_Date: entry.followUpDate
+          ? new Date(entry.followUpDate).toLocaleDateString("en-GB", {
+              timeZone: "Asia/Kolkata",
+            })
+          : "",
+        Remarks: entry.remarks || "",
+        Products: entry.products?.length
+          ? entry.products
+              .map(
+                (p) =>
+                  `${p.name} (Spec: ${p.specification}, Size: ${p.size}, Qty: ${p.quantity})`
+              )
+              .join("; ")
+          : "",
+        Type: entry.type || "",
+        Status: entry.status || "",
+        Close_Type: entry.closetype || "",
+        Assigned_To: Array.isArray(entry.assignedTo)
+          ? entry.assignedTo
+              .map((user) => user.username || "Unknown")
+              .join(", ")
+          : entry.assignedTo?.username || "",
+        Estimated_Value: entry.estimatedValue || "",
+        Close_Amount: entry.closeamount || "",
+        Next_Action: entry.nextAction || "",
+        Live_Location: entry.liveLocation || "",
+        First_Person_Met: entry.firstPersonMeet || "",
+        Second_Person_Met: entry.secondPersonMeet || "",
+        Third_Person_Met: entry.thirdPersonMeet || "",
+        Fourth_Person_Met: entry.fourthPersonMeet || "",
+      }));
 
-        return {
-          Customer_Name: entry.customerName || "",
-          Mobile_Number: entry.mobileNumber || "",
-          Contact_Person: entry.contactperson || "",
-          Address: entry.address || "",
-          State: entry.state || "",
-          City: entry.city || "",
-          Organization: entry.organization || "",
-          Category: entry.category || "",
-          Created_By: entry.createdBy?.username || "",
-          Created_At: entry.createdAt
-            ? new Date(entry.createdAt).toLocaleDateString("en-GB", {
-                timeZone: "Asia/Kolkata",
-              })
-            : "",
-          Expected_Closing_Date: entry.expectedClosingDate
-            ? new Date(entry.expectedClosingDate).toLocaleDateString("en-GB", {
-                timeZone: "Asia/Kolkata",
-              })
-            : "",
-          Follow_Up_Date: entry.followUpDate
-            ? new Date(entry.followUpDate).toLocaleDateString("en-GB", {
-                timeZone: "Asia/Kolkata",
-              })
-            : "",
-          Remarks: entry.remarks || "",
-          Products: entry.products?.length
-            ? entry.products
-                .map(
-                  (p) =>
-                    `${p.name} (Spec: ${p.specification}, Size: ${p.size}, Qty: ${p.quantity})`
-                )
-                .join("; ")
-            : "",
-          Type: entry.type || "",
-          Status: entry.status || "",
-          Close_Type: entry.closetype || "",
-          Assigned_To: Array.isArray(entry.assignedTo)
-            ? entry.assignedTo
-                .map((user) => user.username || "Unknown")
-                .join(", ")
-            : entry.assignedTo?.username || "",
-          Estimated_Value: entry.estimatedValue || "",
-          Close_Amount: entry.closeamount || "",
-          Next_Action: entry.nextAction || "",
-          Live_Location: entry.liveLocation || "",
-          First_Person_Met: entry.firstPersonMeet || "",
-          Second_Person_Met: entry.secondPersonMeet || "",
-          Third_Person_Met: entry.thirdPersonMeet || "",
-          Fourth_Person_Met: entry.fourthPersonMeet || "",
-          History: historyFormatted, // Improved history column
-        };
-      });
+      // History data for separate History sheet
+      const historyData = filteredData.flatMap((entry, entryIndex) =>
+        entry.history?.length
+          ? entry.history.map((h, historyIndex) => ({
+              Entry_ID: entryIndex + 1,
+              Customer_Name: entry.customerName || "",
+              History_Entry: historyIndex + 1,
+              Status: h.status || "N/A",
+              Remarks: h.remarks || "None",
+              Products: h.products?.length
+                ? h.products
+                    .map(
+                      (p) =>
+                        `${p.name} (Spec: ${p.specification}, Size: ${p.size}, Qty: ${p.quantity})`
+                    )
+                    .join("; ")
+                : "None",
+              Assigned_To: h.assignedTo?.length
+                ? h.assignedTo
+                    .map((user) => user.username || "Unknown")
+                    .join(", ")
+                : "Unassigned",
+              Timestamp: h.timestamp
+                ? new Date(h.timestamp).toLocaleString("en-GB", {
+                    timeZone: "Asia/Kolkata",
+                  })
+                : "N/A",
+              First_Person: h.firstPersonMeet || "N/A",
+              Second_Person: h.secondPersonMeet || "N/A",
+              Third_Person: h.thirdPersonMeet || "N/A",
+              Fourth_Person: h.fourthPersonMeet || "N/A",
+            }))
+          : [
+              {
+                Entry_ID: entryIndex + 1,
+                Customer_Name: entry.customerName || "",
+                History_Entry: "None",
+                Status: "No history",
+              },
+            ]
+      );
 
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-      // Set column widths for better readability
-      worksheet["!cols"] = [
+      // Create main worksheet
+      const mainWorksheet = XLSX.utils.json_to_sheet(exportData);
+      mainWorksheet["!cols"] = [
         { wch: 20 }, // Customer_Name
         { wch: 15 }, // Mobile_Number
         { wch: 20 }, // Contact_Person
@@ -765,20 +766,39 @@ function DashBoard() {
         { wch: 20 }, // Second_Person_Met
         { wch: 20 }, // Third_Person_Met
         { wch: 20 }, // Fourth_Person_Met
-        { wch: 100 }, // History (wide column for detailed history)
       ];
 
-      // Enable text wrapping for the History column to improve readability
-      worksheet["!rows"] = exportData.map(() => ({ hpt: 20 })); // Set row height for better visibility
-      Object.keys(worksheet).forEach((cell) => {
-        if (cell[0] === "Z" && cell !== "Z1") {
-          // History column (26th column, 'Z')
-          worksheet[cell].s = { alignment: { wrapText: true } }; // Enable text wrapping
+      // Create history worksheet
+      const historyWorksheet = XLSX.utils.json_to_sheet(historyData);
+      historyWorksheet["!cols"] = [
+        { wch: 10 }, // Entry_ID
+        { wch: 20 }, // Customer_Name
+        { wch: 15 }, // History_Entry
+        { wch: 15 }, // Status
+        { wch: 30 }, // Remarks
+        { wch: 50 }, // Products
+        { wch: 20 }, // Assigned_To
+        { wch: 20 }, // Timestamp
+        { wch: 20 }, // First_Person
+        { wch: 20 }, // Second_Person
+        { wch: 20 }, // Third_Person
+        { wch: 20 }, // Fourth_Person
+      ];
+
+      // Enable text wrapping for Remarks and Products columns in history sheet
+      Object.keys(historyWorksheet).forEach((cell) => {
+        if (
+          (cell.startsWith("E") || cell.startsWith("F")) &&
+          cell !== "E1" &&
+          cell !== "F1"
+        ) {
+          historyWorksheet[cell].s = { alignment: { wrapText: true } };
         }
       });
 
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Filtered Entries");
+      XLSX.utils.book_append_sheet(workbook, mainWorksheet, "Filtered Entries");
+      XLSX.utils.book_append_sheet(workbook, historyWorksheet, "History");
 
       const excelBuffer = XLSX.write(workbook, {
         bookType: "xlsx",
@@ -795,7 +815,7 @@ function DashBoard() {
         .replace(/\//g, "-")}.xlsx`;
       link.click();
       URL.revokeObjectURL(link.href);
-      toast.success("Filtered entries exported successfully!");
+      toast.success("Filtered entries and history exported successfully!");
     } catch (error) {
       console.error("Export error:", error.message);
       toast.error("Failed to export filtered entries!");
