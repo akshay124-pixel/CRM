@@ -641,73 +641,110 @@ function DashBoard() {
     setDateRange([{ startDate: null, endDate: null, key: "selection" }]);
   };
 
-  const handleExport = async () => {
-    try {
-      const exportData = filteredData.map((entry) => ({
-        Customer_Name: entry.customerName || "",
-        Mobile_Number: entry.mobileNumber || "",
-        Contact_Person: entry.contactperson || "",
-        Address: entry.address || "",
-        State: entry.state || "",
-        City: entry.city || "",
-        Organization: entry.organization || "",
-        Category: entry.category || "",
-        createdBy: entry.createdBy?.username || "",
-        Created_At: entry.createdAt
-          ? new Date(entry.createdAt).toLocaleDateString()
-          : "",
-        Expected_Closing_Date: entry.expectedClosingDate
-          ? new Date(entry.expectedClosingDate).toLocaleDateString()
-          : "",
-        Follow_Up_Date: entry.followUpDate
-          ? new Date(entry.followUpDate).toLocaleDateString()
-          : "",
-        Remarks: entry.remarks || "",
-        Products:
-          entry.products
-            ?.map(
-              (p) =>
-                `${p.name} (${p.specification}, ${p.size}, Qty: ${p.quantity})`
-            )
-            .join("; ") || "",
-        Type: entry.type || "",
-        Status: entry.status || "",
-        Close_Type: entry.closetype || "",
-        Assigned_To: entry.assignedTo?.username || "",
-        Assigned_To: entry.assignedTo?.username || "",
-        Estimated_Value: entry.estimatedValue || "",
-        Close_Amount: entry.closeamount || "",
-        Next_Action: entry.nextAction || "",
-        Live_Location: entry.liveLocation || "",
-        First_Person_Met: entry.firstPersonMeet || "",
-        Second_Person_Met: entry.secondPersonMeet || "",
-        Third_Person_Met: entry.thirdPersonMeet || "",
-        Fourth_Person_Met: entry.fourthPersonMeet || "",
-      }));
+ const handleExport = async () => {
+   try {
+     // Prepare main data
+     const exportData = filteredData.map((entry) => ({
+       Customer_Name: entry.customerName || "",
+       Mobile_Number: entry.mobileNumber || "",
+       Contact_Person: entry.contactperson || "",
+       Address: entry.address || "",
+       State: entry.state || "",
+       City: entry.city || "",
+       Organization: entry.organization || "",
+       Category: entry.category || "",
+       createdBy: entry.createdBy?.username || "",
+       Created_At: entry.createdAt
+         ? new Date(entry.createdAt).toLocaleDateString()
+         : "",
+       Expected_Closing_Date: entry.expectedClosingDate
+         ? new Date(entry.expectedClosingDate).toLocaleDateString()
+         : "",
+       Follow_Up_Date: entry.followUpDate
+         ? new Date(entry.followUpDate).toLocaleDateString()
+         : "",
+       Remarks: entry.remarks || "",
+       Products:
+         entry.products
+           ?.map(
+             (p) =>
+               `${p.name} (${p.specification}, ${p.size}, Qty: ${p.quantity})`
+           )
+           .join("; ") || "",
+       Type: entry.type || "",
+       Status: entry.status || "",
+       Close_Type: entry.closetype || "",
+       Assigned_To: entry.assignedTo?.username || "",
+       Estimated_Value: entry.estimatedValue || "",
+       Close_Amount: entry.closeamount || "",
+       Next_Action: entry.nextAction || "",
+       Live_Location: entry.liveLocation || "",
+       First_Person_Met: entry.firstPersonMeet || "",
+       Second_Person_Met: entry.secondPersonMeet || "",
+       Third_Person_Met: entry.thirdPersonMeet || "",
+       Fourth_Person_Met: entry.fourthPersonMeet || "",
+     }));
 
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Filtered Entries");
+     // Prepare history data
+     const historyExportData = filteredData.flatMap(
+       (entry, index) =>
+         entry.history?.map((historyItem, historyIndex) => ({
+           Entry_ID: index + 1,
+           Customer_Name: entry.customerName || "",
+           History_Status: historyItem.status || "",
+           History_Remarks: historyItem.remarks || "",
+           History_Live_Location: historyItem.liveLocation || "",
+           History_Products:
+             historyItem.products
+               ?.map(
+                 (p) =>
+                   `${p.name} (${p.specification}, ${p.size}, Qty: ${p.quantity})`
+               )
+               .join("; ") || "",
+           History_Assigned_To:
+             historyItem.assignedTo?.map((user) => user.username).join(", ") ||
+             "",
+           History_Timestamp: historyItem.timestamp
+             ? new Date(historyItem.timestamp).toLocaleDateString()
+             : "",
+           History_First_Person_Met: historyItem.firstPersonMeet || "",
+           History_Second_Person_Met: historyItem.secondPersonMeet || "",
+           History_Third_Person_Met: historyItem.thirdPersonMeet || "",
+           History_Fourth_Person_Met: historyItem.fourthPersonMeet || "",
+         })) || []
+     );
 
-      const excelBuffer = XLSX.write(workbook, {
-        bookType: "xlsx",
-        type: "array",
-      });
+     // Create workbook and worksheets
+     const workbook = XLSX.utils.book_new();
 
-      const blob = new Blob([excelBuffer], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "Filtered_Entries.xlsx";
-      link.click();
-      URL.revokeObjectURL(link.href);
-      toast.success("Filtered entries exported successfully!");
-    } catch (error) {
-      console.error("Export error:", error.message);
-      toast.error("Failed to export filtered entries!");
-    }
-  };
+     // Main data worksheet
+     const mainWorksheet = XLSX.utils.json_to_sheet(exportData);
+     XLSX.utils.book_append_sheet(workbook, mainWorksheet, "Entries");
+
+     // History worksheet
+     const historyWorksheet = XLSX.utils.json_to_sheet(historyExportData);
+     XLSX.utils.book_append_sheet(workbook, historyWorksheet, "History");
+
+     // Generate Excel file
+     const excelBuffer = XLSX.write(workbook, {
+       bookType: "xlsx",
+       type: "array",
+     });
+
+     const blob = new Blob([excelBuffer], {
+       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+     });
+     const link = document.createElement("a");
+     link.href = URL.createObjectURL(blob);
+     link.download = "Entries_With_History.xlsx";
+     link.click();
+     URL.revokeObjectURL(link.href);
+     toast.success("Entries and history exported successfully!");
+   } catch (error) {
+     console.error("Export error:", error.message);
+     toast.error("Failed to export entries and history!");
+   }
+ };
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
