@@ -643,32 +643,44 @@ function DashBoard() {
   const handleExport = async () => {
     try {
       const exportData = filteredData.map((entry) => {
-        // Format history entries for readability
-        const historyFormatted =
-          entry.history
-            ?.map((h, index) => {
-              const products =
-                h.products
-                  ?.map(
-                    (p) =>
-                      `${p.name} (${p.specification}, ${p.size}, Qty: ${p.quantity})`
-                  )
-                  .join("; ") || "None";
-              const assignedTo =
-                h.assignedTo
-                  ?.map((user) => user.username || "Unknown")
-                  .join(", ") || "Unassigned";
-              return `Entry ${index + 1}: Status: ${h.status}, Remarks: ${
-                h.remarks || "None"
-              }, Products: ${products}, Assigned To: ${assignedTo}, Timestamp: ${
-                h.timestamp ? new Date(h.timestamp).toLocaleString() : "N/A"
-              }, First Person: ${h.firstPersonMeet || "N/A"}, Second Person: ${
-                h.secondPersonMeet || "N/A"
-              }, Third Person: ${h.thirdPersonMeet || "N/A"}, Fourth Person: ${
-                h.fourthPersonMeet || "N/A"
-              }`;
-            })
-            .join("\n") || "No history";
+        // Format history entries for better readability in Excel
+        const historyFormatted = entry.history?.length
+          ? entry.history
+              .map((h, index) => {
+                const products = h.products?.length
+                  ? h.products
+                      .map(
+                        (p) =>
+                          `${p.name} (Spec: ${p.specification}, Size: ${p.size}, Qty: ${p.quantity})`
+                      )
+                      .join("; ")
+                  : "None";
+                const assignedTo = h.assignedTo?.length
+                  ? h.assignedTo
+                      .map((user) => user.username || "Unknown")
+                      .join(", ")
+                  : "Unassigned";
+                return (
+                  `History Entry ${index + 1}:\n` +
+                  `  Status: ${h.status || "N/A"}\n` +
+                  `  Remarks: ${h.remarks || "None"}\n` +
+                  `  Products: ${products}\n` +
+                  `  Assigned To: ${assignedTo}\n` +
+                  `  Timestamp: ${
+                    h.timestamp
+                      ? new Date(h.timestamp).toLocaleString("en-GB", {
+                          timeZone: "Asia/Kolkata",
+                        })
+                      : "N/A"
+                  }\n` +
+                  `  First Person: ${h.firstPersonMeet || "N/A"}\n` +
+                  `  Second Person: ${h.secondPersonMeet || "N/A"}\n` +
+                  `  Third Person: ${h.thirdPersonMeet || "N/A"}\n` +
+                  `  Fourth Person: ${h.fourthPersonMeet || "N/A"}\n`
+                );
+              })
+              .join("----------------------------------------\n")
+          : "No history available";
 
         return {
           Customer_Name: entry.customerName || "",
@@ -696,13 +708,14 @@ function DashBoard() {
               })
             : "",
           Remarks: entry.remarks || "",
-          Products:
-            entry.products
-              ?.map(
-                (p) =>
-                  `${p.name} (${p.specification}, ${p.size}, Qty: ${p.quantity})`
-              )
-              .join("; ") || "",
+          Products: entry.products?.length
+            ? entry.products
+                .map(
+                  (p) =>
+                    `${p.name} (Spec: ${p.specification}, Size: ${p.size}, Qty: ${p.quantity})`
+                )
+                .join("; ")
+            : "",
           Type: entry.type || "",
           Status: entry.status || "",
           Close_Type: entry.closetype || "",
@@ -719,7 +732,7 @@ function DashBoard() {
           Second_Person_Met: entry.secondPersonMeet || "",
           Third_Person_Met: entry.thirdPersonMeet || "",
           Fourth_Person_Met: entry.fourthPersonMeet || "",
-          History: historyFormatted, // New history column
+          History: historyFormatted, // Improved history column
         };
       });
 
@@ -754,6 +767,15 @@ function DashBoard() {
         { wch: 20 }, // Fourth_Person_Met
         { wch: 100 }, // History (wide column for detailed history)
       ];
+
+      // Enable text wrapping for the History column to improve readability
+      worksheet["!rows"] = exportData.map(() => ({ hpt: 20 })); // Set row height for better visibility
+      Object.keys(worksheet).forEach((cell) => {
+        if (cell[0] === "Z" && cell !== "Z1") {
+          // History column (26th column, 'Z')
+          worksheet[cell].s = { alignment: { wrapText: true } }; // Enable text wrapping
+        }
+      });
 
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Filtered Entries");
