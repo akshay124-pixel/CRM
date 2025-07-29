@@ -643,32 +643,49 @@ function DashBoard() {
   const handleExport = async () => {
     try {
       const exportData = filteredData.map((entry) => {
-        // Format history entries for readability
+        // Format history entries for maximum readability in a single cell
         const historyFormatted =
-          entry.history
-            ?.map((h, index) => {
-              const products =
-                h.products
-                  ?.map(
-                    (p) =>
-                      `${p.name} (${p.specification}, ${p.size}, Qty: ${p.quantity})`
-                  )
-                  .join("; ") || "None";
-              const assignedTo =
-                h.assignedTo
-                  ?.map((user) => user.username || "Unknown")
-                  .join(", ") || "Unassigned";
-              return `Entry ${index + 1}: Status: ${h.status}, Remarks: ${
-                h.remarks || "None"
-              }, Products: ${products}, Assigned To: ${assignedTo}, Timestamp: ${
-                h.timestamp ? new Date(h.timestamp).toLocaleString() : "N/A"
-              }, First Person: ${h.firstPersonMeet || "N/A"}, Second Person: ${
-                h.secondPersonMeet || "N/A"
-              }, Third Person: ${h.thirdPersonMeet || "N/A"}, Fourth Person: ${
-                h.fourthPersonMeet || "N/A"
-              }`;
-            })
-            .join("\n") || "No history";
+          entry.history && Array.isArray(entry.history)
+            ? entry.history
+                .slice(0, 5) // Limit to 5 most recent history entries
+                .map((h, index) => {
+                  const products =
+                    h.products && Array.isArray(h.products)
+                      ? h.products
+                          .map(
+                            (p) =>
+                              `${p.name} (${p.specification}, ${p.size}, Qty: ${p.quantity})`
+                          )
+                          .join("; ")
+                      : "None";
+                  const assignedTo =
+                    h.assignedTo && Array.isArray(h.assignedTo)
+                      ? h.assignedTo
+                          .map((user) => user.username || "Unknown")
+                          .join(", ")
+                      : "Unassigned";
+                  const timestamp = h.timestamp
+                    ? new Date(h.timestamp).toLocaleString("en-GB", {
+                        timeZone: "Asia/Kolkata",
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })
+                    : "N/A";
+                  return [
+                    `History Entry ${index + 1}:`,
+                    `  - Status: ${h.status || "N/A"}`,
+                    `  - Remarks: ${h.remarks || "None"}`,
+                    `  - Products: ${products}`,
+                    `  - Assigned To: ${assignedTo}`,
+                    `  - Timestamp: ${timestamp}`,
+                    `  - First Person: ${h.firstPersonMeet || "N/A"}`,
+                    `  - Second Person: ${h.secondPersonMeet || "N/A"}`,
+                    `  - Third Person: ${h.thirdPersonMeet || "N/A"}`,
+                    `  - Fourth Person: ${h.fourthPersonMeet || "N/A"}`,
+                  ].join("\n");
+                })
+                .join("\n---\n") || "No history"
+            : "No history";
 
         return {
           Customer_Name: entry.customerName || "",
@@ -697,12 +714,14 @@ function DashBoard() {
             : "",
           Remarks: entry.remarks || "",
           Products:
-            entry.products
-              ?.map(
-                (p) =>
-                  `${p.name} (${p.specification}, ${p.size}, Qty: ${p.quantity})`
-              )
-              .join("; ") || "",
+            entry.products && Array.isArray(entry.products)
+              ? entry.products
+                  .map(
+                    (p) =>
+                      `${p.name} (${p.specification}, ${p.size}, Qty: ${p.quantity})`
+                  )
+                  .join("; ")
+              : "",
           Type: entry.type || "",
           Status: entry.status || "",
           Close_Type: entry.closetype || "",
@@ -719,7 +738,7 @@ function DashBoard() {
           Second_Person_Met: entry.secondPersonMeet || "",
           Third_Person_Met: entry.thirdPersonMeet || "",
           Fourth_Person_Met: entry.fourthPersonMeet || "",
-          History: historyFormatted, // New history column
+          History: historyFormatted,
         };
       });
 
@@ -752,11 +771,34 @@ function DashBoard() {
         { wch: 20 }, // Second_Person_Met
         { wch: 20 }, // Third_Person_Met
         { wch: 20 }, // Fourth_Person_Met
-        { wch: 100 }, // History (wide column for detailed history)
+        { wch: 80 }, // History (slightly reduced width, as formatting is more concise)
       ];
+
+      // Enable text wrapping for the History column
+      const range = XLSX.utils.decode_range(worksheet["!ref"]);
+      for (let row = range.s.r + 1; row <= range.e.r; row++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: row, c: 26 }); // History column (index 26)
+        if (!worksheet[cellAddress]) continue;
+        worksheet[cellAddress].s = { alignment: { wrapText: true } };
+      }
 
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Filtered Entries");
+
+      // Add metadata header
+      XLSX.utils.sheet_add_aoa(
+        worksheet,
+        [
+          [
+            `Exported by: ${
+              user?.username || "Unknown"
+            }, Date: ${new Date().toLocaleDateString("en-GB", {
+              timeZone: "Asia/Kolkata",
+            })}`,
+          ],
+        ],
+        { origin: "A1" }
+      );
 
       const excelBuffer = XLSX.write(workbook, {
         bookType: "xlsx",
@@ -769,7 +811,7 @@ function DashBoard() {
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.download = `Filtered_Entries_${new Date()
-        .toLocaleDateString("en-GB")
+        .toLocaleDateString("en-GB", { timeZone: "Asia/Kolkata" })
         .replace(/\//g, "-")}.xlsx`;
       link.click();
       URL.revokeObjectURL(link.href);
