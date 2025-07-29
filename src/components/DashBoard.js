@@ -642,70 +642,33 @@ function DashBoard() {
   };
   const handleExport = async () => {
     try {
-      const exportData = filteredData.map((entry, index) => {
-        // Format history entries for readability with robust error handling
-        let historyFormatted = "No history";
-        try {
-          if (Array.isArray(entry.history) && entry.history.length > 0) {
-            historyFormatted = entry.history
-              .slice(0, 5) // Limit to 5 entries to avoid memory issues
-              .map((h, hIndex) => {
-                // Validate key fields
-                if (!h.status) {
-                  console.warn(
-                    `Invalid history entry at index ${hIndex} for entry ${
-                      entry._id || index
-                    }`
-                  );
-                  return `Entry ${hIndex + 1}: Invalid data`;
-                }
-
-                const products = Array.isArray(h.products)
-                  ? h.products
-                      .map((p) => {
-                        const name = p.name || "N/A";
-                        const specification = p.specification || "N/A";
-                        const size = p.size || "N/A";
-                        const quantity = p.quantity || 0;
-                        return `${name} (${specification}, ${size}, Qty: ${quantity})`;
-                      })
-                      .join("; ") || "None"
-                  : "None";
-
-                const assignedTo = Array.isArray(h.assignedTo)
-                  ? h.assignedTo
-                      .map((user) => user.username || "Unknown")
-                      .join(", ") || "Unassigned"
-                  : "Unassigned";
-
-                const timestamp =
-                  h.timestamp && !isNaN(new Date(h.timestamp))
-                    ? new Date(h.timestamp).toLocaleString("en-GB", {
-                        timeZone: "Asia/Kolkata",
-                        dateStyle: "short",
-                        timeStyle: "short",
-                      })
-                    : "N/A";
-
-                // Simplified format for readability
-                return [
-                  `Entry ${hIndex + 1}:`,
-                  `  Status: ${h.status}`,
-                  `  Remarks: ${h.remarks || "None"}`,
-                  `  Products: ${products}`,
-                  `  Assigned: ${assignedTo}`,
-                  `  Time: ${timestamp}`,
-                ].join("\n");
-              })
-              .join("\n---\n");
-          }
-        } catch (error) {
-          console.error(
-            `Error formatting history for entry ${entry._id || index}:`,
-            error.message
-          );
-          historyFormatted = "Error formatting history";
-        }
+      const exportData = filteredData.map((entry) => {
+        // Format history entries for readability
+        const historyFormatted =
+          entry.history
+            ?.map((h, index) => {
+              const products =
+                h.products
+                  ?.map(
+                    (p) =>
+                      `${p.name} (${p.specification}, ${p.size}, Qty: ${p.quantity})`
+                  )
+                  .join("; ") || "None";
+              const assignedTo =
+                h.assignedTo
+                  ?.map((user) => user.username || "Unknown")
+                  .join(", ") || "Unassigned";
+              return `Entry ${index + 1}: Status: ${h.status}, Remarks: ${
+                h.remarks || "None"
+              }, Products: ${products}, Assigned To: ${assignedTo}, Timestamp: ${
+                h.timestamp ? new Date(h.timestamp).toLocaleString() : "N/A"
+              }, First Person: ${h.firstPersonMeet || "N/A"}, Second Person: ${
+                h.secondPersonMeet || "N/A"
+              }, Third Person: ${h.thirdPersonMeet || "N/A"}, Fourth Person: ${
+                h.fourthPersonMeet || "N/A"
+              }`;
+            })
+            .join("\n") || "No history";
 
         return {
           Customer_Name: entry.customerName || "",
@@ -717,39 +680,29 @@ function DashBoard() {
           Organization: entry.organization || "",
           Category: entry.category || "",
           Created_By: entry.createdBy?.username || "",
-          Created_At:
-            entry.createdAt && !isNaN(new Date(entry.createdAt))
-              ? new Date(entry.createdAt).toLocaleDateString("en-GB", {
-                  timeZone: "Asia/Kolkata",
-                })
-              : "",
-          Expected_Closing_Date:
-            entry.expectedClosingDate &&
-            !isNaN(new Date(entry.expectedClosingDate))
-              ? new Date(entry.expectedClosingDate).toLocaleDateString(
-                  "en-GB",
-                  {
-                    timeZone: "Asia/Kolkata",
-                  }
-                )
-              : "",
-          Follow_Up_Date:
-            entry.followUpDate && !isNaN(new Date(entry.followUpDate))
-              ? new Date(entry.followUpDate).toLocaleDateString("en-GB", {
-                  timeZone: "Asia/Kolkata",
-                })
-              : "",
-          Remarks: entry.remarks || "",
-          Products: Array.isArray(entry.products)
-            ? entry.products
-                .map(
-                  (p) =>
-                    `${p.name || "N/A"} (${p.specification || "N/A"}, ${
-                      p.size || "N/A"
-                    }, Qty: ${p.quantity || 0})`
-                )
-                .join("; ")
+          Created_At: entry.createdAt
+            ? new Date(entry.createdAt).toLocaleDateString("en-GB", {
+                timeZone: "Asia/Kolkata",
+              })
             : "",
+          Expected_Closing_Date: entry.expectedClosingDate
+            ? new Date(entry.expectedClosingDate).toLocaleDateString("en-GB", {
+                timeZone: "Asia/Kolkata",
+              })
+            : "",
+          Follow_Up_Date: entry.followUpDate
+            ? new Date(entry.followUpDate).toLocaleDateString("en-GB", {
+                timeZone: "Asia/Kolkata",
+              })
+            : "",
+          Remarks: entry.remarks || "",
+          Products:
+            entry.products
+              ?.map(
+                (p) =>
+                  `${p.name} (${p.specification}, ${p.size}, Qty: ${p.quantity})`
+              )
+              .join("; ") || "",
           Type: entry.type || "",
           Status: entry.status || "",
           Close_Type: entry.closetype || "",
@@ -766,7 +719,7 @@ function DashBoard() {
           Second_Person_Met: entry.secondPersonMeet || "",
           Third_Person_Met: entry.thirdPersonMeet || "",
           Fourth_Person_Met: entry.fourthPersonMeet || "",
-          History: historyFormatted,
+          History: historyFormatted, // New history column
         };
       });
 
@@ -799,47 +752,24 @@ function DashBoard() {
         { wch: 20 }, // Second_Person_Met
         { wch: 20 }, // Third_Person_Met
         { wch: 20 }, // Fourth_Person_Met
-        { wch: 80 }, // History (reduced width due to simplified format)
+        { wch: 100 }, // History (wide column for detailed history)
       ];
-
-      // Enable text wrapping for History column
-      const range = XLSX.utils.decode_range(worksheet["!ref"]);
-      for (let row = range.s.r + 1; row <= range.e.r; row++) {
-        const cellAddress = XLSX.utils.encode_cell({ r: row, c: 26 }); // History column (index 26)
-        if (worksheet[cellAddress]) {
-          worksheet[cellAddress].s = { alignment: { wrapText: true } };
-        }
-      }
 
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Filtered Entries");
-
-      // Add metadata header
-      XLSX.utils.sheet_add_aoa(
-        worksheet,
-        [
-          [
-            `Exported by: ${
-              user?.username || "Unknown"
-            }, Date: ${new Date().toLocaleDateString("en-GB", {
-              timeZone: "Asia/Kolkata",
-            })}`,
-          ],
-        ],
-        { origin: "A1" }
-      );
 
       const excelBuffer = XLSX.write(workbook, {
         bookType: "xlsx",
         type: "array",
       });
+
       const blob = new Blob([excelBuffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.download = `Filtered_Entries_${new Date()
-        .toLocaleDateString("en-GB", { timeZone: "Asia/Kolkata" })
+        .toLocaleDateString("en-GB")
         .replace(/\//g, "-")}.xlsx`;
       link.click();
       URL.revokeObjectURL(link.href);
