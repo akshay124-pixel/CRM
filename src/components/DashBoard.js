@@ -311,15 +311,41 @@ function DashBoard() {
         }
       );
       const data = Array.isArray(response.data) ? response.data : [];
+      console.log(`Fetched ${data.length} entries:`, data); // Debug log
+      data.forEach((entry, index) => {
+        console.log(`Entry ${index + 1}:`, {
+          customerName: entry.customerName,
+          historyCount: entry.history ? entry.history.length : 0,
+          history: entry.history || [],
+        });
+      });
       setEntries(data);
       if (role === "superadmin" || role === "admin") {
         const usernamesSet = new Set();
         data.forEach((entry) => {
-          if (entry.createdBy?.username)
+          if (entry.createdBy?.username) {
             usernamesSet.add(entry.createdBy.username);
-          if (entry.assignedTo?.username)
+          }
+          if (Array.isArray(entry.assignedTo)) {
+            entry.assignedTo.forEach((user) => {
+              if (user?.username) usernamesSet.add(user.username);
+            });
+          } else if (entry.assignedTo?.username) {
             usernamesSet.add(entry.assignedTo.username);
+          }
+          if (Array.isArray(entry.history)) {
+            entry.history.forEach((historyItem) => {
+              if (Array.isArray(historyItem.assignedTo)) {
+                historyItem.assignedTo.forEach((user) => {
+                  if (user?.username) usernamesSet.add(user.username);
+                });
+              } else if (historyItem.assignedTo?.username) {
+                usernamesSet.add(historyItem.assignedTo.username);
+              }
+            });
+          }
         });
+        console.log("Extracted Usernames:", [...usernamesSet]); // Debug log
         setUsernames([...usernamesSet]);
       }
     } catch (error) {
@@ -644,7 +670,6 @@ function DashBoard() {
   const handleExport = async () => {
     try {
       console.log("Filtered Data for Export:", filteredData); // Debug log
-      // Prepare main data
       const exportData = filteredData.map((entry) => ({
         Customer_Name: entry.customerName || "N/A",
         Mobile_Number: entry.mobileNumber || "N/A",
@@ -679,7 +704,7 @@ function DashBoard() {
         Close_Type: entry.closetype || "Not Set",
         Assigned_To: Array.isArray(entry.assignedTo)
           ? entry.assignedTo.map((user) => user.username || "N/A").join(", ")
-          : "Unassigned",
+          : entry.assignedTo?.username || "Unassigned",
         Estimated_Value: entry.estimatedValue || "N/A",
         Close_Amount: entry.closeamount || "N/A",
         Next_Action: entry.nextAction || "Not Set",
@@ -690,18 +715,20 @@ function DashBoard() {
         Fourth_Person_Met: entry.fourthPersonMeet || "Not Set",
       }));
 
-      // Prepare history data
       const historyExportData = filteredData.flatMap((entry, index) => {
-        console.log(`Entry ${index + 1} History:`, entry.history); // Debug log
         if (!entry.history || !Array.isArray(entry.history)) {
-          console.warn(`No history or invalid history for entry ${index + 1}`);
+          console.warn(
+            `No history or invalid history for entry ${index + 1}:`,
+            entry.customerName
+          );
           return [];
         }
-        return entry.history.map((historyItem, historyIndex) => ({
+        console.log(`Entry ${index + 1} History:`, entry.history); // Debug log
+        return entry.history.map((historyItem) => ({
           Entry_ID: index + 1,
           Customer_Name: entry.customerName || "N/A",
           History_Status: historyItem.status || "N/A",
-          History_Remarks: historyItem.remarks || "N/A",
+          History_Remarks: historyItem.remarks || "Not Set",
           History_Live_Location: historyItem.liveLocation || "N/A",
           History_Products:
             historyItem.products
@@ -716,7 +743,7 @@ function DashBoard() {
             ? historyItem.assignedTo
                 .map((user) => user.username || "N/A")
                 .join(", ")
-            : "Unassigned",
+            : historyItem.assignedTo?.username || "Unassigned",
           History_Timestamp: historyItem.timestamp
             ? new Date(historyItem.timestamp).toLocaleDateString()
             : "N/A",
@@ -729,57 +756,53 @@ function DashBoard() {
 
       console.log("History Export Data:", historyExportData); // Debug log
 
-      // Create workbook and worksheets
       const workbook = XLSX.utils.book_new();
-
-      // Main data worksheet
       const mainWorksheet = XLSX.utils.json_to_sheet(exportData);
       mainWorksheet["!cols"] = [
-        { wch: 20 }, // Customer_Name
-        { wch: 15 }, // Mobile_Number
-        { wch: 20 }, // Contact_Person
-        { wch: 30 }, // Address
-        { wch: 15 }, // State
-        { wch: 15 }, // City
-        { wch: 20 }, // Organization
-        { wch: 15 }, // Category
-        { wch: 20 }, // Created_By
-        { wch: 15 }, // Created_At
-        { wch: 15 }, // Expected_Closing_Date
-        { wch: 15 }, // Follow_Up_Date
-        { wch: 30 }, // Remarks
-        { wch: 50 }, // Products
-        { wch: 15 }, // Type
-        { wch: 15 }, // Status
-        { wch: 15 }, // Close_Type
-        { wch: 20 }, // Assigned_To
-        { wch: 15 }, // Estimated_Value
-        { wch: 15 }, // Close_Amount
-        { wch: 20 }, // Next_Action
-        { wch: 20 }, // Live_Location
-        { wch: 20 }, // First_Person_Met
-        { wch: 20 }, // Second_Person_Met
-        { wch: 20 }, // Third_Person_Met
-        { wch: 20 }, // Fourth_Person_Met
+        { wch: 20 },
+        { wch: 15 },
+        { wch: 20 },
+        { wch: 30 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 20 },
+        { wch: 15 },
+        { wch: 20 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 30 },
+        { wch: 50 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 20 },
+        { wch: 15 },
+        { wch: 15 },
+        { wch: 20 },
+        { wch: 20 },
+        { wch: 20 },
+        { wch: 20 },
+        { wch: 20 },
+        { wch: 20 },
       ];
       XLSX.utils.book_append_sheet(workbook, mainWorksheet, "Customer Entries");
 
-      // History worksheet (only if data exists)
       if (historyExportData.length > 0) {
         const historyWorksheet = XLSX.utils.json_to_sheet(historyExportData);
         historyWorksheet["!cols"] = [
-          { wch: 10 }, // Entry_ID
-          { wch: 20 }, // Customer_Name
-          { wch: 15 }, // History_Status
-          { wch: 30 }, // History_Remarks
-          { wch: 20 }, // History_Live_Location
-          { wch: 50 }, // History_Products
-          { wch: 20 }, // History_Assigned_To
-          { wch: 15 }, // History_Timestamp
-          { wch: 20 }, // History_First_Person_Met
-          { wch: 20 }, // History_Second_Person_Met
-          { wch: 20 }, // History_Third_Person_Met
-          { wch: 20 }, // History_Fourth_Person_Met
+          { wch: 10 },
+          { wch: 20 },
+          { wch: 15 },
+          { wch: 30 },
+          { wch: 20 },
+          { wch: 50 },
+          { wch: 20 },
+          { wch: 15 },
+          { wch: 20 },
+          { wch: 20 },
+          { wch: 20 },
+          { wch: 20 },
         ];
         XLSX.utils.book_append_sheet(workbook, historyWorksheet, "History");
       } else {
@@ -787,12 +810,10 @@ function DashBoard() {
         toast.warn("No history data available to export!");
       }
 
-      // Generate Excel file
       const excelBuffer = XLSX.write(workbook, {
         bookType: "xlsx",
         type: "array",
       });
-
       const blob = new Blob([excelBuffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
