@@ -640,255 +640,54 @@ function DashBoard() {
     setDashboardFilter("total");
     setDateRange([{ startDate: null, endDate: null, key: "selection" }]);
   };
-  const handleExport = async (separateHistorySheet = false) => {
+
+  const handleExport = async () => {
     try {
-      // Helper function to format dates consistently
-      const formatDate = (date, options = {}) =>
-        date
-          ? new Date(date)
-              .toLocaleString("en-GB", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-                timeZone: "Asia/Kolkata",
-                ...options,
-              })
-              .replace(",", "")
-          : "N/A";
-
-      // Helper function to calculate max content length for dynamic column width
-      const getMaxLength = (data, key, defaultWidth) =>
-        Math.max(
-          defaultWidth,
-          ...data.map((item) => String(item[key] || "").length)
-        );
-
-      // Main data mapping
-      const exportData = filteredData.map((entry) => {
-        // Format history entries for compact readability
-        const historyFormatted = entry.history?.length
-          ? entry.history
-              .map((h, index) => {
-                const products = h.products?.length
-                  ? h.products
-                      .map(
-                        (p) =>
-                          `${p.name} (Spec: ${p.specification}, Size: ${p.size}, Qty: ${p.quantity})`
-                      )
-                      .join("; ")
-                  : "None";
-                const assignedTo = h.assignedTo?.length
-                  ? h.assignedTo
-                      .map((user) => user.username || "Unknown")
-                      .join(", ")
-                  : "Unassigned";
-                return (
-                  `• Entry ${index + 1}:` +
-                  `\n  Status: ${h.status || "N/A"}` +
-                  `\n  Remarks: ${h.remarks || "None"}` +
-                  `\n  Products: ${products}` +
-                  `\n  Assigned To: ${assignedTo}` +
-                  `\n  Timestamp: ${formatDate(h.timestamp)}` +
-                  `\n  Persons Met: ${
-                    [
-                      h.firstPersonMeet,
-                      h.secondPersonMeet,
-                      h.thirdPersonMeet,
-                      h.fourthPersonMeet,
-                    ]
-                      .filter(Boolean)
-                      .join(", ") || "N/A"
-                  }`
-                );
-              })
-              .join("\n----------------------------------------\n")
-          : "No history available";
-
-        return {
-          Customer_Name: entry.customerName || "",
-          Mobile_Number: entry.mobileNumber || "",
-          Contact_Person: entry.contactperson || "",
-          Address: entry.address || "",
-          State: entry.state || "",
-          City: entry.city || "",
-          Organization: entry.organization || "",
-          Category: entry.category || "",
-          Created_By: entry.createdBy?.username || "",
-          Created_At: formatDate(entry.createdAt, {
-            hour: undefined,
-            minute: undefined,
-          }),
-          Expected_Closing_Date: formatDate(entry.expectedClosingDate, {
-            hour: undefined,
-            minute: undefined,
-          }),
-          Follow_Up_Date: formatDate(entry.followUpDate, {
-            hour: undefined,
-            minute: undefined,
-          }),
-          Remarks: entry.remarks || "",
-          Products: entry.products?.length
-            ? entry.products
-                .map(
-                  (p) =>
-                    `${p.name} (Spec: ${p.specification}, Size: ${p.size}, Qty: ${p.quantity})`
-                )
-                .join("; ")
-            : "",
-          Type: entry.type || "",
-          Status: entry.status || "",
-          Close_Type: entry.closetype || "",
-          Assigned_To: Array.isArray(entry.assignedTo)
-            ? entry.assignedTo
-                .map((user) => user.username || "Unknown")
-                .join(", ")
-            : entry.assignedTo?.username || "",
-          Estimated_Value: entry.estimatedValue || "",
-          Close_Amount: entry.closeamount || "",
-          Next_Action: entry.nextAction || "",
-          Live_Location: entry.liveLocation || "",
-          First_Person_Met: entry.firstPersonMeet || "",
-          Second_Person_Met: entry.secondPersonMeet || "",
-          Third_Person_Met: entry.thirdPersonMeet || "",
-          Fourth_Person_Met: entry.fourthPersonMeet || "",
-          ...(separateHistorySheet ? {} : { History: historyFormatted }), // Conditionally include History
-        };
-      });
-
-      const workbook = XLSX.utils.book_new();
-
-      // Create main worksheet
-      const mainWorksheet = XLSX.utils.json_to_sheet(exportData);
-      // Dynamic column widths based on content
-      const mainCols = [
-        { key: "Customer_Name", wch: 20 },
-        { key: "Mobile_Number", wch: 15 },
-        { key: "Contact_Person", wch: 20 },
-        { key: "Address", wch: 30 },
-        { key: "State", wch: 15 },
-        { key: "City", wch: 15 },
-        { key: "Organization", wch: 20 },
-        { key: "Category", wch: 15 },
-        { key: "Created_By", wch: 15 },
-        { key: "Created_At", wch: 12 },
-        { key: "Expected_Closing_Date", wch: 12 },
-        { key: "Follow_Up_Date", wch: 12 },
-        { key: "Remarks", wch: 30 },
-        { key: "Products", wch: 50 },
-        { key: "Type", wch: 15 },
-        { key: "Status", wch: 15 },
-        { key: "Close_Type", wch: 15 },
-        { key: "Assigned_To", wch: 20 },
-        { key: "Estimated_Value", wch: 15 },
-        { key: "Close_Amount", wch: 15 },
-        { key: "Next_Action", wch: 20 },
-        { key: "Live_Location", wch: 20 },
-        { key: "First_Person_Met", wch: 20 },
-        { key: "Second_Person_Met", wch: 20 },
-        { key: "Third_Person_Met", wch: 20 },
-        { key: "Fourth_Person_Met", wch: 20 },
-        ...(separateHistorySheet ? [] : [{ key: "History", wch: 80 }]),
-      ].map((col) => ({
-        wch: Math.min(100, getMaxLength(exportData, col.key, col.wch)),
+      const exportData = filteredData.map((entry) => ({
+        Customer_Name: entry.customerName || "",
+        Mobile_Number: entry.mobileNumber || "",
+        Contact_Person: entry.contactperson || "",
+        Address: entry.address || "",
+        State: entry.state || "",
+        City: entry.city || "",
+        Organization: entry.organization || "",
+        Category: entry.category || "",
+        createdBy: entry.createdBy?.username || "",
+        Created_At: entry.createdAt
+          ? new Date(entry.createdAt).toLocaleDateString()
+          : "",
+        Expected_Closing_Date: entry.expectedClosingDate
+          ? new Date(entry.expectedClosingDate).toLocaleDateString()
+          : "",
+        Follow_Up_Date: entry.followUpDate
+          ? new Date(entry.followUpDate).toLocaleDateString()
+          : "",
+        Remarks: entry.remarks || "",
+        Products:
+          entry.products
+            ?.map(
+              (p) =>
+                `${p.name} (${p.specification}, ${p.size}, Qty: ${p.quantity})`
+            )
+            .join("; ") || "",
+        Type: entry.type || "",
+        Status: entry.status || "",
+        Close_Type: entry.closetype || "",
+        Assigned_To: entry.assignedTo?.username || "",
+        Assigned_To: entry.assignedTo?.username || "",
+        Estimated_Value: entry.estimatedValue || "",
+        Close_Amount: entry.closeamount || "",
+        Next_Action: entry.nextAction || "",
+        Live_Location: entry.liveLocation || "",
+        First_Person_Met: entry.firstPersonMeet || "",
+        Second_Person_Met: entry.secondPersonMeet || "",
+        Third_Person_Met: entry.thirdPersonMeet || "",
+        Fourth_Person_Met: entry.fourthPersonMeet || "",
       }));
 
-      mainWorksheet["!cols"] = mainCols;
-      mainWorksheet["!rows"] = exportData.map(() => ({ hpt: 25 })); // Increased row height
-
-      // Apply styling: wrap text and borders for key columns
-      Object.keys(mainWorksheet).forEach((cell) => {
-        if (cell.match(/^[A-Z](?!1)/)) {
-          // All data cells
-          mainWorksheet[cell].s = {
-            alignment: { wrapText: true, vertical: "top" },
-            border: {
-              top: { style: "thin" },
-              bottom: { style: "thin" },
-              left: { style: "thin" },
-              right: { style: "thin" },
-            },
-          };
-        }
-      });
-
-      XLSX.utils.book_append_sheet(workbook, mainWorksheet, "Filtered Entries");
-
-      // Create separate history sheet if enabled
-      if (separateHistorySheet) {
-        const historyData = filteredData.flatMap((entry, entryIndex) =>
-          entry.history?.length
-            ? entry.history.map((h, historyIndex) => ({
-                Entry_ID: entryIndex + 1,
-                Customer_Name: entry.customerName || "",
-                History_Entry: `Entry ${historyIndex + 1}`,
-                Status: h.status || "N/A",
-                Remarks: h.remarks || "None",
-                Products: h.products?.length
-                  ? h.products
-                      .map(
-                        (p) =>
-                          `${p.name} (Spec: ${p.specification}, Size: ${p.size}, Qty: ${p.quantity})`
-                      )
-                      .join("; ")
-                  : "None",
-                Assigned_To: h.assignedTo?.length
-                  ? h.assignedTo
-                      .map((user) => user.username || "Unknown")
-                      .join(", ")
-                  : "Unassigned",
-                Timestamp: formatDate(h.timestamp),
-                Persons_Met:
-                  [
-                    h.firstPersonMeet,
-                    h.secondPersonMeet,
-                    h.thirdPersonMeet,
-                    h.fourthPersonMeet,
-                  ]
-                    .filter(Boolean)
-                    .join(", ") || "N/A",
-              }))
-            : [
-                {
-                  Entry_ID: entryIndex + 1,
-                  Customer_Name: entry.customerName || "",
-                  History_Entry: "None",
-                  Status: "No history",
-                },
-              ]
-        );
-
-        const historyWorksheet = XLSX.utils.json_to_sheet(historyData);
-        historyWorksheet["!cols"] = [
-          { wch: getMaxLength(historyData, "Entry_ID", 10) },
-          { wch: getMaxLength(historyData, "Customer_Name", 20) },
-          { wch: getMaxLength(historyData, "History_Entry", 15) },
-          { wch: getMaxLength(historyData, "Status", 15) },
-          { wch: getMaxLength(historyData, "Remarks", 30) },
-          { wch: getMaxLength(historyData, "Products", 50) },
-          { wch: getMaxLength(historyData, "Assigned_To", 20) },
-          { wch: getMaxLength(historyData, "Timestamp", 20) },
-          { wch: getMaxLength(historyData, "Persons_Met", 30) },
-        ];
-
-        // Apply styling to history sheet
-        Object.keys(historyWorksheet).forEach((cell) => {
-          if (cell.match(/^[A-I](?!1)/)) {
-            historyWorksheet[cell].s = {
-              alignment: { wrapText: true, vertical: "top" },
-              border: {
-                top: { style: "thin" },
-                bottom: { style: "thin" },
-                left: { style: "thin" },
-                right: { style: "thin" },
-              },
-            };
-          }
-        });
-
-        XLSX.utils.book_append_sheet(workbook, historyWorksheet, "History");
-      }
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Filtered Entries");
 
       const excelBuffer = XLSX.write(workbook, {
         bookType: "xlsx",
@@ -900,22 +699,16 @@ function DashBoard() {
       });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = `Filtered_Entries_${formatDate(new Date(), {
-        hour: undefined,
-        minute: undefined,
-      }).replace(/\//g, "-")}.xlsx`;
+      link.download = "Filtered_Entries.xlsx";
       link.click();
       URL.revokeObjectURL(link.href);
-      toast.success(
-        `Filtered entries${
-          separateHistorySheet ? " and history" : ""
-        } exported successfully!`
-      );
+      toast.success("Filtered entries exported successfully!");
     } catch (error) {
-      console.error("Export error:", error.message, error.stack);
-      toast.error(`Failed to export: ${error.message}`);
+      console.error("Export error:", error.message);
+      toast.error("Failed to export filtered entries!");
     }
   };
+
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) {
