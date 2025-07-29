@@ -1088,6 +1088,22 @@ export const productOptions = [
     specifications: ["N/A"],
   },
   {
+    name: "Single Cup Mike PRO BTD3",
+    sizes: ["N/A"],
+    specifications: ["N/A"],
+  },
+  {
+    name: "2 Cup Mike PRO BTD7",
+    sizes: ["N/A"],
+    specifications: ["N/A"],
+  },
+  {
+    name: "4 Cup Mike PRO AI5W",
+    sizes: ["N/A"],
+    specifications: ["N/A"],
+  },
+
+  {
     name: "Microphone",
     sizes: ["N/A"],
     specifications: [
@@ -1144,6 +1160,11 @@ export const productOptions = [
       "4K AI Featured",
       "4K Auto Tracking",
     ],
+  },
+  {
+    name: "Web Cam PRO MINI2",
+    sizes: ["N/A"],
+    specifications: ["Stanadard"],
   },
   {
     name: "Bluetooth Microphone",
@@ -1261,6 +1282,11 @@ export const productOptions = [
     name: "DMS Software",
     sizes: ["N/A"],
     specifications: ["N/A"],
+  },
+  {
+    name: "Videobar PRO UP4C",
+    sizes: ["N/A"],
+    specifications: ["Standard"],
   },
   {
     name: "Battery Bank",
