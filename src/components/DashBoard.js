@@ -640,52 +640,121 @@ function DashBoard() {
     setDashboardFilter("total");
     setDateRange([{ startDate: null, endDate: null, key: "selection" }]);
   };
-
   const handleExport = async () => {
     try {
-      const exportData = filteredData.map((entry) => ({
-        Customer_Name: entry.customerName || "",
-        Mobile_Number: entry.mobileNumber || "",
-        Contact_Person: entry.contactperson || "",
-        Address: entry.address || "",
-        State: entry.state || "",
-        City: entry.city || "",
-        Organization: entry.organization || "",
-        Category: entry.category || "",
-        createdBy: entry.createdBy?.username || "",
-        Created_At: entry.createdAt
-          ? new Date(entry.createdAt).toLocaleDateString()
-          : "",
-        Expected_Closing_Date: entry.expectedClosingDate
-          ? new Date(entry.expectedClosingDate).toLocaleDateString()
-          : "",
-        Follow_Up_Date: entry.followUpDate
-          ? new Date(entry.followUpDate).toLocaleDateString()
-          : "",
-        Remarks: entry.remarks || "",
-        Products:
-          entry.products
-            ?.map(
-              (p) =>
-                `${p.name} (${p.specification}, ${p.size}, Qty: ${p.quantity})`
-            )
-            .join("; ") || "",
-        Type: entry.type || "",
-        Status: entry.status || "",
-        Close_Type: entry.closetype || "",
-        Assigned_To: entry.assignedTo?.username || "",
-        Assigned_To: entry.assignedTo?.username || "",
-        Estimated_Value: entry.estimatedValue || "",
-        Close_Amount: entry.closeamount || "",
-        Next_Action: entry.nextAction || "",
-        Live_Location: entry.liveLocation || "",
-        First_Person_Met: entry.firstPersonMeet || "",
-        Second_Person_Met: entry.secondPersonMeet || "",
-        Third_Person_Met: entry.thirdPersonMeet || "",
-        Fourth_Person_Met: entry.fourthPersonMeet || "",
-      }));
+      const exportData = filteredData.map((entry) => {
+        // Format history entries for readability
+        const historyFormatted =
+          entry.history
+            ?.map((h, index) => {
+              const products =
+                h.products
+                  ?.map(
+                    (p) =>
+                      `${p.name} (${p.specification}, ${p.size}, Qty: ${p.quantity})`
+                  )
+                  .join("; ") || "None";
+              const assignedTo =
+                h.assignedTo
+                  ?.map((user) => user.username || "Unknown")
+                  .join(", ") || "Unassigned";
+              return `Entry ${index + 1}: Status: ${h.status}, Remarks: ${
+                h.remarks || "None"
+              }, Products: ${products}, Assigned To: ${assignedTo}, Timestamp: ${
+                h.timestamp ? new Date(h.timestamp).toLocaleString() : "N/A"
+              }, First Person: ${h.firstPersonMeet || "N/A"}, Second Person: ${
+                h.secondPersonMeet || "N/A"
+              }, Third Person: ${h.thirdPersonMeet || "N/A"}, Fourth Person: ${
+                h.fourthPersonMeet || "N/A"
+              }`;
+            })
+            .join("\n") || "No history";
+
+        return {
+          Customer_Name: entry.customerName || "",
+          Mobile_Number: entry.mobileNumber || "",
+          Contact_Person: entry.contactperson || "",
+          Address: entry.address || "",
+          State: entry.state || "",
+          City: entry.city || "",
+          Organization: entry.organization || "",
+          Category: entry.category || "",
+          Created_By: entry.createdBy?.username || "",
+          Created_At: entry.createdAt
+            ? new Date(entry.createdAt).toLocaleDateString("en-GB", {
+                timeZone: "Asia/Kolkata",
+              })
+            : "",
+          Expected_Closing_Date: entry.expectedClosingDate
+            ? new Date(entry.expectedClosingDate).toLocaleDateString("en-GB", {
+                timeZone: "Asia/Kolkata",
+              })
+            : "",
+          Follow_Up_Date: entry.followUpDate
+            ? new Date(entry.followUpDate).toLocaleDateString("en-GB", {
+                timeZone: "Asia/Kolkata",
+              })
+            : "",
+          Remarks: entry.remarks || "",
+          Products:
+            entry.products
+              ?.map(
+                (p) =>
+                  `${p.name} (${p.specification}, ${p.size}, Qty: ${p.quantity})`
+              )
+              .join("; ") || "",
+          Type: entry.type || "",
+          Status: entry.status || "",
+          Close_Type: entry.closetype || "",
+          Assigned_To: Array.isArray(entry.assignedTo)
+            ? entry.assignedTo
+                .map((user) => user.username || "Unknown")
+                .join(", ")
+            : entry.assignedTo?.username || "",
+          Estimated_Value: entry.estimatedValue || "",
+          Close_Amount: entry.closeamount || "",
+          Next_Action: entry.nextAction || "",
+          Live_Location: entry.liveLocation || "",
+          First_Person_Met: entry.firstPersonMeet || "",
+          Second_Person_Met: entry.secondPersonMeet || "",
+          Third_Person_Met: entry.thirdPersonMeet || "",
+          Fourth_Person_Met: entry.fourthPersonMeet || "",
+          History: historyFormatted, // New history column
+        };
+      });
 
       const worksheet = XLSX.utils.json_to_sheet(exportData);
+      // Set column widths for better readability
+      worksheet["!cols"] = [
+        { wch: 20 }, // Customer_Name
+        { wch: 15 }, // Mobile_Number
+        { wch: 20 }, // Contact_Person
+        { wch: 30 }, // Address
+        { wch: 15 }, // State
+        { wch: 15 }, // City
+        { wch: 20 }, // Organization
+        { wch: 15 }, // Category
+        { wch: 15 }, // Created_By
+        { wch: 15 }, // Created_At
+        { wch: 15 }, // Expected_Closing_Date
+        { wch: 15 }, // Follow_Up_Date
+        { wch: 30 }, // Remarks
+        { wch: 50 }, // Products
+        { wch: 15 }, // Type
+        { wch: 15 }, // Status
+        { wch: 15 }, // Close_Type
+        { wch: 20 }, // Assigned_To
+        { wch: 15 }, // Estimated_Value
+        { wch: 15 }, // Close_Amount
+        { wch: 20 }, // Next_Action
+        { wch: 20 }, // Live_Location
+        { wch: 20 }, // First_Person_Met
+        { wch: 20 }, // Second_Person_Met
+        { wch: 20 }, // Third_Person_Met
+        { wch: 20 }, // Fourth_Person_Met
+        { wch: 100 }, // History (wide column for detailed history)
+      ];
+
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Filtered Entries");
 
@@ -699,7 +768,9 @@ function DashBoard() {
       });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = "Filtered_Entries.xlsx";
+      link.download = `Filtered_Entries_${new Date()
+        .toLocaleDateString("en-GB")
+        .replace(/\//g, "-")}.xlsx`;
       link.click();
       URL.revokeObjectURL(link.href);
       toast.success("Filtered entries exported successfully!");
@@ -708,7 +779,6 @@ function DashBoard() {
       toast.error("Failed to export filtered entries!");
     }
   };
-
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) {
