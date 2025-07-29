@@ -640,54 +640,11 @@ function DashBoard() {
     setDashboardFilter("total");
     setDateRange([{ startDate: null, endDate: null, key: "selection" }]);
   };
-const handleExport = async () => {
-  try {
-    const exportData = filteredData.map((entry) => {
-      // Format history entries for maximum readability in a single cell
-      const historyFormatted =
-        entry.history && Array.isArray(entry.history)
-          ? entry.history
-              .slice(0, 5) // Limit to 5 most recent history entries
-              .map((h, index) => {
-                const products =
-                  h.products && Array.isArray(h.products)
-                    ? h.products
-                        .map(
-                          (p) =>
-                            `${p.name} (${p.specification}, ${p.size}, Qty: ${p.quantity})`
-                        )
-                        .join("; ")
-                    : "None";
-                const assignedTo =
-                  h.assignedTo && Array.isArray(h.assignedTo)
-                    ? h.assignedTo
-                        .map((user) => user.username || "Unknown")
-                        .join(", ")
-                    : "Unassigned";
-                const timestamp = h.timestamp
-                  ? new Date(h.timestamp).toLocaleString("en-GB", {
-                      timeZone: "Asia/Kolkata",
-                      dateStyle: "short",
-                      timeStyle: "short",
-                    })
-                  : "N/A";
-                return [
-                  `History Entry ${index + 1}:`,
-                  `  - Status: ${h.status || "N/A"}`,
-                  `  - Remarks: ${h.remarks || "None"}`,
-                  `  - Products: ${products}`,
-                  `  - Assigned To: ${assignedTo}`,
-                  `  - Timestamp: ${timestamp}`,
-                  `  - First Person: ${h.firstPersonMeet || "N/A"}`,
-                  `  - Second Person: ${h.secondPersonMeet || "N/A"}`,
-                  `  - Third Person: ${h.thirdPersonMeet || "N/A"}`,
-                  `  - Fourth Person: ${h.fourthPersonMeet || "N/A"}`,
-                ].join("\n");
-              })
-              .join("\n---\n") || "No history"
-          : "No history";
-
-      return {
+  const handleExport = async () => {
+    try {
+      // Main entry data
+      const exportData = filteredData.map((entry) => ({
+        Entry_ID: entry._id || "",
         Customer_Name: entry.customerName || "",
         Mobile_Number: entry.mobileNumber || "",
         Contact_Person: entry.contactperson || "",
@@ -713,15 +670,16 @@ const handleExport = async () => {
             })
           : "",
         Remarks: entry.remarks || "",
-        Products:
-          entry.products && Array.isArray(entry.products)
-            ? entry.products
-                .map(
-                  (p) =>
-                    `${p.name} (${p.specification}, ${p.size}, Qty: ${p.quantity})`
-                )
-                .join("; ")
-            : "",
+        Products: Array.isArray(entry.products)
+          ? entry.products
+              .map(
+                (p) =>
+                  `${p.name || "N/A"} (${p.specification || "N/A"}, ${
+                    p.size || "N/A"
+                  }, Qty: ${p.quantity || 0})`
+              )
+              .join("; ")
+          : "",
         Type: entry.type || "",
         Status: entry.status || "",
         Close_Type: entry.closetype || "",
@@ -738,89 +696,148 @@ const handleExport = async () => {
         Second_Person_Met: entry.secondPersonMeet || "",
         Third_Person_Met: entry.thirdPersonMeet || "",
         Fourth_Person_Met: entry.fourthPersonMeet || "",
-        History: historyFormatted,
-      };
-    });
+      }));
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    // Set column widths for better readability
-    worksheet["!cols"] = [
-      { wch: 20 }, // Customer_Name
-      { wch: 15 }, // Mobile_Number
-      { wch: 20 }, // Contact_Person
-      { wch: 30 }, // Address
-      { wch: 15 }, // State
-      { wch: 15 }, // City
-      { wch: 20 }, // Organization
-      { wch: 15 }, // Category
-      { wch: 15 }, // Created_By
-      { wch: 15 }, // Created_At
-      { wch: 15 }, // Expected_Closing_Date
-      { wch: 15 }, // Follow_Up_Date
-      { wch: 30 }, // Remarks
-      { wch: 50 }, // Products
-      { wch: 15 }, // Type
-      { wch: 15 }, // Status
-      { wch: 15 }, // Close_Type
-      { wch: 20 }, // Assigned_To
-      { wch: 15 }, // Estimated_Value
-      { wch: 15 }, // Close_Amount
-      { wch: 20 }, // Next_Action
-      { wch: 20 }, // Live_Location
-      { wch: 20 }, // First_Person_Met
-      { wch: 20 }, // Second_Person_Met
-      { wch: 20 }, // Third_Person_Met
-      { wch: 20 }, // Fourth_Person_Met
-      { wch: 80 }, // History (slightly reduced width, as formatting is more concise)
-    ];
+      // History data for separate sheet
+      const historyData = filteredData.flatMap((entry) =>
+        Array.isArray(entry.history)
+          ? entry.history.map((h, index) => ({
+              Entry_ID: entry._id || "",
+              History_Entry: `Entry ${index + 1}`,
+              Status: h.status || "N/A",
+              Remarks: h.remarks || "None",
+              Products: Array.isArray(h.products)
+                ? h.products
+                    .map(
+                      (p) =>
+                        `${p.name || "N/A"} (${p.specification || "N/A"}, ${
+                          p.size || "N/A"
+                        }, Qty: ${p.quantity || 0})`
+                    )
+                    .join("; ")
+                : "None",
+              Assigned_To: Array.isArray(h.assignedTo)
+                ? h.assignedTo
+                    .map((user) => user.username || "Unknown")
+                    .join(", ")
+                : "Unassigned",
+              Timestamp: h.timestamp
+                ? new Date(h.timestamp).toLocaleString("en-GB", {
+                    timeZone: "Asia/Kolkata",
+                    dateStyle: "short",
+                    timeStyle: "short",
+                  })
+                : "N/A",
+              First_Person_Met: h.firstPersonMeet || "N/A",
+              Second_Person_Met: h.secondPersonMeet || "N/A",
+              Third_Person_Met: h.thirdPersonMeet || "N/A",
+              Fourth_Person_Met: h.fourthPersonMeet || "N/A",
+            }))
+          : [{ Entry_ID: entry._id || "", History_Entry: "No history" }]
+      );
 
-    // Enable text wrapping for the History column
-    const range = XLSX.utils.decode_range(worksheet["!ref"]);
-    for (let row = range.s.r + 1; row <= range.e.r; row++) {
-      const cellAddress = XLSX.utils.encode_cell({ r: row, c: 26 }); // History column (index 26)
-      if (!worksheet[cellAddress]) continue;
-      worksheet[cellAddress].s = { alignment: { wrapText: true } };
-    }
+      const workbook = XLSX.utils.book_new();
 
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Filtered Entries");
-
-    // Add metadata header
-    XLSX.utils.sheet_add_aoa(
-      worksheet,
-      [
+      // Main entries sheet
+      const entriesWorksheet = XLSX.utils.json_to_sheet(exportData);
+      entriesWorksheet["!cols"] = [
+        { wch: 30 }, // Entry_ID
+        { wch: 20 }, // Customer_Name
+        { wch: 15 }, // Mobile_Number
+        { wch: 20 }, // Contact_Person
+        { wch: 30 }, // Address
+        { wch: 15 }, // State
+        { wch: 15 }, // City
+        { wch: 20 }, // Organization
+        { wch: 15 }, // Category
+        { wch: 15 }, // Created_By
+        { wch: 15 }, // Created_At
+        { wch: 15 }, // Expected_Closing_Date
+        { wch: 15 }, // Follow_Up_Date
+        { wch: 30 }, // Remarks
+        { wch: 50 }, // Products
+        { wch: 15 }, // Type
+        { wch: 15 }, // Status
+        { wch: 15 }, // Close_Type
+        { wch: 20 }, // Assigned_To
+        { wch: 15 }, // Estimated_Value
+        { wch: 15 }, // Close_Amount
+        { wch: 20 }, // Next_Action
+        { wch: 20 }, // Live_Location
+        { wch: 20 }, // First_Person_Met
+        { wch: 20 }, // Second_Person_Met
+        { wch: 20 }, // Third_Person_Met
+        { wch: 20 }, // Fourth_Person_Met
+      ];
+      XLSX.utils.sheet_add_aoa(
+        entriesWorksheet,
         [
-          `Exported by: ${
-            user?.username || "Unknown"
-          }, Date: ${new Date().toLocaleDateString("en-GB", {
-            timeZone: "Asia/Kolkata",
-          })}`,
+          [
+            `Exported by: ${
+              user?.username || "Unknown"
+            }, Date: ${new Date().toLocaleDateString("en-GB", {
+              timeZone: "Asia/Kolkata",
+            })}`,
+          ],
         ],
-      ],
-      { origin: "A1" }
-    );
+        { origin: "A1" }
+      );
+      XLSX.utils.book_append_sheet(
+        workbook,
+        entriesWorksheet,
+        "Filtered Entries"
+      );
 
-    const excelBuffer = XLSX.write(workbook, {
-      bookType: "xlsx",
-      type: "array",
-    });
+      // History sheet
+      const historyWorksheet = XLSX.utils.json_to_sheet(historyData);
+      historyWorksheet["!cols"] = [
+        { wch: 30 }, // Entry_ID
+        { wch: 15 }, // History_Entry
+        { wch: 15 }, // Status
+        { wch: 30 }, // Remarks
+        { wch: 50 }, // Products
+        { wch: 20 }, // Assigned_To
+        { wch: 20 }, // Timestamp
+        { wch: 20 }, // First_Person_Met
+        { wch: 20 }, // Second_Person_Met
+        { wch: 20 }, // Third_Person_Met
+        { wch: 20 }, // Fourth_Person_Met
+      ];
+      XLSX.utils.sheet_add_aoa(
+        historyWorksheet,
+        [
+          [
+            `History for Entries, Exported by: ${
+              user?.username || "Unknown"
+            }, Date: ${new Date().toLocaleDateString("en-GB", {
+              timeZone: "Asia/Kolkata",
+            })}`,
+          ],
+        ],
+        { origin: "A1" }
+      );
+      XLSX.utils.book_append_sheet(workbook, historyWorksheet, "Entry History");
 
-    const blob = new Blob([excelBuffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `Filtered_Entries_${new Date()
-      .toLocaleDateString("en-GB", { timeZone: "Asia/Kolkata" })
-      .replace(/\//g, "-")}.xlsx`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-    toast.success("Filtered entries exported successfully!");
-  } catch (error) {
-    console.error("Export error:", error.message);
-    toast.error("Failed to export filtered entries!");
-  }
-};
+      const excelBuffer = XLSX.write(workbook, {
+        bookType: "xlsx",
+        type: "array",
+      });
+      const blob = new Blob([excelBuffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `Filtered_Entries_${new Date()
+        .toLocaleDateString("en-GB", { timeZone: "Asia/Kolkata" })
+        .replace(/\//g, "-")}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      toast.success("Filtered entries exported successfully!");
+    } catch (error) {
+      console.error("Export error:", error.message);
+      toast.error("Failed to export filtered entries!");
+    }
+  };
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) {
