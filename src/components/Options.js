@@ -1007,8 +1007,12 @@ export const productOptions = [
 
   {
     name: "Kiosk",
-    sizes: ["32 inch", "43 inch", "55 inch", "65 inch"],
-    specifications: ["Touch Andriod 13/4/32", "Non-Touch Andriod 13/4/32"],
+    sizes: ["22 inch", "32 inch", "43 inch", "55 inch", "65 inch"],
+    specifications: [
+      "Touch Andriod 13/4/32",
+      "Non-Touch Andriod 13/4/32",
+      "Windows 10 16/256/i5",
+    ],
   },
   {
     name: "PTZ Camera",
