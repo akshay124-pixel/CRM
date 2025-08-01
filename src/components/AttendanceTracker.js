@@ -539,7 +539,13 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
   const tableRows = useMemo(() => {
     return attendance.map((record) => (
       <TableRow key={record._id} hover>
-        <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
+        <TableCell>
+          {new Date(record.date).toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          })}
+        </TableCell>
         <TableCell>{record.user?.username || "Unknown"}</TableCell>
         <TableCell>
           {record.checkIn
