@@ -279,8 +279,10 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
       // Add selected user filter
       if (selectedUserId) {
         params.selectedUserId = selectedUserId;
+        console.log("Adding selectedUserId to params:", selectedUserId);
       }
 
+      console.log("Sending attendance request with params:", params);
       const response = await withRetry(() =>
         axios.get(`${apiUrl}/attendance`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -532,7 +534,9 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
   };
 
   const handleUserFilterChange = (event) => {
-    setSelectedUserId(event.target.value);
+    const newUserId = event.target.value;
+    console.log("User filter changed to:", newUserId);
+    setSelectedUserId(newUserId);
     setCurrentPage(1); // Reset to first page when filter changes
   };
 
