@@ -13,6 +13,10 @@ import {
   CircularProgress,
   Alert,
   Pagination,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import { FaClock, FaFileExcel } from "react-icons/fa";
 import axios from "axios";
@@ -34,6 +38,9 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [limit] = useState(10); // Records per page
+  const [users, setUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const navigate = useNavigate();
 
   const apiUrl =
@@ -184,6 +191,60 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
     return `https://www.google.com/maps?q=${latitude},${longitude}`;
   };
 
+  // Fetch users for filter
+  const fetchUsers = useCallback(async () => {
+    if (auth.status !== "authenticated") return;
+
+    setLoadingUsers(true);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setAuth({
+          status: "unauthenticated",
+          error: "No authentication token found. Please log in.",
+        });
+        toast.error("No authentication token found. Please log in.", {
+          autoClose: 5000,
+        });
+        return;
+      }
+
+      const response = await withRetry(() =>
+        axios.get(`${apiUrl}/users`, {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 5000,
+        })
+      ).catch(async (error) => {
+        if (error.response?.status === 401) {
+          const newToken = await withRetry(refreshToken);
+          return await withRetry(() =>
+            axios.get(`${apiUrl}/users`, {
+              headers: { Authorization: `Bearer ${newToken}` },
+              timeout: 5000,
+            })
+          );
+        }
+        throw error;
+      });
+
+      setUsers(response.data || []);
+    } catch (error) {
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to fetch users";
+      toast.error(errorMessage, { autoClose: 5000 });
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, [auth.status]);
+
+  useEffect(() => {
+    if (open && auth.status === "authenticated") {
+      fetchUsers();
+    }
+  }, [open, auth.status, fetchUsers]);
+
   const fetchAttendance = useCallback(async () => {
     if (auth.status !== "authenticated") return;
 
@@ -213,6 +274,11 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
         }
         params.startDate = startDate;
         params.endDate = endDate;
+      }
+
+      // Add selected user filter
+      if (selectedUserId) {
+        params.selectedUserId = selectedUserId;
       }
 
       const response = await withRetry(() =>
@@ -253,13 +319,21 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
     } finally {
       setLoadingAction(null);
     }
-  }, [auth.status, currentPage, limit, startDate, endDate]);
+  }, [auth.status, currentPage, limit, startDate, endDate, selectedUserId]);
 
   useEffect(() => {
     if (open && auth.status === "authenticated") {
       fetchAttendance();
     }
-  }, [open, auth.status, fetchAttendance, currentPage, startDate, endDate]);
+  }, [
+    open,
+    auth.status,
+    fetchAttendance,
+    currentPage,
+    startDate,
+    endDate,
+    selectedUserId,
+  ]);
 
   const handleAction = async (type) => {
     if (auth.status !== "authenticated") {
@@ -382,11 +456,16 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
         return;
       }
 
+      const params = { startDate, endDate };
+      if (selectedUserId) {
+        params.selectedUserId = selectedUserId;
+      }
+
       const response = await withRetry(() =>
         axios.get(`${apiUrl}/export-attendance`, {
           headers: { Authorization: `Bearer ${token}` },
           timeout: 10000,
-          params: { startDate, endDate },
+          params,
           responseType: "arraybuffer",
         })
       ).catch(async (error) => {
@@ -396,7 +475,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
             axios.get(`${apiUrl}/export-attendance`, {
               headers: { Authorization: `Bearer ${newToken}` },
               timeout: 10000,
-              params: { startDate, endDate },
+              params,
               responseType: "arraybuffer",
             })
           );
@@ -442,6 +521,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
     setCurrentPage(1);
     setStartDate("");
     setEndDate("");
+    setSelectedUserId("");
     setAttendance([]);
     onClose();
   };
@@ -451,17 +531,15 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
     setAuth((prev) => ({ ...prev, error: null }));
   };
 
+  const handleUserFilterChange = (event) => {
+    setSelectedUserId(event.target.value);
+    setCurrentPage(1); // Reset to first page when filter changes
+  };
+
   const tableRows = useMemo(() => {
     return attendance.map((record) => (
       <TableRow key={record._id} hover>
-        <TableCell>
-          {new Date(record.date).toLocaleDateString("en-GB", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-          })}
-        </TableCell>
-
+        <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
         <TableCell>{record.user?.username || "Unknown"}</TableCell>
         <TableCell>
           {record.checkIn
@@ -612,18 +690,27 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
 
         {auth.status === "authenticated" && (
           <>
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, mb: 3 }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 1.5,
+                mb: 3,
+                alignItems: "center",
+                justifyContent: "flex-start",
+              }}
+            >
               <TextField
-                label="Remarks (Optional)"
+                label="Remarks"
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
                 size="small"
-                fullWidth
                 variant="outlined"
                 sx={{
                   background: "white",
                   borderRadius: 1,
-                  flex: 1,
+                  minWidth: "150px",
+                  maxWidth: "180px",
                 }}
                 inputProps={{ maxLength: 200 }}
               />
@@ -639,11 +726,12 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
                   color: "black",
                   fontWeight: "bold",
                   "&:hover": { bgcolor: "#38d476" },
-                  minWidth: "120px",
+                  minWidth: "100px",
+                  height: "40px",
                 }}
               >
                 {loadingAction === "check-in" ? (
-                  <CircularProgress size={20} color="inherit" />
+                  <CircularProgress size={18} color="inherit" />
                 ) : (
                   "Check In"
                 )}
@@ -660,63 +748,110 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
                   color: "white",
                   fontWeight: "bold",
                   "&:hover": { bgcolor: "#e65c00" },
-                  minWidth: "120px",
+                  minWidth: "100px",
+                  height: "40px",
                 }}
               >
                 {loadingAction === "check-out" ? (
-                  <CircularProgress size={20} color="inherit" />
+                  <CircularProgress size={18} color="inherit" />
                 ) : (
                   "Check Out"
                 )}
               </Button>
-
-              <>
-                <TextField
-                  label="Start Date"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+              {/* User Filter - Only for Admin and SuperAdmin */}
+              {(role === "admin" || role === "superadmin") && (
+                <FormControl
+                  variant="outlined"
                   size="small"
-                  InputLabelProps={{ shrink: true }}
-                  sx={{
-                    bgcolor: "white",
-                    borderRadius: 1,
-                    minWidth: "120px",
-                  }}
-                />
-                <TextField
-                  label="End Date"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  size="small"
-                  InputLabelProps={{ shrink: true }}
-                  sx={{
-                    bgcolor: "white",
-                    borderRadius: 1,
-                    minWidth: "120px",
-                  }}
-                />
-                <Button
-                  onClick={handleExport}
-                  startIcon={<FaFileExcel />}
-                  variant="contained"
-                  disabled={loadingAction !== null || !startDate || !endDate}
-                  sx={{
-                    bgcolor: "#33cabb",
-                    color: "white",
-                    fontWeight: "bold",
-                    "&:hover": { bgcolor: "#2db7aa" },
-                    minWidth: "120px",
-                  }}
+                  sx={{ minWidth: 150 }}
                 >
-                  {loadingAction === "export" ? (
-                    <CircularProgress size={20} color="inherit" />
-                  ) : (
-                    "Export"
-                  )}
-                </Button>
-              </>
+                  <InputLabel id="user-filter-label" sx={{ color: "black" }}>
+                    Filter by User
+                  </InputLabel>
+                  <Select
+                    labelId="user-filter-label"
+                    value={selectedUserId}
+                    onChange={handleUserFilterChange}
+                    label="Filter by User"
+                    sx={{
+                      bgcolor: "white",
+                      borderRadius: 1,
+                      height: "40px",
+                      "& .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "transparent",
+                      },
+                      "& .MuiSvgIcon-root": {
+                        color: "#333",
+                      },
+                      "& .MuiSelect-select": {
+                        color: "#333",
+                      },
+                      "& .MuiInputLabel-root": {
+                        color: "#333",
+                      },
+                    }}
+                  >
+                    <MenuItem value="">All Users</MenuItem>
+                    {loadingUsers ? (
+                      <MenuItem disabled>Loading users...</MenuItem>
+                    ) : (
+                      users.map((user) => (
+                        <MenuItem key={user._id} value={user._id}>
+                          {user.username}
+                        </MenuItem>
+                      ))
+                    )}
+                  </Select>
+                </FormControl>
+              )}
+              <TextField
+                label="Start Date"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                size="small"
+                InputLabelProps={{ shrink: true }}
+                sx={{
+                  bgcolor: "white",
+                  borderRadius: 1,
+                  minWidth: "110px",
+                  height: "40px",
+                }}
+              />
+              <TextField
+                label="End Date"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                size="small"
+                InputLabelProps={{ shrink: true }}
+                sx={{
+                  bgcolor: "white",
+                  borderRadius: 1,
+                  minWidth: "110px",
+                  height: "40px",
+                }}
+              />
+              <Button
+                onClick={handleExport}
+                startIcon={<FaFileExcel />}
+                variant="contained"
+                disabled={loadingAction !== null || !startDate || !endDate}
+                sx={{
+                  bgcolor: "#33cabb",
+                  color: "white",
+                  fontWeight: "bold",
+                  "&:hover": { bgcolor: "#2db7aa" },
+                  minWidth: "100px",
+                  height: "40px",
+                }}
+              >
+                {loadingAction === "export" ? (
+                  <CircularProgress size={18} color="inherit" />
+                ) : (
+                  "Export"
+                )}
+              </Button>
             </Box>
 
             <Box
