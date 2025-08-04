@@ -552,6 +552,7 @@ const Navbar = () => {
                     e.currentTarget.style.transform = "scale(1)";
                     e.currentTarget.style.borderColor = "#90cdf4";
                   }}
+                  onClick={() => setDropdownOpen(!isDropdownOpen)}
                 />
                 <span
                   style={{
@@ -562,6 +563,110 @@ const Navbar = () => {
                 >
                   Hello, {userName}
                 </span>
+                {isDropdownOpen && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      right: 0,
+                      backgroundColor: "white",
+                      border: "none",
+                      borderRadius: "12px",
+                      boxShadow: "0 10px 25px rgba(0, 0, 0, 0.15)",
+                      zIndex: 1000,
+                      minWidth: "220px",
+                      marginTop: "8px",
+                      overflow: "hidden",
+                      animation: "fadeIn 0.2s ease-out",
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: "16px 20px",
+                        cursor: "pointer",
+                        color: "#2d3748",
+                        fontSize: "14px",
+                        fontWeight: "500",
+                        borderBottom: "1px solid #f1f5f9",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        transition: "all 0.2s ease",
+                      }}
+                      onClick={() => {
+                        navigate("/change-password");
+                        setDropdownOpen(false);
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = "#f8fafc";
+                        e.currentTarget.style.color = "#2563eb";
+                        e.currentTarget.style.transform = "translateX(2px)";
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = "white";
+                        e.currentTarget.style.color = "#2d3748";
+                        e.currentTarget.style.transform = "translateX(0)";
+                      }}
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l2.5 2.5L15.5 7.5m0 0l2.5-2.5"></path>
+                      </svg>
+                      Change Password
+                    </div>
+                    <div
+                      style={{
+                        padding: "16px 20px",
+                        cursor: "pointer",
+                        color: "#2d3748",
+                        fontSize: "14px",
+                        fontWeight: "500",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        transition: "all 0.2s ease",
+                      }}
+                      onClick={() => {
+                        handleLogout();
+                        setDropdownOpen(false);
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = "#fef2f2";
+                        e.currentTarget.style.color = "#dc2626";
+                        e.currentTarget.style.transform = "translateX(2px)";
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = "white";
+                        e.currentTarget.style.color = "#2d3748";
+                        e.currentTarget.style.transform = "translateX(0)";
+                      }}
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                      </svg>
+                      Logout
+                    </div>
+                  </div>
+                )}
               </div>
               <button className="Btn mx-3 logout-btn" onClick={handleLogout}>
                 <div className="sign">
