@@ -35,7 +35,7 @@ function Login({ onAuthSuccess }) {
 
     try {
       const response = await axios.post(
-        "https://crm-server-vrck.onrender.com/auth/login",
+        `${process.env.REACT_APP_URL}/auth/login`,
         formData
       );
 

@@ -107,7 +107,7 @@ const AppContent = () => {
         ) {
           try {
             const response = await axios.get(
-              "https://crm-server-vrck.onrender.com/auth/verify-token",
+              `${process.env.REACT_APP_URL}/auth/verify-token`,
               {
                 headers: { Authorization: `Bearer ${token}` },
               }

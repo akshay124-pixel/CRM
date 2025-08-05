@@ -31,10 +31,7 @@ function DeleteModal({ isOpen, onClose, onDelete, itemId, itemIds }) {
         // Handle multiple deletes
         await Promise.all(
           itemIds.map((id) =>
-            axios.delete(
-              `https://crm-server-vrck.onrender.com/api/entry/${id}`,
-              config
-            )
+            axios.delete(`${process.env.REACT_APP_URL}/api/entry/${id}`, config)
           )
         );
         onDelete(itemIds); // Pass array of deleted IDs to parent
@@ -42,7 +39,7 @@ function DeleteModal({ isOpen, onClose, onDelete, itemId, itemIds }) {
       } else if (itemId) {
         // Handle single delete
         const response = await axios.delete(
-          `https://crm-server-vrck.onrender.com/api/entry/${itemId}`,
+          `${process.env.REACT_APP_URL}/api/entry/${itemId}`,
           config
         );
         if (response.status === 200) {

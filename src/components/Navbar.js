@@ -48,7 +48,7 @@ const Navbar = () => {
   useEffect(() => {
     if (isAuthenticated) {
       const token = localStorage.getItem("token");
-      const socketInstance = io("https://crm-server-vrck.onrender.com", {
+      const socketInstance = io(`${process.env.REACT_APP_URL}`, {
         auth: { token: `Bearer ${token}` },
         reconnection: true,
         reconnectionAttempts: 5,
@@ -111,7 +111,7 @@ const Navbar = () => {
         const token = localStorage.getItem("token");
         if (!token) return;
         const response = await axios.get(
-          "https://crm-server-vrck.onrender.com/api/notifications",
+          `${process.env.REACT_APP_URL}/api/notifications`,
           {
             headers: { Authorization: `Bearer ${token}` },
             params: { page: notificationPage, limit: 10 },
@@ -160,7 +160,7 @@ const Navbar = () => {
       const token = localStorage.getItem("token");
       if (!token) return;
       await axios.post(
-        "https://crm-server-vrck.onrender.com/api/notificationsread",
+        `${process.env.REACT_APP_URL}/api/notificationsread`,
         { notificationIds },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -182,7 +182,7 @@ const Navbar = () => {
       const token = localStorage.getItem("token");
       if (!token) return;
       await axios.delete(
-        "https://crm-server-vrck.onrender.com/api/notificationsdelete",
+        `${process.env.REACT_APP_URL}/api/notificationsdelete`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }

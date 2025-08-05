@@ -30,8 +30,6 @@ function ChangePassword() {
       userEmail: user.email,
     });
 
-    // The PrivateRoute will handle authentication, so we don't need to redirect here
-    // Just log the authentication status for debugging
     if (token && user.email) {
       console.log("ChangePassword: User authenticated", { email: user.email });
     } else {
@@ -153,7 +151,7 @@ function ChangePassword() {
       }
 
       const response = await axios.post(
-        "https://crm-server-vrck.onrender.com/auth/change-password",
+        `${process.env.REACT_APP_URL}/auth/change-password`,
         { ...formData, email: userEmail },
         {
           headers: {

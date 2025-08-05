@@ -276,7 +276,7 @@ function DashBoard() {
       if (!token) throw new Error("No token found");
       const decoded = jwtDecode(token);
       const response = await axios.get(
-        "https://crm-server-vrck.onrender.com/api/user-role",
+        `${process.env.REACT_APP_URL}/api/user-role`,
         {
           headers: { Authorization: `Bearer ${token}` },
           timeout: 5000,
@@ -305,7 +305,7 @@ function DashBoard() {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("No token found");
       const response = await axios.get(
-        "https://crm-server-vrck.onrender.com/api/fetch-entry",
+        `${process.env.REACT_APP_URL}/api/fetch-entry`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -408,7 +408,7 @@ function DashBoard() {
         try {
           const token = localStorage.getItem("token");
           const response = await axios.get(
-            "https://crm-server-vrck.onrender.com/api/users",
+            `${process.env.REACT_APP_URL}/api/users`,
             {
               headers: { Authorization: `Bearer ${token}` },
             }
@@ -797,7 +797,7 @@ function DashBoard() {
 
         console.log(`Sending ${newEntries.length} entries to API`);
         const response = await axios.post(
-          "https://crm-server-vrck.onrender.com/api/entries",
+          `${process.env.REACT_APP_URL}/api/entries`,
           newEntries,
           {
             headers: {

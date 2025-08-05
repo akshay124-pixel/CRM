@@ -38,7 +38,7 @@ function Signup({ onAuthSuccess }) {
 
     try {
       const response = await axios.post(
-        "https://crm-server-vrck.onrender.com/user/signup", // Fixed endpoint
+        `${process.env.REACT_APP_URL}/user/signup`, // Fixed endpoint
         form
       );
 

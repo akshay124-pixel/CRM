@@ -202,7 +202,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
       try {
         const token = localStorage.getItem("token");
         const response = await axios.get(
-          "https://crm-server-vrck.onrender.com/api/tag-users",
+          `${process.env.REACT_APP_URL}/api/tag-users`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -388,7 +388,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
       };
 
       const response = await axios.post(
-        "https://crm-server-vrck.onrender.com/api/entry",
+        `${process.env.REACT_APP_URL}/api/entry`,
         submitData,
         {
           headers: {

@@ -150,7 +150,7 @@ const TeamAnalyticsDrawer = ({
     loading,
     retry,
   } = useCachedApi(
-    "https://crm-server-vrck.onrender.com/api/allusers",
+    `${process.env.REACT_APP_URL}/api/allusers`,
     localStorage.getItem("token")
   );
 
