@@ -206,29 +206,48 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
   const selectedCloseType = watch("closetype");
   const fetchLiveLocation = useCallback(() => {
     setLocationLoading(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const location = `${position.coords.latitude}, ${position.coords.longitude}`;
-          setValue("liveLocation", location, { shouldValidate: true });
-          setLocationFetched(true);
-          setLocationLoading(false);
-          toast.success("Location fetched successfully!");
-        },
-        (error) => {
-          console.error("Error fetching location:", error);
-          setLocationFetched(false);
-          setLocationLoading(false);
-          toast.error("Failed to fetch location!");
-        },
-        { timeout: 10000, maximumAge: 0, enableHighAccuracy: true }
-      );
-    } else {
+
+    if (!navigator.geolocation) {
       console.error("Geolocation is not supported by your browser.");
       setLocationFetched(false);
       setLocationLoading(false);
-      toast.error("Geolocation not supported!");
+      toast.error("Your browser does not support location services.");
+      return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const location = `${position.coords.latitude}, ${position.coords.longitude}`;
+        setValue("liveLocation", location, { shouldValidate: true });
+        setLocationFetched(true);
+        setLocationLoading(false);
+        toast.success("Location fetched successfully!");
+      },
+      (error) => {
+        console.error("Error fetching location:", error);
+        setLocationFetched(false);
+        setLocationLoading(false);
+
+        let message = "Failed to fetch your location.";
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            message =
+              "Location permission denied. Please allow location access.";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            message = "Location information is unavailable.";
+            break;
+          case error.TIMEOUT:
+            message = "Location request timed out. Please try again.";
+            break;
+          default:
+            message = "An unknown error occurred while fetching location.";
+        }
+
+        toast.error(message);
+      },
+      { timeout: 10000, maximumAge: 0, enableHighAccuracy: true }
+    );
   }, [setValue]);
 
   // Trigger location fetch when status changes
@@ -337,13 +356,14 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       onClose();
     } catch (err) {
       console.error("Submit error:", err.response?.data || err.message);
-      let errorMessage = "Failed to update entry!";
+      let errorMessage = "Failed to update entry. Please try again.";
+
       if (
         err.response?.data?.message &&
-        err.response.data.message.includes("token")
+        err.response.data.message.toLowerCase().includes("token")
       ) {
         errorMessage =
-          "Server requires authentication. Please contact the administrator to allow edits without login.";
+          "Your session has expired or you are not authenticated. Please log in again.";
       } else if (
         err.response?.data?.errors &&
         Array.isArray(err.response.data.errors)
@@ -356,6 +376,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       } else if (err.message) {
         errorMessage = err.message;
       }
+
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -363,7 +384,6 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       setShowConfirm(false);
     }
   };
-
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -377,7 +397,10 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         setUsers(response.data || []);
       } catch (error) {
         console.error("Error fetching users for tagging:", error);
-        toast.error("Failed to fetch users for tagging.");
+        toast.error(
+          error.response?.data?.message ||
+            "Unable to load users for tagging. Please try again later."
+        );
         setUsers([]);
       }
     };

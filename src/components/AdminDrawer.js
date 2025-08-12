@@ -57,7 +57,9 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        throw new Error("No authentication token found");
+        setDebugInfo("You are not logged in. Please log in to view users.");
+        toast.error("Please log in to access user data.");
+        return [];
       }
 
       let allUsers = [];
@@ -93,7 +95,10 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
           page += 1;
         } catch (pageError) {
           console.error(`Error fetching page ${page}:`, pageError);
-          setDebugInfo(`Failed to fetch users for page ${page}`);
+          setDebugInfo(
+            `Problem loading user data (page ${page}). Please try again later.`
+          );
+          toast.error("Unable to load all users. Showing partial data.");
           break;
         }
       }
@@ -122,15 +127,18 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
       }
 
       if (!relevantUsers.length) {
-        setDebugInfo("No relevant users found for role: " + role);
+        setDebugInfo(`No users matched your access level (${role}).`);
+        toast.info("No users found for your access level.");
       }
 
       setCachedUsers(relevantUsers);
       return relevantUsers;
     } catch (error) {
       console.error("Error fetching users:", error);
-      setDebugInfo(error.message || "Failed to fetch users");
-      toast.error("Failed to load team analytics!");
+      setDebugInfo(
+        "There was a problem loading users. Please try again later."
+      );
+      toast.error("Could not load users right now. Please try again later.");
       return [];
     } finally {
       setLoading(false);

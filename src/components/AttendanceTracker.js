@@ -254,9 +254,9 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
       if (!token) {
         setAuth({
           status: "unauthenticated",
-          error: "No authentication token found. Please log in.",
+          error: "You are not logged in. Please log in to view attendance.",
         });
-        toast.error("No authentication token found. Please log in.", {
+        toast.error("Please log in to access attendance data.", {
           autoClose: 5000,
         });
         return;
@@ -304,7 +304,9 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
       });
 
       if (!response.data.success) {
-        throw new Error(response.data.message || "Failed to fetch attendance");
+        throw new Error(
+          response.data.message || "Could not retrieve attendance data."
+        );
       }
 
       const { data, pagination } = response.data;
@@ -312,12 +314,26 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
       setTotalPages(pagination.totalPages || 1);
       setTotalRecords(pagination.totalRecords || 0);
     } catch (error) {
-      const errorMessage =
-        error.response?.status === 400
-          ? error.response.data.message
-          : error.message || "Failed to fetch attendance";
-      setAuth((prev) => ({ ...prev, error: errorMessage }));
-      toast.error(errorMessage, { autoClose: 5000 });
+      // Friendly error messages
+      let friendlyMessage =
+        "Oops! Something went wrong while loading attendance.";
+
+      if (error.message.includes("date")) {
+        friendlyMessage = error.message; // date-specific messages already user-friendly
+      } else if (error.response?.status === 400) {
+        friendlyMessage =
+          error.response.data.message ||
+          "There was a problem with your request.";
+      } else if (error.response?.status === 401) {
+        friendlyMessage = "Your session has expired. Please log in again.";
+        setAuth({ status: "unauthenticated", error: friendlyMessage });
+      } else if (error.message === "Network Error") {
+        friendlyMessage =
+          "Network problem detected. Please check your internet connection.";
+      }
+
+      setAuth((prev) => ({ ...prev, error: friendlyMessage }));
+      toast.error(friendlyMessage, { autoClose: 5000 });
     } finally {
       setLoadingAction(null);
     }
@@ -408,12 +424,23 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
       setAuth((prev) => ({ ...prev, error: null }));
       await fetchAttendance();
     } catch (error) {
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        `Failed to ${type.replace("-", " ")}`;
-      setAuth((prev) => ({ ...prev, error: errorMessage }));
-      toast.error(errorMessage, { autoClose: 5000 });
+      let friendlyMessage = `Oops! Something went wrong while trying to ${type.replace(
+        "-",
+        " "
+      )}. Please try again.`;
+
+      if (error.message.includes("location")) {
+        friendlyMessage =
+          "We couldn't get your location. Please check your device settings and try again.";
+      } else if (error.response?.data?.message) {
+        friendlyMessage = error.response.data.message;
+      } else if (error.message === "Network Error") {
+        friendlyMessage =
+          "Network issue detected. Please check your internet connection.";
+      }
+
+      setAuth((prev) => ({ ...prev, error: friendlyMessage }));
+      toast.error(friendlyMessage, { autoClose: 5000 });
     } finally {
       setLoadingAction(null);
     }

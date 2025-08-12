@@ -64,12 +64,16 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
         response: error.response?.data,
         status: error.response?.status,
       });
-      toast.error(error.message || "Failed to fetch users");
+
+      const friendlyMessage =
+        error.message ||
+        "Oops! Something went wrong while loading users. Please try again.";
+
+      toast.error(friendlyMessage);
     } finally {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     if (isOpen) {
       fetchUsers();
@@ -91,7 +95,10 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
       await fetchUsers();
     } catch (error) {
       console.error("Error assigning user:", error);
-      toast.error(error.response?.data?.message || "Failed to assign user");
+      const message =
+        error.response?.data?.message ||
+        "Something went wrong while assigning the user. Please try again.";
+      toast.error(message);
     }
   };
 
@@ -110,7 +117,10 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
       await fetchUsers();
     } catch (error) {
       console.error("Error unassigning user:", error);
-      toast.error(error.response?.data?.message || "Failed to unassign user");
+      const message =
+        error.response?.data?.message ||
+        "Something went wrong while unassigning the user. Please try again.";
+      toast.error(message);
     }
   };
 

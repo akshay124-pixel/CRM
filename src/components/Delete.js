@@ -50,15 +50,20 @@ function DeleteModal({ isOpen, onClose, onDelete, itemId, itemIds }) {
       onClose(); // Close the modal
     } catch (error) {
       console.error("Error deleting entry/entries:", error);
-      const errorMessage =
-        error.response?.data?.message ||
-        `Request failed with status code ${
-          error.response?.status || "unknown"
-        }`;
-      toast.error(`Error deleting entry/entries: ${errorMessage}`);
+
+      let message =
+        "Sorry, we couldn't delete the entry/entries at this time. Please try again later.";
+      if (error.response?.data?.message) {
+        message = error.response.data.message;
+      } else if (error.message === "Network Error") {
+        message =
+          "Network error detected. Please check your internet connection and try again.";
+      }
+
+      toast.error(message);
     } finally {
       setIsLoading(false);
-      setConfirmationText(""); // Reset input after action
+      setConfirmationText("");
     }
   };
 

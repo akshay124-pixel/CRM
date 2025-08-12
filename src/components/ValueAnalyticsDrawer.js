@@ -133,8 +133,8 @@ const ValueAnalyticsDrawer = ({
         setTotalHotValue(totals.totalHot);
         setTotalWarmValue(totals.totalWarm);
       } catch (error) {
-        console.error("Error fetching value analytics:", error);
-        toast.error("Failed to load value analytics!");
+        console.error("Error loading value analytics:", error);
+        toast.error("Unable to load value analytics. Please try again later.");
       } finally {
         setLoading(false);
       }

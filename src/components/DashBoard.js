@@ -290,8 +290,12 @@ function DashBoard() {
       localStorage.setItem("userId", userId);
     } catch (error) {
       console.error("Fetch user details error:", error.message);
-      setError("Session verification failed. Please log in again.");
-      toast.error("Session verification failed. Please log in again.");
+      const friendlyMessage =
+        error.message === "You are not logged in. Please log in to continue."
+          ? error.message
+          : "Session expired or invalid. Please log in again.";
+      setError(friendlyMessage);
+      toast.error(friendlyMessage);
       localStorage.clear();
       navigate("/login");
     } finally {
@@ -324,8 +328,12 @@ function DashBoard() {
       }
     } catch (error) {
       console.error("Fetch entries error:", error.message);
-      setError("Failed to load entries.");
-      toast.error("Failed to fetch entries!");
+      const message =
+        error.message === "Network Error"
+          ? "Network problem detected. Please check your internet connection."
+          : "Sorry, we couldn't load the entries right now. Please try again later.";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -813,19 +821,27 @@ function DashBoard() {
         fetchEntries();
       } catch (error) {
         console.error("Upload error:", error.message, error.response?.data);
+
         if (error.response?.status === 401) {
           toast.error("Authentication failed. Please log in again.");
-        } else {
+        } else if (error.response?.data?.message) {
+          toast.error(`Upload failed: ${error.response.data.message}`);
+        } else if (error.message === "Network Error") {
           toast.error(
-            `Upload failed: ${error.response?.data?.message || error.message}`
+            "Network issue detected. Please check your internet connection and try again."
           );
+        } else {
+          toast.error(`Upload failed: ${error.message}`);
         }
       }
     };
     reader.onerror = () => {
       console.error("File read error");
-      toast.error("Error reading file!");
+      toast.error(
+        "Error reading the file. Please try again with a valid file."
+      );
     };
+
     reader.readAsArrayBuffer(file);
   };
 

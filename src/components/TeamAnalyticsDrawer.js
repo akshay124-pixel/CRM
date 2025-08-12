@@ -79,15 +79,21 @@ const useCachedApi = (url, token) => {
       setData(allUsers);
       setError(null);
     } catch (err) {
-      setError(
-        err.response
-          ? `API error: ${err.response.status} ${err.response.statusText}`
-          : `Network error: ${err.message}`
-      );
-    } finally {
-      setLoading(false);
+    console.error("Error fetching users:", err);
+    let friendlyMessage = "Unable to load users. Please check your connection and try again.";
+
+    if (err.response) {
+      friendlyMessage = `Server error (${err.response.status}): ${err.response.statusText}`;
+    } else if (err.message) {
+      friendlyMessage = `Network error: ${err.message}`;
     }
-  }, [url, token]);
+
+    setError(friendlyMessage);
+    toast.error(friendlyMessage);
+  } finally {
+    setLoading(false);
+  }
+}, [url, token]);
 
   useEffect(() => {
     fetchData();

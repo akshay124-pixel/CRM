@@ -414,7 +414,35 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
         "Error adding entry:",
         error.response?.data || error.message
       );
-      toast.error(error.response?.data?.message || "Something went wrong!");
+
+      // Friendly error messages for non-tech users
+      let friendlyMessage = "Oops! Something went wrong. Please try again.";
+
+      if (error.response) {
+        // Check specific status codes or error messages
+        const status = error.response.status;
+        const serverMessage = error.response.data?.message || "";
+
+        if (status === 400) {
+          friendlyMessage =
+            "Please check the information you entered and try again.";
+        } else if (status === 401) {
+          friendlyMessage = "You are not authorized. Please log in again.";
+        } else if (status === 403) {
+          friendlyMessage =
+            "Access denied. You don't have permission to do this.";
+        } else if (status === 404) {
+          friendlyMessage = "The requested resource was not found.";
+        } else if (serverMessage) {
+          // If server provides a clear message, use that (can also sanitize it if needed)
+          friendlyMessage = serverMessage;
+        }
+      } else if (error.message === "Network Error") {
+        friendlyMessage =
+          "Network issue detected. Please check your internet connection.";
+      }
+
+      toast.error(friendlyMessage);
     } finally {
       setLoading(false);
     }
