@@ -23,7 +23,7 @@ function Login({ onAuthSuccess }) {
     e.preventDefault();
 
     if (!formData.email || !formData.password) {
-      toast.error("Please fill in both fields.", {
+      toast.error("Please enter both Email and Password.", {
         position: "top-right",
         autoClose: 3000,
         theme: "colored",
@@ -47,7 +47,9 @@ function Login({ onAuthSuccess }) {
 
         // Validate user object
         if (!user || !user.id || !user.username || !user.role) {
-          throw new Error("Invalid user data in API response");
+          throw new Error(
+            "Unable to fetch your account details. Please try again."
+          );
         }
 
         // Store user object in localStorage
@@ -77,7 +79,7 @@ function Login({ onAuthSuccess }) {
 
         navigate("/dashboard");
       } else {
-        toast.error("Unexpected response. Please try again.", {
+        toast.error("Something went wrong. Please try again.", {
           position: "top-right",
           autoClose: 3000,
           theme: "colored",
@@ -86,9 +88,13 @@ function Login({ onAuthSuccess }) {
     } catch (error) {
       console.error("Error while logging in:", error);
       toast.error(
-        error.message ||
-          error.response?.data?.message ||
-          "Login failed. Please try again.",
+        error.response?.status === 401
+          ? "Invalid email or password."
+          : error.response?.status === 404
+          ? "Account not found."
+          : error.response?.status === 500
+          ? "Server error. Please try again later."
+          : error.message || "Login failed. Please try again.",
         {
           position: "top-right",
           autoClose: 3000,
