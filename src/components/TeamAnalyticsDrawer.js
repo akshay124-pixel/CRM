@@ -79,21 +79,22 @@ const useCachedApi = (url, token) => {
       setData(allUsers);
       setError(null);
     } catch (err) {
-    console.error("Error fetching users:", err);
-    let friendlyMessage = "Unable to load users. Please check your connection and try again.";
+      console.error("Error fetching users:", err);
+      let friendlyMessage =
+        "Unable to load users. Please check your connection and try again.";
 
-    if (err.response) {
-      friendlyMessage = `Server error (${err.response.status}): ${err.response.statusText}`;
-    } else if (err.message) {
-      friendlyMessage = `Network error: ${err.message}`;
+      if (err.response) {
+        friendlyMessage = `Server error (${err.response.status}): ${err.response.statusText}`;
+      } else if (err.message) {
+        friendlyMessage = `Network error: ${err.message}`;
+      }
+
+      setError(friendlyMessage);
+      toast.error(friendlyMessage);
+    } finally {
+      setLoading(false);
     }
-
-    setError(friendlyMessage);
-    toast.error(friendlyMessage);
-  } finally {
-    setLoading(false);
-  }
-}, [url, token]);
+  }, [url, token]);
 
   useEffect(() => {
     fetchData();
@@ -148,7 +149,9 @@ const TeamAnalyticsDrawer = ({
   const [showZeroEntries, setShowZeroEntries] = useState(true);
   const [debugInfo, setDebugInfo] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-
+  const [itemSize, setItemSize] = useState(
+    window.innerWidth <= 768 ? 440 : 240
+  );
   // Fetch users from API
   const {
     data: users,
@@ -159,7 +162,14 @@ const TeamAnalyticsDrawer = ({
     `${process.env.REACT_APP_URL}/api/allusers`,
     localStorage.getItem("token")
   );
+  useEffect(() => {
+    const handleResize = () => {
+      setItemSize(window.innerWidth <= 768 ? 440 : 240);
+    };
 
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
   // Log props for debugging
   useEffect(() => {
     if (isOpen) {
@@ -1245,7 +1255,7 @@ const TeamAnalyticsDrawer = ({
                                   (m) => m.allTimeEntries > 0
                                 ).length
                           }
-                          itemSize={240}
+                          itemSize={itemSize}
                           itemData={{
                             members: showZeroEntries
                               ? team.membersAnalytics

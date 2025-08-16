@@ -918,7 +918,6 @@ function DashBoard() {
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    // Filter entries based on role, userId, selectedUsername, and dateRange
     const filteredEntries = entries.filter((entry) => {
       const createdAt = new Date(entry.createdAt);
       return (
@@ -928,7 +927,10 @@ function DashBoard() {
           entry.assignedTo?._id === userId) &&
         (!selectedUsername ||
           entry.createdBy?.username === selectedUsername ||
-          entry.assignedTo?.username === selectedUsername) &&
+          (Array.isArray(entry.assignedTo) &&
+            entry.assignedTo.some(
+              (user) => user.username === selectedUsername
+            ))) &&
         (!dateRange[0].startDate ||
           !dateRange[0].endDate ||
           (createdAt >= new Date(dateRange[0].startDate) &&
@@ -942,18 +944,17 @@ function DashBoard() {
 
     const monthly = filteredEntries.reduce((sum, entry) => {
       const createdAt = new Date(entry.createdAt);
-      const updatedAt = new Date(entry.updatedAt || entry.createdAt); // Fallback to createdAt if updatedAt is missing
+      const updatedAt = new Date(entry.updatedAt || entry.createdAt);
       const createdMonth = createdAt.getMonth();
       const createdYear = createdAt.getFullYear();
       const updatedMonth = updatedAt.getMonth();
       const updatedYear = updatedAt.getFullYear();
 
-      // Include entry if either createdAt or updatedAt is in the current month and year
       if (
         (createdMonth === currentMonth && createdYear === currentYear) ||
         (updatedMonth === currentMonth && updatedYear === currentYear)
       ) {
-        return sum + 1; // Count the entry itself
+        return sum + (entry.history?.length || 0); // Use history.length instead of 1
       }
       return sum;
     }, 0);

@@ -208,7 +208,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
       statsMap[creatorId].totalVisits += entry.history?.length || 0;
 
       const createdAt = new Date(entry.createdAt);
-      const updatedAt = new Date(entry.updatedAt || entry.createdAt); // Fallback to createdAt if updatedAt is missing
+      const updatedAt = new Date(entry.updatedAt || entry.createdAt);
       const createdMonth = createdAt.getMonth();
       const createdYear = createdAt.getFullYear();
       const updatedMonth = updatedAt.getMonth();
@@ -217,12 +217,11 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
       const currentMonth = now.getMonth();
       const currentYear = now.getFullYear();
 
-      // Include entry if either createdAt or updatedAt is in the current month and year
       if (
         (createdMonth === currentMonth && createdYear === currentYear) ||
         (updatedMonth === currentMonth && updatedYear === currentYear)
       ) {
-        statsMap[creatorId].monthEntries += 1;
+        statsMap[creatorId].monthEntries += entry.history?.length || 0; // Changed from += 1
       }
 
       const status = entry.status?.toLowerCase() || "";
