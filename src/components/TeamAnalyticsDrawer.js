@@ -388,7 +388,7 @@ const TeamAnalyticsDrawer = ({
           entryDate.getMonth() === currentMonth &&
           entryDate.getFullYear() === currentYear
         ) {
-          targetAnalytics.monthEntries += 1;
+          targetAnalytics.monthEntries += entry.history?.length || 0;
           statsMap[adminId].teamTotal.monthEntries += 1;
         }
 
