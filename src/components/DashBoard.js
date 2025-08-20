@@ -730,82 +730,75 @@ function DashBoard() {
       return;
     }
 
-    console.log("Token:", token);
-
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        console.log("Parsing file...");
         const data = new Uint8Array(event.target.result);
         const workbook = XLSX.read(data, { type: "array" });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         const parsedData = XLSX.utils.sheet_to_json(worksheet, {
-          defval: "", // Missing cells as empty strings
-          blankrows: false, // Skip empty rows
+          defval: "",
+          blankrows: false,
         });
-        console.log("Parsed data:", JSON.stringify(parsedData, null, 2));
 
         if (!parsedData.length) {
           toast.error("No data found in file!");
           return;
         }
 
-        // Map to schema fields without validation
-        const newEntries = parsedData.map((item) => {
-          // Parse Products and Assigned_To as arrays if comma-separated
-          const parseArrayField = (value) => {
-            if (Array.isArray(value)) return value;
-            if (typeof value === "string" && value.trim()) {
-              try {
-                // Try parsing as JSON array
-                const parsed = JSON.parse(value);
-                return Array.isArray(parsed)
-                  ? parsed
-                  : value.split(",").map((v) => v.trim());
-              } catch {
-                // Split by commas
-                return value.split(",").map((v) => v.trim());
-              }
-            }
-            return [];
-          };
+        const parseArrayField = (value) => {
+          if (Array.isArray(value)) return value;
+          if (typeof value === "string" && value.trim()) {
+            try {
+              const parsed = JSON.parse(value);
+              if (Array.isArray(parsed)) return parsed;
+            } catch {}
+            return value.split(",").map((v) => v.trim());
+          }
+          return [];
+        };
 
-          // No date validation, just pass as-is
-          return {
-            customerName: item.Customer_Name || "",
-            mobileNumber: item.Mobile_Number ? String(item.Mobile_Number) : "",
-            contactperson: item.Contact_Person || "",
-            address: item.Address || "",
-            state: item.State || "",
-            city: item.City || "",
-            organization: item.Organization || "",
-            category: item.Category || "",
-            type: item.Type || "",
-            status: item.Status || "Not Found",
-            closetype: item.Close_Type || "",
-            estimatedValue: item.Estimated_Value
-              ? Number(item.Estimated_Value)
-              : 0,
-            closeamount: item.Close_Amount ? Number(item.Close_Amount) : 0,
-            remarks: item.Remarks || "",
-            liveLocation: item.Live_Location || "",
-            nextAction: item.Next_Action || "",
-            firstPersonMeet: item.First_Person_Met || "",
-            secondPersonMeet: item.Second_Person_Met || "",
-            thirdPersonMeet: item.Third_Person_Met || "",
-            fourthPersonMeet: item.Fourth_Person_Met || "",
-            expectedClosingDate: item.Expected_Closing_Date || null,
-            followUpDate: item.Follow_Up_Date || null,
-            products: parseArrayField(item.Products),
-            assignedTo: parseArrayField(item.Assigned_To),
-            // Exclude createdBy and createdAt
-          };
-        });
+        const fixMobileNumber = (num) => {
+          let str = String(num).replace(/\D/g, "");
+          // Enforce 10 digits only
+          if (str.length === 10) return str;
+          return "";
+        };
+
+        const newEntries = parsedData.map((item) => ({
+          customerName: item.Customer_Name || "",
+          mobileNumber: fixMobileNumber(item.Mobile_Number),
+          contactperson: item.Contact_Person || "",
+          address: item.Address || "",
+          state: item.State || "",
+          city: item.City || "",
+          organization: item.Organization || "",
+          category: item.Category || "",
+          type: item.Type || "",
+          status: item.Status || "Not Found",
+          closetype: item.Close_Type || "",
+          estimatedValue: item.Estimated_Value
+            ? Number(item.Estimated_Value)
+            : 0,
+          closeamount: item.Close_Amount ? Number(item.Close_Amount) : 0,
+          remarks: item.Remarks || "",
+          liveLocation: item.Live_Location || "",
+          nextAction: item.Next_Action || "",
+          firstPersonMeet: item.First_Person_Met || "",
+          secondPersonMeet: item.Second_Person_Met || "",
+          thirdPersonMeet: item.Third_Person_Met || "",
+          fourthPersonMeet: item.Fourth_Person_Met || "",
+          expectedClosingDate: item.Expected_Closing_Date || null,
+          followUpDate: item.Follow_Up_Date || null,
+          products: parseArrayField(item.Products),
+          assignedTo: parseArrayField(item.Assigned_To),
+        }));
 
         console.log(`Sending ${newEntries.length} entries to API`);
+
         const response = await axios.post(
-          `${process.env.REACT_APP_URL}/api/entries`,
+          `${process.env.REACT_APP_URL}/api/entries/bulk-upload`,
           newEntries,
           {
             headers: {
@@ -821,7 +814,6 @@ function DashBoard() {
         fetchEntries();
       } catch (error) {
         console.error("Upload error:", error.message, error.response?.data);
-
         if (error.response?.status === 401) {
           toast.error("Authentication failed. Please log in again.");
         } else if (error.response?.data?.message) {
@@ -835,8 +827,8 @@ function DashBoard() {
         }
       }
     };
+
     reader.onerror = () => {
-      console.error("File read error");
       toast.error(
         "Error reading the file. Please try again with a valid file."
       );
