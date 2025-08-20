@@ -1230,6 +1230,9 @@ export const productOptions = [
       "Multifunction Color Printer",
       "Multifunction Monochrome Printer",
       "Multifunction Black and White Printer",
+      "CABLE ASSY-FFC LED MBL3 (117K 50711)",
+      "FUSING UNIT (220V)(WW) (CWAA1058)",
+      "TRANSPORT ASSY-REGI MO (859K 01543)",
     ],
   },
   {
