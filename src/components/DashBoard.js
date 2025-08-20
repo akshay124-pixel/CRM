@@ -798,7 +798,7 @@ function DashBoard() {
         console.log(`Sending ${newEntries.length} entries to API`);
 
         const response = await axios.post(
-          `${process.env.REACT_APP_URL}/api/entries/bulk-upload`,
+          `${process.env.REACT_APP_URL}/api/entries`,
           newEntries,
           {
             headers: {
