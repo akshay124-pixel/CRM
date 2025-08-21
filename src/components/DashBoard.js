@@ -716,127 +716,222 @@ function DashBoard() {
       toast.error("Failed to export filtered entries!");
     }
   };
-
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) {
-      toast.error("No file selected!");
-      return;
-    }
-
-    const token = localStorage.getItem("token");
-    if (!token) {
-      toast.error("Please log in to upload entries!");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const parsedData = XLSX.utils.sheet_to_json(worksheet, {
-          defval: "",
-          blankrows: false,
-        });
-
-        if (!parsedData.length) {
-          toast.error("No data found in file!");
-          return;
-        }
-
-        const parseArrayField = (value) => {
-          if (Array.isArray(value)) return value;
-          if (typeof value === "string" && value.trim()) {
-            try {
-              const parsed = JSON.parse(value);
-              if (Array.isArray(parsed)) return parsed;
-            } catch {}
-            return value.split(",").map((v) => v.trim());
-          }
-          return [];
-        };
-
-        const fixMobileNumber = (num) => {
-          let str = String(num).replace(/\D/g, "");
-          // Enforce 10 digits only
-          if (str.length === 10) return str;
-          return "";
-        };
-
-        const newEntries = parsedData.map((item) => ({
-          customerName: item.Customer_Name || "",
-          mobileNumber: fixMobileNumber(item.Mobile_Number),
-          contactperson: item.Contact_Person || "",
-          address: item.Address || "",
-          state: item.State || "",
-          city: item.City || "",
-          organization: item.Organization || "",
-          category: item.Category || "",
-          type: item.Type || "",
-          status: item.Status || "Not Found",
-          closetype: item.Close_Type || "",
-          estimatedValue: item.Estimated_Value
-            ? Number(item.Estimated_Value)
-            : 0,
-          closeamount: item.Close_Amount ? Number(item.Close_Amount) : 0,
-          remarks: item.Remarks || "",
-          liveLocation: item.Live_Location || "",
-          nextAction: item.Next_Action || "",
-          firstPersonMeet: item.First_Person_Met || "",
-          secondPersonMeet: item.Second_Person_Met || "",
-          thirdPersonMeet: item.Third_Person_Met || "",
-          fourthPersonMeet: item.Fourth_Person_Met || "",
-          expectedClosingDate: item.Expected_Closing_Date || null,
-          followUpDate: item.Follow_Up_Date || null,
-          products: parseArrayField(item.Products),
-          assignedTo: parseArrayField(item.Assigned_To),
-        }));
-
-        console.log(`Sending ${newEntries.length} entries to API`);
-
-        const response = await axios.post(
-          `${process.env.REACT_APP_URL}/api/entries`,
-          newEntries,
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
+  const bulkUploadStocks = async (req, res) => {
+    try {
+      // Check MongoDB connection
+      if (mongoose.connection.readyState !== 1) {
+        console.error(
+          "MongoDB not connected, state:",
+          mongoose.connection.readyState
         );
+        return res.status(500).json({
+          success: false,
+          message: "Database connection error",
+        });
+      }
 
-        console.log("API response:", response.data);
-        toast.success(`Uploaded ${response.data.count} entries!`);
-        setEntries((prev) => [...newEntries, ...prev]);
-        fetchEntries();
-      } catch (error) {
-        console.error("Upload error:", error.message, error.response?.data);
-        if (error.response?.status === 401) {
-          toast.error("Authentication failed. Please log in again.");
-        } else if (error.response?.data?.message) {
-          toast.error(`Upload failed: ${error.response.data.message}`);
-        } else if (error.message === "Network Error") {
-          toast.error(
-            "Network issue detected. Please check your internet connection and try again."
+      if (!req.user?.id) {
+        console.error("No authenticated user found");
+        return res
+          .status(401)
+          .json({ success: false, message: "User not authenticated" });
+      }
+
+      const newEntries = Array.isArray(req.body) ? req.body : [];
+      if (!newEntries.length) {
+        return res
+          .status(400)
+          .json({ success: false, message: "No entries provided" });
+      }
+
+      const entriesWithMetadata = [];
+      const errors = [];
+
+      for (const [index, entry] of newEntries.entries()) {
+        try {
+          console.log(
+            `Processing entry ${index}:`,
+            JSON.stringify(entry, null, 2)
           );
-        } else {
-          toast.error(`Upload failed: ${error.message}`);
+
+          // Validate mobile number
+          if (entry.mobileNumber && !/^\d{10}$/.test(entry.mobileNumber)) {
+            throw new Error(`Invalid mobile number: ${entry.mobileNumber}`);
+          }
+
+          // Validate products
+          const products = Array.isArray(entry.products)
+            ? entry.products.map((p) => ({
+                name: String(p.name || ""),
+                specification: String(p.specification || ""),
+                size: String(p.size || ""),
+                quantity: Number(p.quantity || 1),
+              }))
+            : [];
+
+          // Validate dates
+          const expectedClosingDate = entry.expectedClosingDate
+            ? new Date(entry.expectedClosingDate)
+            : null;
+          if (expectedClosingDate && isNaN(expectedClosingDate.getTime())) {
+            throw new Error(
+              `Invalid expectedClosingDate: ${entry.expectedClosingDate}`
+            );
+          }
+
+          const followUpDate = entry.followUpDate
+            ? new Date(entry.followUpDate)
+            : null;
+          if (followUpDate && isNaN(followUpDate.getTime())) {
+            throw new Error(`Invalid followUpDate: ${entry.followUpDate}`);
+          }
+
+          // Validate assignedTo (ensure valid ObjectIds)
+          const assignedTo = Array.isArray(entry.assignedTo)
+            ? entry.assignedTo.filter((id) =>
+                mongoose.Types.ObjectId.isValid(id)
+              )
+            : [];
+
+          const formattedEntry = {
+            customerName: String(entry.customerName || ""),
+            mobileNumber: String(entry.mobileNumber || ""),
+            contactperson: String(entry.contactperson || ""),
+            address: String(entry.address || ""),
+            state: String(entry.state || ""),
+            city: String(entry.city || ""),
+            organization: String(entry.organization || ""),
+            category: String(entry.category || ""),
+            type: String(entry.type || ""),
+            status: entry.status || "Not Found",
+            closetype: entry.closetype || "",
+            estimatedValue: Number(entry.estimatedValue || 0),
+            closeamount: Number(entry.closeamount || 0),
+            remarks: String(entry.remarks || ""),
+            liveLocation: String(entry.liveLocation || ""),
+            nextAction: String(entry.nextAction || ""),
+            firstPersonMeet: String(entry.firstPersonMeet || ""),
+            secondPersonMeet: String(entry.secondPersonMeet || ""),
+            thirdPersonMeet: String(entry.thirdPersonMeet || ""),
+            fourthPersonMeet: String(entry.fourthPersonMeet || ""),
+            expectedClosingDate,
+            followUpDate,
+            products,
+            assignedTo,
+            createdBy: req.user.id,
+            createdAt: new Date(),
+            history: [
+              {
+                status: entry.status || "Not Found",
+                remarks: entry.remarks || "Bulk upload entry",
+                liveLocation: entry.liveLocation || null,
+                products,
+                assignedTo,
+                timestamp: new Date(),
+                firstPersonMeet: String(entry.firstPersonMeet || ""),
+                secondPersonMeet: String(entry.secondPersonMeet || ""),
+                thirdPersonMeet: String(entry.thirdPersonMeet || ""),
+                fourthPersonMeet: String(entry.fourthPersonMeet || ""),
+              },
+            ],
+          };
+
+          // Validate with Mongoose schema
+          const entryDoc = new Entry(formattedEntry);
+          await entryDoc.validate();
+
+          entriesWithMetadata.push(formattedEntry);
+        } catch (validationError) {
+          console.error(
+            `Validation error for entry ${index}:`,
+            validationError.message
+          );
+          errors.push({ entryIndex: index, error: validationError.message });
         }
       }
-    };
 
-    reader.onerror = () => {
-      toast.error(
-        "Error reading the file. Please try again with a valid file."
+      if (!entriesWithMetadata.length) {
+        return res.status(400).json({
+          success: false,
+          message: "No valid entries to upload",
+          errors,
+        });
+      }
+
+      const batchSize = 500;
+      let insertedCount = 0;
+
+      for (let i = 0; i < entriesWithMetadata.length; i += batchSize) {
+        const batch = entriesWithMetadata.slice(i, i + batchSize);
+        console.log(`Inserting batch of ${batch.length} entries`);
+        try {
+          const insertedEntries = await Entry.insertMany(batch, {
+            ordered: false,
+            rawResult: true,
+          });
+
+          console.log(
+            "InsertMany result:",
+            JSON.stringify(insertedEntries, null, 2)
+          );
+          insertedCount +=
+            insertedEntries.insertedCount || insertedEntries.length || 0;
+
+          // Process notifications
+          for (const entry of insertedEntries.ops || []) {
+            try {
+              await createNotification(
+                req,
+                req.user.id,
+                `Bulk entry created: ${entry.customerName || "Unknown"}`,
+                entry._id
+              );
+              for (const userId of entry.assignedTo || []) {
+                await createNotification(
+                  req,
+                  userId,
+                  `Assigned to bulk entry: ${entry.customerName || "Unknown"}`,
+                  entry._id
+                );
+              }
+            } catch (notificationError) {
+              console.error(
+                `Notification error for entry ${entry._id}:`,
+                notificationError.message
+              );
+              errors.push({
+                entry: entry._id,
+                error: `Notification failed: ${notificationError.message}`,
+              });
+            }
+          }
+        } catch (batchError) {
+          console.error(
+            `Batch ${i / batchSize + 1} error:`,
+            batchError.message
+          );
+          errors.push({ batch: i / batchSize + 1, error: batchError.message });
+        }
+      }
+
+      console.log(
+        `Inserted ${insertedCount} of ${entriesWithMetadata.length} entries`
       );
-    };
-
-    reader.readAsArrayBuffer(file);
+      return res.status(201).json({
+        success: insertedCount > 0,
+        message: `Uploaded ${insertedCount} entries`,
+        count: insertedCount,
+        errors: errors.length ? errors : null,
+      });
+    } catch (error) {
+      console.error("Bulk upload error:", error.message, error.stack);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to process entries",
+        error: error.message,
+      });
+    }
   };
-
   const handleDoubleClick = (id) => {
     if (!doubleClickInitiated && (role === "superadmin" || role === "admin")) {
       setIsSelectionMode(true);
