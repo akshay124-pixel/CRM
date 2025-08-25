@@ -46,7 +46,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
   const apiUrl =
     process.env.REACT_APP_API_URL || `${process.env.REACT_APP_URL}/api`;
 
-  // Retry utility for API calls
+  // Retry utility for API calls, ye API calls ko retry karta hai agar fail ho
   const withRetry = async (fn, retries = 3, delay = 1000) => {
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
@@ -89,7 +89,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
     return newToken;
   };
 
-  // Clear error after 5 seconds
+  // Clear error after 5 seconds, error ko 5 sec baad clear kar deta hai
   useEffect(() => {
     if (auth.error) {
       const timer = setTimeout(() => {
@@ -191,7 +191,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
     return `https://www.google.com/maps?q=${latitude},${longitude}`;
   };
 
-  // Fetch users for filter
+  // Fetch users for filter, users ko fetch karta hai filter ke liye
   const fetchUsers = useCallback(async () => {
     if (auth.status !== "authenticated") return;
 
@@ -353,6 +353,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
     selectedUserId,
   ]);
 
+  // Handle action function update kiya gaya hai taaki leave bhi handle kare, leave ke liye location nahi mangta
   const handleAction = async (type) => {
     if (auth.status !== "authenticated") {
       const errorMessage = "Please log in to perform this action.";
@@ -376,20 +377,25 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
         return;
       }
 
-      const location = await getLocation();
-      const latitude = Number(location.latitude);
-      const longitude = Number(location.longitude);
-      if (isNaN(latitude) || isNaN(longitude)) {
-        throw new Error("Location coordinates must be valid numbers.");
-      }
-
-      const payload = {
+      let payload = {
         remarks: remarks?.trim() || "",
-        [type === "check-in" ? "checkInLocation" : "checkOutLocation"]: {
-          latitude,
-          longitude,
-        },
       };
+
+      if (type === "check-in" || type === "check-out") {
+        const location = await getLocation();
+        const latitude = Number(location.latitude);
+        const longitude = Number(location.longitude);
+        if (isNaN(latitude) || isNaN(longitude)) {
+          throw new Error("Location coordinates must be valid numbers.");
+        }
+
+        payload[type === "check-in" ? "checkInLocation" : "checkOutLocation"] =
+          {
+            latitude,
+            longitude,
+          };
+      }
+      // Leave ke liye sirf remarks bhejte hain, location nahi
 
       const response = await withRetry(() =>
         axios.post(`${apiUrl}/${type}`, payload, {
@@ -416,7 +422,13 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
       }
 
       toast.success(
-        `${type === "check-in" ? "Checked in" : "Checked out"} successfully!`,
+        `${
+          type === "check-in"
+            ? "Checked in"
+            : type === "check-out"
+            ? "Checked out"
+            : "Leave marked"
+        } successfully!`,
         { autoClose: 3000 }
       );
       setRemarks("");
@@ -536,7 +548,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
     } finally {
       setLoadingAction(null);
     }
-  }, [auth.status, startDate, endDate]);
+  }, [auth.status, startDate, endDate, selectedUserId]);
 
   const handleLoginRedirect = () => {
     navigate("/login");
@@ -793,6 +805,27 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
                   <CircularProgress size={18} color="inherit" />
                 ) : (
                   "Check Out"
+                )}
+              </Button>
+              {/* Naya Leave button add kiya gaya hai, jo leave mark karega */}
+              <Button
+                onClick={() => handleAction("leave")}
+                variant="contained"
+                startIcon={<FaClock />}
+                disabled={loadingAction === "leave"}
+                sx={{
+                  bgcolor: "#f44336",
+                  color: "white",
+                  fontWeight: "bold",
+                  "&:hover": { bgcolor: "#d32f2f" },
+                  minWidth: "100px",
+                  height: "40px",
+                }}
+              >
+                {loadingAction === "leave" ? (
+                  <CircularProgress size={18} color="inherit" />
+                ) : (
+                  "Leave"
                 )}
               </Button>
               {/* User Filter - Only for Admin and SuperAdmin */}
