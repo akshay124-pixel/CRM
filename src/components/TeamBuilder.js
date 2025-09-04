@@ -6,7 +6,7 @@ import {
   Box,
   Typography,
   Paper,
-  Table,
+  Table, 
   TableBody,
   TableCell,
   TableContainer,

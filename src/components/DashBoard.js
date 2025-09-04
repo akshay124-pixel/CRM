@@ -72,7 +72,7 @@ const CallTrackingDashboard = ({
   const callStats = useMemo(() => {
     const stats = { cold: 0, warm: 0, hot: 0, closedWon: 0, closedLost: 0 };
     const filteredEntries = entries.filter((entry) => {
-      const createdAt = new Date(entry.createdAt);
+      const updatedAt = new Date(entry.updatedAt || entry.createdAt);
       return (
         (role === "superadmin" ||
           role === "admin" ||
@@ -83,8 +83,8 @@ const CallTrackingDashboard = ({
           entry.assignedTo?.username === selectedUsername) &&
         (!dateRange[0].startDate ||
           !dateRange[0].endDate ||
-          (createdAt >= new Date(dateRange[0].startDate) &&
-            createdAt <= new Date(dateRange[0].endDate)))
+          (updatedAt >= new Date(dateRange[0].startDate) &&
+            updatedAt <= new Date(dateRange[0].endDate)))
       );
     });
 
@@ -346,11 +346,10 @@ function DashBoard() {
   useEffect(() => {
     if (!authLoading && role && userId) fetchEntries();
   }, [authLoading, role, userId, fetchEntries]);
-
   const filteredData = useMemo(() => {
     return entries
       .filter((row) => {
-        const createdAt = new Date(row.createdAt);
+        const updatedAt = new Date(row.updatedAt || row.createdAt);
         const productNameMatch = row.products?.some((product) =>
           product.name?.toLowerCase().includes(searchTerm.toLowerCase())
         );
@@ -390,7 +389,7 @@ function DashBoard() {
             row.status === dashboardFilter) &&
           (!startDate ||
             !endDate ||
-            (createdAt >= startDate && createdAt <= endDate))
+            (updatedAt >= startDate && updatedAt <= endDate))
         );
       })
       .sort((a, b) => {
@@ -943,48 +942,178 @@ function DashBoard() {
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
+    // Filter entries based on role, userId, and selectedUsername
     const filteredEntries = entries.filter((entry) => {
-      const createdAt = new Date(entry.createdAt);
+      const isCreator = entry.createdBy?._id === userId;
+      const isAssigned = Array.isArray(entry.assignedTo)
+        ? entry.assignedTo.some((user) => user._id === userId)
+        : entry.assignedTo?._id === userId;
+      const usernameMatch =
+        !selectedUsername ||
+        entry.createdBy?.username === selectedUsername ||
+        (Array.isArray(entry.assignedTo) &&
+          entry.assignedTo.some((user) => user.username === selectedUsername));
+
       return (
         (role === "superadmin" ||
           role === "admin" ||
-          entry.createdBy?._id === userId ||
-          entry.assignedTo?._id === userId) &&
-        (!selectedUsername ||
-          entry.createdBy?.username === selectedUsername ||
-          (Array.isArray(entry.assignedTo) &&
-            entry.assignedTo.some(
-              (user) => user.username === selectedUsername
-            ))) &&
-        (!dateRange[0].startDate ||
-          !dateRange[0].endDate ||
-          (createdAt >= new Date(dateRange[0].startDate) &&
-            createdAt <= new Date(dateRange[0].endDate)))
+          isCreator ||
+          isAssigned) &&
+        usernameMatch
       );
     });
 
+    // Calculate total visits
     const total = filteredEntries.reduce((sum, entry) => {
       return sum + (entry.history?.length || 0);
     }, 0);
 
+    // Calculate monthly visits based on updatedAt
     const monthly = filteredEntries.reduce((sum, entry) => {
-      const createdAt = new Date(entry.createdAt);
       const updatedAt = new Date(entry.updatedAt || entry.createdAt);
-      const createdMonth = createdAt.getMonth();
-      const createdYear = createdAt.getFullYear();
       const updatedMonth = updatedAt.getMonth();
       const updatedYear = updatedAt.getFullYear();
 
-      if (
-        (createdMonth === currentMonth && createdYear === currentYear) ||
-        (updatedMonth === currentMonth && updatedYear === currentYear)
-      ) {
-        return sum + (entry.history?.length || 0); // Use history.length instead of 1
+      // If no date range is applied, count entries for the current month based on updatedAt
+      if (!dateRange[0].startDate || !dateRange[0].endDate) {
+        if (updatedMonth === currentMonth && updatedYear === currentYear) {
+          return sum + (entry.history?.length || 0);
+        }
+      } else {
+        // If date range is applied, filter by date range based on updatedAt
+        const startDate = new Date(dateRange[0].startDate);
+        const endDate = new Date(dateRange[0].endDate);
+        if (updatedAt >= startDate && updatedAt <= endDate) {
+          return sum + (entry.history?.length || 0);
+        }
       }
       return sum;
     }, 0);
 
     return { total, monthly };
+  }, [entries, role, userId, selectedUsername, dateRange]);
+
+  useEffect(() => {
+    setTotalVisits(total);
+    setMonthlyVisits(monthly);
+  }, [total, monthly]);
+
+  useEffect(() => {
+    let lastCheckedMonth = new Date().getMonth();
+
+    const checkMonthChange = () => {
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      // Reset monthlyVisits if the month has changed
+      if (currentMonth !== lastCheckedMonth) {
+        setMonthlyVisits(0);
+        lastCheckedMonth = currentMonth;
+      }
+
+      const monthly = entries.reduce((sum, entry) => {
+        const updatedAt = new Date(entry.updatedAt || entry.createdAt);
+        const updatedMonth = updatedAt.getMonth();
+        const updatedYear = updatedAt.getFullYear();
+
+        const isCreator = entry.createdBy?._id === userId;
+        const isAssigned = Array.isArray(entry.assignedTo)
+          ? entry.assignedTo.some((user) => user._id === userId)
+          : entry.assignedTo?._id === userId;
+        const usernameMatch =
+          !selectedUsername ||
+          entry.createdBy?.username === selectedUsername ||
+          (Array.isArray(entry.assignedTo) &&
+            entry.assignedTo.some(
+              (user) => user.username === selectedUsername
+            ));
+
+        if (
+          (role === "superadmin" ||
+            role === "admin" ||
+            isCreator ||
+            isAssigned) &&
+          usernameMatch &&
+          !dateRange[0].startDate &&
+          !dateRange[0].endDate &&
+          updatedMonth === currentMonth &&
+          updatedYear === currentYear
+        ) {
+          return sum + (entry.history?.length || 0);
+        }
+        return sum;
+      }, 0);
+
+      setMonthlyVisits(monthly);
+    };
+
+    checkMonthChange(); // Run initially
+    const interval = setInterval(checkMonthChange, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [entries, role, userId, selectedUsername, dateRange]);
+
+  useEffect(() => {
+    setTotalVisits(total);
+    setMonthlyVisits(monthly);
+  }, [total, monthly]);
+
+  useEffect(() => {
+    let lastCheckedMonth = new Date().getMonth();
+
+    const checkMonthChange = () => {
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      // Reset monthlyVisits if the month has changed
+      if (currentMonth !== lastCheckedMonth) {
+        setMonthlyVisits(0);
+        lastCheckedMonth = currentMonth;
+      }
+
+      const monthly = entries.reduce((sum, entry) => {
+        const entryDate = new Date(entry.createdAt);
+        const updatedAt = new Date(entry.updatedAt || entry.createdAt);
+        const entryMonth = entryDate.getMonth();
+        const entryYear = entryDate.getFullYear();
+        const updatedMonth = updatedAt.getMonth();
+        const updatedYear = updatedAt.getFullYear();
+
+        const isCreator = entry.createdBy?._id === userId;
+        const isAssigned = Array.isArray(entry.assignedTo)
+          ? entry.assignedTo.some((user) => user._id === userId)
+          : entry.assignedTo?._id === userId;
+        const usernameMatch =
+          !selectedUsername ||
+          entry.createdBy?.username === selectedUsername ||
+          (Array.isArray(entry.assignedTo) &&
+            entry.assignedTo.some(
+              (user) => user.username === selectedUsername
+            ));
+
+        if (
+          (role === "superadmin" ||
+            role === "admin" ||
+            isCreator ||
+            isAssigned) &&
+          usernameMatch &&
+          !dateRange[0].startDate &&
+          !dateRange[0].endDate &&
+          ((entryMonth === currentMonth && entryYear === currentYear) ||
+            (updatedMonth === currentMonth && updatedYear === currentYear))
+        ) {
+          return sum + (entry.history?.length || 0);
+        }
+        return sum;
+      }, 0);
+
+      setMonthlyVisits(monthly);
+    };
+
+    checkMonthChange(); // Run initially
+    const interval = setInterval(checkMonthChange, 60000); // Check every minute
+    return () => clearInterval(interval);
   }, [entries, role, userId, selectedUsername, dateRange]);
   useEffect(() => {
     setTotalVisits(total);
