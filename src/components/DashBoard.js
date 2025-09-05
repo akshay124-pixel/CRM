@@ -981,18 +981,6 @@ function DashBoard() {
 
     // Calculate total visits
     const total = filteredEntries.reduce((sum, entry) => {
-      return sum + (entry.history?.length || 0);
-    }, 0);
-
-    // Calculate monthly visits based on createdAt or updatedAt
-    const monthly = filteredEntries.reduce((sum, entry) => {
-      const createdAt = new Date(entry.createdAt);
-      const updatedAt = new Date(entry.updatedAt || entry.createdAt);
-      const createdMonth = createdAt.getMonth();
-      const createdYear = createdAt.getFullYear();
-      const updatedMonth = updatedAt.getMonth();
-      const updatedYear = updatedAt.getFullYear();
-
       const startDate = dateRange[0].startDate
         ? new Date(dateRange[0].startDate.setHours(0, 0, 0, 0))
         : null;
@@ -1000,24 +988,46 @@ function DashBoard() {
         ? new Date(dateRange[0].endDate.setHours(23, 59, 59, 999))
         : null;
 
-      // If no date range is applied, count entries for the current month based on createdAt or updatedAt
-      if (!startDate || !endDate) {
-        if (
-          (createdMonth === currentMonth && createdYear === currentYear) ||
-          (updatedMonth === currentMonth && updatedYear === currentYear)
-        ) {
-          return sum + (entry.history?.length || 0);
-        }
-      } else {
-        // If date range is applied, filter by date range based on createdAt or updatedAt
-        if (
-          (createdAt >= startDate && createdAt <= endDate) ||
-          (updatedAt >= startDate && updatedAt <= endDate)
-        ) {
-          return sum + (entry.history?.length || 0);
-        }
-      }
-      return sum;
+      // Filter history items by date range if provided
+      const filteredHistory =
+        entry.history?.filter((historyItem) => {
+          const timestamp = new Date(historyItem.timestamp);
+          return (
+            !startDate ||
+            !endDate ||
+            (timestamp >= startDate && timestamp <= endDate)
+          );
+        }) || [];
+
+      return sum + filteredHistory.length;
+    }, 0);
+
+    // Calculate monthly visits based on history timestamps
+    const monthly = filteredEntries.reduce((sum, entry) => {
+      const startDate = dateRange[0].startDate
+        ? new Date(dateRange[0].startDate.setHours(0, 0, 0, 0))
+        : null;
+      const endDate = dateRange[0].endDate
+        ? new Date(dateRange[0].endDate.setHours(23, 59, 59, 999))
+        : null;
+
+      // Filter history items by date range or current month
+      const filteredHistory =
+        entry.history?.filter((historyItem) => {
+          const timestamp = new Date(historyItem.timestamp);
+          const historyMonth = timestamp.getMonth();
+          const historyYear = timestamp.getFullYear();
+
+          if (!startDate || !endDate) {
+            // If no date range is applied, count history items for the current month
+            return historyMonth === currentMonth && historyYear === currentYear;
+          } else {
+            // If date range is applied, count history items within the range
+            return timestamp >= startDate && timestamp <= endDate;
+          }
+        }) || [];
+
+      return sum + filteredHistory.length;
     }, 0);
 
     return { total, monthly };

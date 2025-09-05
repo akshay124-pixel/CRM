@@ -6,7 +6,7 @@ import { FaTimes, FaSearch } from "react-icons/fa";
 import axios from "axios";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
-import DOMPurify from "dompurify"; 
+import DOMPurify from "dompurify";
 
 const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
   const [userStats, setUserStats] = useState([]);
@@ -23,15 +23,15 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
     );
   };
 
-  // Filter entries based on date range
+  // Filter entries based on date range (considering both createdAt and updatedAt)
   const filteredEntries = useMemo(() => {
     if (!dateRange?.[0]?.startDate || !dateRange?.[0]?.endDate) {
       console.warn("Invalid date range, using all entries");
       return entries;
     }
 
-    const startDate = new Date(dateRange[0].startDate);
-    const endDate = new Date(dateRange[0].endDate);
+    const startDate = new Date(dateRange[0].startDate.setHours(0, 0, 0, 0));
+    const endDate = new Date(dateRange[0].endDate.setHours(23, 59, 59, 999));
     if (isNaN(startDate) || isNaN(endDate)) {
       console.warn("Invalid date range values:", dateRange);
       return entries;
@@ -39,8 +39,12 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
 
     return entries.filter((entry) => {
       const createdAt = new Date(entry.createdAt);
+      const updatedAt = new Date(entry.updatedAt || entry.createdAt);
       return (
-        !isNaN(createdAt) && createdAt >= startDate && createdAt <= endDate
+        !isNaN(createdAt) &&
+        !isNaN(updatedAt) &&
+        ((createdAt >= startDate && createdAt <= endDate) ||
+          (updatedAt >= startDate && updatedAt <= endDate))
       );
     });
   }, [entries, dateRange]);
@@ -164,6 +168,15 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
 
     const statsMap = {};
     const processedEntryIds = new Set();
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const startDate = dateRange?.[0]?.startDate
+      ? new Date(dateRange[0].startDate.setHours(0, 0, 0, 0))
+      : null;
+    const endDate = dateRange?.[0]?.endDate
+      ? new Date(dateRange[0].endDate.setHours(23, 59, 59, 999))
+      : null;
 
     filteredEntries.forEach((entry) => {
       if (!entry._id || processedEntryIds.has(entry._id)) return;
@@ -204,25 +217,32 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
         };
       }
 
+      // Increment allTimeEntries
       statsMap[creatorId].allTimeEntries += 1;
-      statsMap[creatorId].totalVisits += entry.history?.length || 0;
 
-      const createdAt = new Date(entry.createdAt);
-      const updatedAt = new Date(entry.updatedAt || entry.createdAt);
-      const createdMonth = createdAt.getMonth();
-      const createdYear = createdAt.getFullYear();
-      const updatedMonth = updatedAt.getMonth();
-      const updatedYear = updatedAt.getFullYear();
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
+      // Filter history items for totalVisits and monthEntries
+      const filteredHistory =
+        entry.history?.filter((historyItem) => {
+          const timestamp = new Date(historyItem.timestamp);
+          if (!startDate || !endDate) {
+            // If no date range, count history items for the current month
+            const historyMonth = timestamp.getMonth();
+            const historyYear = timestamp.getFullYear();
+            return historyMonth === currentMonth && historyYear === currentYear;
+          } else {
+            // If date range is applied, count history items within the range
+            return timestamp >= startDate && timestamp <= endDate;
+          }
+        }) || [];
 
-      if (
-        (createdMonth === currentMonth && createdYear === currentYear) ||
-        (updatedMonth === currentMonth && updatedYear === currentYear)
-      ) {
-        statsMap[creatorId].monthEntries += entry.history?.length || 0; // Changed from += 1
-      }
+      // Update totalVisits based on filtered history (all history if no date range)
+      statsMap[creatorId].totalVisits +=
+        !startDate || !endDate
+          ? entry.history?.length || 0
+          : filteredHistory.length;
+
+      // Update monthEntries based on filtered history
+      statsMap[creatorId].monthEntries += filteredHistory.length;
 
       const status = entry.status?.toLowerCase() || "";
       const closetype = entry.closetype?.toLowerCase() || "";
@@ -257,7 +277,7 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
     if (!result.length && filteredEntries.length) {
       setDebugInfo("No stats generated; check user IDs or entry data");
     }
-  }, [filteredEntries, fetchUsers, role, userId]);
+  }, [filteredEntries, fetchUsers, role, userId, dateRange]);
 
   useEffect(() => {
     if (isOpen) {
