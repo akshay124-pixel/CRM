@@ -72,7 +72,21 @@ const CallTrackingDashboard = ({
   const callStats = useMemo(() => {
     const stats = { cold: 0, warm: 0, hot: 0, closedWon: 0, closedLost: 0 };
     const filteredEntries = entries.filter((entry) => {
+      const createdAt = new Date(entry.createdAt);
       const updatedAt = new Date(entry.updatedAt || entry.createdAt);
+      const startDate = dateRange[0].startDate
+        ? new Date(dateRange[0].startDate.setHours(0, 0, 0, 0))
+        : null;
+      const endDate = dateRange[0].endDate
+        ? new Date(dateRange[0].endDate.setHours(23, 59, 59, 999))
+        : null;
+
+      const isInDateRange =
+        !startDate ||
+        !endDate ||
+        (createdAt >= startDate && createdAt <= endDate) ||
+        (updatedAt >= startDate && updatedAt <= endDate);
+
       return (
         (role === "superadmin" ||
           role === "admin" ||
@@ -81,10 +95,7 @@ const CallTrackingDashboard = ({
         (!selectedUsername ||
           entry.createdBy?.username === selectedUsername ||
           entry.assignedTo?.username === selectedUsername) &&
-        (!dateRange[0].startDate ||
-          !dateRange[0].endDate ||
-          (updatedAt >= new Date(dateRange[0].startDate) &&
-            updatedAt <= new Date(dateRange[0].endDate)))
+        isInDateRange
       );
     });
 
@@ -349,6 +360,7 @@ function DashBoard() {
   const filteredData = useMemo(() => {
     return entries
       .filter((row) => {
+        const createdAt = new Date(row.createdAt);
         const updatedAt = new Date(row.updatedAt || row.createdAt);
         const productNameMatch = row.products?.some((product) =>
           product.name?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -360,6 +372,12 @@ function DashBoard() {
         const endDate = dateRange[0].endDate
           ? new Date(dateRange[0].endDate.setHours(23, 59, 59, 999))
           : null;
+
+        const isInDateRange =
+          !startDate ||
+          !endDate ||
+          (createdAt >= startDate && createdAt <= endDate) ||
+          (updatedAt >= startDate && updatedAt <= endDate);
 
         // Check if selectedUsername matches createdBy or any user in assignedTo array
         const usernameMatch =
@@ -387,9 +405,7 @@ function DashBoard() {
               row.status === "Closed" &&
               row.closetype === "Closed Lost") ||
             row.status === dashboardFilter) &&
-          (!startDate ||
-            !endDate ||
-            (updatedAt >= startDate && updatedAt <= endDate))
+          isInDateRange
         );
       })
       .sort((a, b) => {
@@ -968,22 +984,36 @@ function DashBoard() {
       return sum + (entry.history?.length || 0);
     }, 0);
 
-    // Calculate monthly visits based on updatedAt
+    // Calculate monthly visits based on createdAt or updatedAt
     const monthly = filteredEntries.reduce((sum, entry) => {
+      const createdAt = new Date(entry.createdAt);
       const updatedAt = new Date(entry.updatedAt || entry.createdAt);
+      const createdMonth = createdAt.getMonth();
+      const createdYear = createdAt.getFullYear();
       const updatedMonth = updatedAt.getMonth();
       const updatedYear = updatedAt.getFullYear();
 
-      // If no date range is applied, count entries for the current month based on updatedAt
-      if (!dateRange[0].startDate || !dateRange[0].endDate) {
-        if (updatedMonth === currentMonth && updatedYear === currentYear) {
+      const startDate = dateRange[0].startDate
+        ? new Date(dateRange[0].startDate.setHours(0, 0, 0, 0))
+        : null;
+      const endDate = dateRange[0].endDate
+        ? new Date(dateRange[0].endDate.setHours(23, 59, 59, 999))
+        : null;
+
+      // If no date range is applied, count entries for the current month based on createdAt or updatedAt
+      if (!startDate || !endDate) {
+        if (
+          (createdMonth === currentMonth && createdYear === currentYear) ||
+          (updatedMonth === currentMonth && updatedYear === currentYear)
+        ) {
           return sum + (entry.history?.length || 0);
         }
       } else {
-        // If date range is applied, filter by date range based on updatedAt
-        const startDate = new Date(dateRange[0].startDate);
-        const endDate = new Date(dateRange[0].endDate);
-        if (updatedAt >= startDate && updatedAt <= endDate) {
+        // If date range is applied, filter by date range based on createdAt or updatedAt
+        if (
+          (createdAt >= startDate && createdAt <= endDate) ||
+          (updatedAt >= startDate && updatedAt <= endDate)
+        ) {
           return sum + (entry.history?.length || 0);
         }
       }
@@ -1013,7 +1043,10 @@ function DashBoard() {
       }
 
       const monthly = entries.reduce((sum, entry) => {
+        const createdAt = new Date(entry.createdAt);
         const updatedAt = new Date(entry.updatedAt || entry.createdAt);
+        const createdMonth = createdAt.getMonth();
+        const createdYear = createdAt.getFullYear();
         const updatedMonth = updatedAt.getMonth();
         const updatedYear = updatedAt.getFullYear();
 
@@ -1029,18 +1062,35 @@ function DashBoard() {
               (user) => user.username === selectedUsername
             ));
 
+        const startDate = dateRange[0].startDate
+          ? new Date(dateRange[0].startDate.setHours(0, 0, 0, 0))
+          : null;
+        const endDate = dateRange[0].endDate
+          ? new Date(dateRange[0].endDate.setHours(23, 59, 59, 999))
+          : null;
+
         if (
           (role === "superadmin" ||
             role === "admin" ||
             isCreator ||
             isAssigned) &&
-          usernameMatch &&
-          !dateRange[0].startDate &&
-          !dateRange[0].endDate &&
-          updatedMonth === currentMonth &&
-          updatedYear === currentYear
+          usernameMatch
         ) {
-          return sum + (entry.history?.length || 0);
+          if (!startDate || !endDate) {
+            if (
+              (createdMonth === currentMonth && createdYear === currentYear) ||
+              (updatedMonth === currentMonth && updatedYear === currentYear)
+            ) {
+              return sum + (entry.history?.length || 0);
+            }
+          } else {
+            if (
+              (createdAt >= startDate && createdAt <= endDate) ||
+              (updatedAt >= startDate && updatedAt <= endDate)
+            ) {
+              return sum + (entry.history?.length || 0);
+            }
+          }
         }
         return sum;
       }, 0);
@@ -1048,8 +1098,8 @@ function DashBoard() {
       setMonthlyVisits(monthly);
     };
 
-    checkMonthChange(); // Run initially
-    const interval = setInterval(checkMonthChange, 60000); // Check every minute
+    checkMonthChange();
+    const interval = setInterval(checkMonthChange, 60000);
     return () => clearInterval(interval);
   }, [entries, role, userId, selectedUsername, dateRange]);
 
