@@ -115,6 +115,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       nextAction: "",
       estimatedValue: "",
       closeamount: "",
+  createdAt: "",
       assignedTo: [],
     }),
     []
@@ -146,62 +147,66 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
   const selectedState = watch("state");
 
   // Sync form with entry prop
-  useEffect(() => {
-    if (isOpen && entry) {
-      const formData = {
-        customerName: entry.customerName || "",
-        mobileNumber: entry.mobileNumber || "",
-        contactperson: entry.contactperson || "",
-        assignedTo: Array.isArray(entry.assignedTo)
-          ? entry.assignedTo.map((user) => ({
-              value: user._id,
-              label: user.username,
+useEffect(() => {
+  if (isOpen && entry) {
+    const formData = {
+      customerName: entry.customerName || "",
+      mobileNumber: entry.mobileNumber || "",
+      contactperson: entry.contactperson || "",
+      assignedTo: Array.isArray(entry.assignedTo)
+        ? entry.assignedTo.map((user) => ({
+            value: user._id,
+            label: user.username,
+          }))
+        : [],
+      products:
+        Array.isArray(entry.products) && entry.products.length > 0
+          ? entry.products.map((p) => ({
+              name: p.name || "",
+              specification: p.specification || "",
+              size: p.size || "",
+              quantity: p.quantity || "",
             }))
-          : [],
-        products:
-          Array.isArray(entry.products) && entry.products.length > 0
-            ? entry.products.map((p) => ({
-                name: p.name || "",
-                specification: p.specification || "",
-                size: p.size || "",
-                quantity: p.quantity || "",
-              }))
-            : [{ name: "", specification: "", size: "", quantity: "" }],
-        type: entry.type || "",
-        address: entry.address || "",
-        state: entry.state || "",
-        city: entry.city || "",
-        organization: entry.organization || "",
-        category: entry.category || "",
-        firstPersonMeet: entry.firstPersonMeet || "",
-        secondPersonMeet: entry.secondPersonMeet || "",
-        thirdPersonMeet: entry.thirdPersonMeet || "",
-        fourthPersonMeet: entry.fourthPersonMeet || "",
-        status: entry.status || "",
-        closetype: entry.closetype || "",
-        firstMeetingDate: entry.firstdate
-          ? new Date(entry.firstdate).toISOString().split("T")[0]
-          : "",
-        expectedClosingDate: entry.expectedClosingDate
-          ? new Date(entry.expectedClosingDate).toISOString().split("T")[0]
-          : "",
-        followUpDate: entry.followUpDate
-          ? new Date(entry.followUpDate).toISOString().split("T")[0]
-          : "",
-        remarks: entry.remarks || "",
-        liveLocation: entry.liveLocation || "",
-        nextAction: entry.nextAction || "",
-        estimatedValue: entry.estimatedValue || "",
-        closeamount: entry.closeamount || "",
-      };
-      reset(formData, { keepDirty: false });
-      setError(null);
-      setShowConfirm(false);
-      setManualLocation(false);
-      setLocationFetched(!!entry.liveLocation);
-      setView("options");
-    }
-  }, [isOpen, entry, reset]);
+          : [{ name: "", specification: "", size: "", quantity: "" }],
+      type: entry.type || "",
+      address: entry.address || "",
+      state: entry.state || "",
+      city: entry.city || "",
+      organization: entry.organization || "",
+      category: entry.category || "",
+      firstPersonMeet: entry.firstPersonMeet || "",
+      secondPersonMeet: entry.secondPersonMeet || "",
+      thirdPersonMeet: entry.thirdPersonMeet || "",
+      fourthPersonMeet: entry.fourthPersonMeet || "",
+      status: entry.status || "",
+      closetype: entry.closetype || "",
+      firstMeetingDate: entry.firstdate
+        ? new Date(entry.firstdate).toISOString().split("T")[0]
+        : "",
+      expectedClosingDate: entry.expectedClosingDate
+        ? new Date(entry.expectedClosingDate).toISOString().split("T")[0]
+        : "",
+      followUpDate: entry.followUpDate
+        ? new Date(entry.followUpDate).toISOString().split("T")[0]
+        : "",
+      remarks: entry.remarks || "",
+      liveLocation: entry.liveLocation || "",
+      nextAction: entry.nextAction || "",
+      estimatedValue: entry.estimatedValue || "",
+      closeamount: entry.closeamount || "",
+      createdAt: entry.createdAt
+        ? new Date(entry.createdAt).toISOString().split("T")[0]
+        : "",
+    };
+    reset(formData, { keepDirty: false });
+    setError(null);
+    setShowConfirm(false);
+    setManualLocation(false);
+    setLocationFetched(!!entry.liveLocation);
+    setView("options");
+  }
+}, [isOpen, entry, reset]);
+
 
   const selectedCloseType = watch("closetype");
   const fetchLiveLocation = useCallback(() => {
@@ -1283,6 +1288,19 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
   const renderEditForm = () => (
     <Form onSubmit={handleSubmit(onSubmit)}>
       <FormSection>
+         <Form.Group controlId="createdAt">
+        <Form.Label>📅 Created At</Form.Label>
+        <Form.Control
+          type="date"
+          {...register("createdAt")}
+         
+          isInvalid={!!errors.createdAt}
+          aria-label="Created At"
+        />
+        <Form.Control.Feedback type="invalid">
+          {errors.createdAt?.message}
+        </Form.Control.Feedback>
+      </Form.Group>
         <Form.Group controlId="customerName">
           <Form.Label>👤 Customer Name</Form.Label>
           <Form.Control
