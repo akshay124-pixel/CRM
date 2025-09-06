@@ -867,6 +867,11 @@ export const statesAndCities = {
 
 export const productOptions = [
   {
+    name: "No Requirement",
+    sizes: ["Not Applicable"],
+    specifications: ["No specific requirement"],
+  },
+  {
     name: "IFPD",
     sizes: ["65 inch", "75 inch", "86 inch", "98 inch", "110 inch"],
     specifications: [
