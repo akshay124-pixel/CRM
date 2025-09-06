@@ -252,8 +252,9 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
       !productInput.name ||
       !productInput.specification ||
       !productInput.size ||
-      !productInput.quantity ||
-      Number(productInput.quantity) <= 0
+      (!productInput.quantity && productInput.name !== "No Requirement") ||
+      (productInput.name !== "No Requirement" &&
+        Number(productInput.quantity) <= 0)
     ) {
       toast.error("Please fill all product fields with valid values!");
       return;
@@ -267,7 +268,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
           name: productInput.name,
           specification: productInput.specification,
           size: productInput.size,
-          quantity: Number(productInput.quantity),
+          quantity: Number(productInput.quantity) || 0, // Allow 0 for "No Requirement"
         },
       ],
     }));
