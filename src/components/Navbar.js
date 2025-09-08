@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import axios from "axios";
 import io from "socket.io-client";
+import { toast } from "react-toastify";
 
 const Navbar = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(
@@ -44,7 +45,7 @@ const Navbar = () => {
     setUserRole(user.role || "");
   }, []);
 
-  // Replace the Socket.IO useEffect block with this
+  // Socket.IO connection
   useEffect(() => {
     if (isAuthenticated) {
       const token = localStorage.getItem("token");
@@ -125,6 +126,7 @@ const Navbar = () => {
         setHasMoreNotifications(pagination.currentPage < pagination.totalPages);
       } catch (error) {
         console.error("Error fetching notifications:", error);
+        toast.error("Failed to fetch notifications.");
       }
     };
 
@@ -158,7 +160,10 @@ const Navbar = () => {
   const handleMarkAsRead = async (notificationIds) => {
     try {
       const token = localStorage.getItem("token");
-      if (!token) return;
+      if (!token) {
+        toast.error("You must be logged in to mark notifications as read.");
+        return;
+      }
       await axios.post(
         `${process.env.REACT_APP_URL}/api/notificationsread`,
         { notificationIds },
@@ -172,24 +177,59 @@ const Navbar = () => {
         )
       );
       setUnreadCount((prev) => prev - notificationIds.length);
+      toast.success("Notifications marked as read!");
     } catch (error) {
       console.error("Error marking notifications as read:", error);
+      let friendlyMessage = "Failed to mark notifications as read.";
+      if (error.response) {
+        const status = error.response.status;
+        if (status === 401) {
+          friendlyMessage = "Unauthorized. Please log in again.";
+        } else if (status === 403) {
+          friendlyMessage = "You don't have permission to mark notifications.";
+        }
+      } else if (error.message === "Network Error") {
+        friendlyMessage =
+          "Network issue detected. Please check your connection.";
+      }
+      toast.error(friendlyMessage);
     }
   };
 
   const handleClearNotifications = async () => {
     try {
       const token = localStorage.getItem("token");
-      if (!token) return;
+      if (!token) {
+        toast.error("You must be logged in to clear notifications.");
+        return;
+      }
       await axios.delete(
         `${process.env.REACT_APP_URL}/api/notificationsdelete`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      // Socket event will handle state update
+      // Update state directly after successful API call
+      setNotifications([]);
+      setUnreadCount(0);
+      setNotificationPage(1);
+      setHasMoreNotifications(false);
+      toast.success("All notifications cleared successfully!");
     } catch (error) {
       console.error("Error clearing notifications:", error);
+      let friendlyMessage = "Failed to clear notifications. Please try again.";
+      if (error.response) {
+        const status = error.response.status;
+        if (status === 401) {
+          friendlyMessage = "Unauthorized. Please log in again.";
+        } else if (status === 403) {
+          friendlyMessage = "You don't have permission to clear notifications.";
+        }
+      } else if (error.message === "Network Error") {
+        friendlyMessage =
+          "Network issue detected. Please check your connection.";
+      }
+      toast.error(friendlyMessage);
     }
   };
 
