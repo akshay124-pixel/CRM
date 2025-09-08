@@ -315,38 +315,16 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
   };
 
   const validateStep = (step) => {
-    const stepFields = {
-      1: ["customerName", "mobileNumber", "contactperson"],
-      2: ["firstdate", "products", "estimatedValue", "type"],
-      3: ["address", "state", "city", "organization", "category"],
-      4: ["status", "liveLocation"],
-    };
-
-    const fieldsToValidate = stepFields[step] || [];
-
-    for (const field of fieldsToValidate) {
-      if (field === "products") {
-        if (!formData.products.length) {
-          toast.error("At least one product is required!");
-          return false;
-        }
-      } else if (!formData[field] || formData[field].toString().trim() === "") {
-        toast.error(
-          `${field.charAt(0).toUpperCase() + field.slice(1)} is required!`
-        );
+    if (step === 4) {
+      if (!formData.status) {
+        toast.error("Status is required!");
+        return false;
+      }
+      if (!formData.liveLocation) {
+        toast.error("Live location is required!");
         return false;
       }
     }
-
-    if (
-      step === 1 &&
-      formData.mobileNumber &&
-      formData.mobileNumber.length !== 10
-    ) {
-      toast.error("Mobile number must be exactly 10 digits!");
-      return false;
-    }
-
     return true;
   };
 
@@ -483,7 +461,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 onChange={handleInput}
                 placeholder="Enter customer name"
                 disabled={loading}
-                required
               />
             </Form.Group>
 
@@ -498,7 +475,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 maxLength={10}
                 pattern="[0-9]{10}"
                 disabled={loading}
-                required
               />
               {formData.mobileNumber && formData.mobileNumber.length < 10 && (
                 <Form.Text style={{ color: "red" }}>
@@ -516,7 +492,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 onChange={handleInput}
                 placeholder="Enter contact person name"
                 disabled={loading}
-                required
               />
             </Form.Group>
           </>
@@ -538,13 +513,8 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 maxDate={new Date()}
                 disabled={loading}
                 placeholderText="DD/MM/YY"
-                required
               />
-              <Form.Control
-                type="hidden"
-                value={formData.firstdate || ""}
-                required
-              />
+              <Form.Control type="hidden" value={formData.firstdate || ""} />
             </Form.Group>
 
             <StyledFormGroup controlId="formProductSelection" className="mb-3">
@@ -555,7 +525,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   value={productInput.name}
                   onChange={handleProductInput}
                   disabled={loading}
-                  required
                 >
                   <option value="">Select Product</option>
                   {productOptions.map((product) => (
@@ -570,7 +539,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   value={productInput.specification}
                   onChange={handleProductInput}
                   disabled={!productInput.name || loading}
-                  required={!!productInput.name}
                 >
                   <option value="">Select Specification</option>
                   {productInput.name &&
@@ -588,7 +556,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   value={productInput.size}
                   onChange={handleProductInput}
                   disabled={!productInput.name || loading}
-                  required={!!productInput.name}
                 >
                   <option value="">Select Size</option>
                   {productInput.name &&
@@ -608,7 +575,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   onChange={handleProductInput}
                   placeholder="Quantity"
                   disabled={loading || !productInput.name}
-                  required={!!productInput.name}
                 />
 
                 <Button
@@ -669,7 +635,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 onChange={handleInput}
                 placeholder="Enter estimated value (numeric)"
                 disabled={loading}
-                required
               />
             </Form.Group>
 
@@ -701,7 +666,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 onChange={handleInput}
                 placeholder="Enter address"
                 disabled={loading}
-                required
               />
             </Form.Group>
 
@@ -713,7 +677,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 value={selectedState}
                 onChange={handleStateChange}
                 disabled={loading}
-                required
               >
                 <option value="">-- Select State --</option>
                 {Object.keys(statesAndCities).map((state) => (
@@ -732,7 +695,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 value={selectedCity}
                 onChange={handleCityChange}
                 disabled={!selectedState || loading}
-                required
               >
                 <option value="">-- Select City --</option>
                 {selectedState &&
@@ -751,7 +713,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 value={formData.organization}
                 onChange={handleInput}
                 disabled={loading}
-                required
               >
                 <option value="">Select organization type</option>
                 <option value="Hospital">Hospital</option>
@@ -777,7 +738,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 value={formData.category}
                 onChange={handleInput}
                 disabled={loading}
-                required
               >
                 <option value="">Select category</option>
                 <option value="Private">Private</option>
@@ -816,7 +776,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 disabled={loading}
                 placeholder="Enter remarks"
                 rows={3}
-                required
               />
             </Form.Group>
 
