@@ -51,7 +51,7 @@ const Navbar = () => {
       const token = localStorage.getItem("token");
       const socketInstance = io(`${process.env.REACT_APP_URL}`, {
         auth: { token: `Bearer ${token}` },
-        path: "/crm/socket.io",
+        path: "/crm/socket.io/",
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
