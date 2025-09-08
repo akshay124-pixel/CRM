@@ -47,11 +47,19 @@ const Navbar = () => {
 
   // Socket.IO connection
   useEffect(() => {
+    const baseOrigin = (() => {
+      try {
+        return new URL(process.env.REACT_APP_URL).origin;
+      } catch {
+        return process.env.REACT_APP_URL;
+      }
+    })();
+
     if (isAuthenticated) {
       const token = localStorage.getItem("token");
-      const socketInstance = io(`${process.env.REACT_APP_URL}`, {
+      const socketInstance = io(baseOrigin, {
         auth: { token: `Bearer ${token}` },
-        path: "/crm/socket.io/",
+        path: "/crm/socket.io",
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
