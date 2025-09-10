@@ -193,6 +193,9 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         nextAction: entry.nextAction || "",
         estimatedValue: entry.estimatedValue || "",
         closeamount: entry.closeamount || "",
+        createdAt: entry.createdAt
+          ? new Date(entry.createdAt).toISOString().split("T")[0]
+          : "",
       };
       reset(formData, { keepDirty: false });
       setError(null);
@@ -1283,6 +1286,24 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
   const renderEditForm = () => (
     <Form onSubmit={handleSubmit(onSubmit)}>
       <FormSection>
+        <Form.Group controlId="createdAt">
+          <Form.Label>📅 Created At</Form.Label>
+          <Form.Control
+            type="date"
+            {...register("createdAt", {
+              required: "Created At is required",
+            })}
+            isInvalid={!!errors.createdAt}
+            aria-label="Created At"
+            onChange={(e) =>
+              debouncedHandleInputChange("createdAt", e.target.value)
+            }
+          />
+          <Form.Control.Feedback type="invalid">
+            {errors.createdAt?.message}
+          </Form.Control.Feedback>
+        </Form.Group>
+
         <Form.Group controlId="customerName">
           <Form.Label>👤 Customer Name</Form.Label>
           <Form.Control
