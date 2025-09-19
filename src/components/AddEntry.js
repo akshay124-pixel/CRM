@@ -321,10 +321,8 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
 
   const validateStep = (step) => {
     if (step === 1) {
-     
     }
     if (step === 2) {
-     
     }
     if (step === 4) {
       if (!formData.status) {
@@ -417,8 +415,9 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            // Let axios handle Content-Type for FormData
+            "Content-Type": "multipart/form-data", // Explicitly set to ensure compatibility
           },
+          timeout: 60000, // Increased timeout to 60 seconds for mobile uploads
         }
       );
 
@@ -434,10 +433,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
       setLocationFetched(false);
       onClose();
     } catch (error) {
-      console.error(
-        "Error adding entry:",
-        error.response?.data || error.message
-      );
+      console.error("Full error details:", error); // Improved logging for debugging
 
       let friendlyMessage = "Oops! Something went wrong. Please try again.";
 
@@ -458,9 +454,15 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
         } else if (serverMessage) {
           friendlyMessage = serverMessage;
         }
+      } else if (
+        error.code === "ECONNABORTED" ||
+        error.message.includes("timeout")
+      ) {
+        friendlyMessage =
+          "Upload took too long. Please try a smaller file or better connection.";
       } else if (error.message === "Network Error") {
         friendlyMessage =
-          "Network issue detected. Please check your internet connection.";
+          "Network issue detected. Please check your internet connection or try Wi-Fi.";
       }
 
       toast.error(friendlyMessage);
@@ -693,7 +695,9 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                     {formData.products.map((product, index) => (
                       <tr key={index}>
                         <td data-label="Product">{product.name}</td>
-                        <td data-label="Specification">{product.specification}</td>
+                        <td data-label="Specification">
+                          {product.specification}
+                        </td>
                         <td data-label="Size">{product.size}</td>
                         <td data-label="Quantity">{product.quantity}</td>
                         <td data-label="Action">
@@ -905,7 +909,10 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   disabled={loading}
                   style={{ flex: "1 1 auto", minWidth: "150px" }}
                 >
-                  <span role="img" aria-label="camera">📷</span> Capture Photo
+                  <span role="img" aria-label="camera">
+                    📷
+                  </span>{" "}
+                  Capture Photo
                 </Button>
                 <Button
                   variant="outline-secondary"
@@ -913,7 +920,10 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   disabled={loading}
                   style={{ flex: "1 1 auto", minWidth: "150px" }}
                 >
-                  <span role="img" aria-label="upload">📤</span> Upload from Device
+                  <span role="img" aria-label="upload">
+                    📤
+                  </span>{" "}
+                  Upload from Device
                 </Button>
               </div>
               <input
@@ -931,7 +941,9 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 ref={fileInputRef}
                 onChange={handleAttachmentChange}
               />
-              <Form.Text>Upload bills or documents (PDF, images, Word, max 5MB).</Form.Text>
+              <Form.Text>
+                Upload bills or documents (PDF, images, Word, max 5MB).
+              </Form.Text>
               {formData.attachment && (
                 <Form.Text style={{ color: "green" }}>
                   Selected: {formData.attachment.name}
