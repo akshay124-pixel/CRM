@@ -470,7 +470,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
       setLoading(false);
     }
   };
-
   const handleStateChange = (e) => {
     const state = e.target.value;
     setSelectedState(state);
