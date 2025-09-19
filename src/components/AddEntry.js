@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Modal, Button, Form, ProgressBar, Table } from "react-bootstrap";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -179,6 +179,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
     liveLocation: "",
     assignedTo: [],
     createdAt: new Date().toISOString(),
+    attachment: null,
   };
 
   const [formData, setFormData] = useState(initialFormData);
@@ -194,6 +195,9 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
     quantity: "",
   });
   const [users, setUsers] = useState([]);
+
+  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
 
   const totalSteps = 4;
 
@@ -222,6 +226,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
       setSelectedCity("");
       setCurrentStep(1);
       setProductInput({ name: "", specification: "", size: "", quantity: "" });
+      setLocationFetched(false);
     }
   }, [isOpen]);
 
@@ -268,7 +273,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
           name: productInput.name,
           specification: productInput.specification,
           size: productInput.size,
-          quantity: Number(productInput.quantity) || 0, // Allow 0 for "No Requirement"
+          quantity: Number(productInput.quantity) || 0,
         },
       ],
     }));
@@ -315,6 +320,12 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
   };
 
   const validateStep = (step) => {
+    if (step === 1) {
+     
+    }
+    if (step === 2) {
+     
+    }
     if (step === 4) {
       if (!formData.status) {
         toast.error("Status is required!");
@@ -359,20 +370,54 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
         return;
       }
 
+      const formDataToSend = new FormData();
       const submitData = {
         ...formData,
         createdAt: new Date().toISOString(),
         estimatedValue: Number(formData.estimatedValue) || 0,
         assignedTo: formData.assignedTo.map((option) => option.value),
+        products: formData.products.map((p) => {
+          if (p.name === "No Requirement") {
+            return {
+              ...p,
+              quantity: 0,
+              sizes: ["Not Applicable"],
+              specifications: ["No specific requirement"],
+            };
+          }
+          return p;
+        }),
       };
+
+      // Append all fields to FormData
+      Object.keys(submitData).forEach((key) => {
+        if (key === "products") {
+          formDataToSend.append("products", JSON.stringify(submitData[key]));
+        } else if (key === "assignedTo") {
+          submitData[key].forEach((item, index) => {
+            formDataToSend.append(`assignedTo[${index}]`, item);
+          });
+        } else if (key === "attachment") {
+          if (submitData[key]) {
+            formDataToSend.append("attachment", submitData[key]);
+          }
+        } else {
+          formDataToSend.append(key, submitData[key] || "");
+        }
+      });
+
+      // Log FormData for debugging
+      for (let pair of formDataToSend.entries()) {
+        console.log(`${pair[0]}: ${pair[1]}`);
+      }
 
       const response = await axios.post(
         `${process.env.REACT_APP_URL}/api/entry`,
-        submitData,
+        formDataToSend,
         {
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
+            // Let axios handle Content-Type for FormData
           },
         }
       );
@@ -394,11 +439,9 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
         error.response?.data || error.message
       );
 
-      // Friendly error messages for non-tech users
       let friendlyMessage = "Oops! Something went wrong. Please try again.";
 
       if (error.response) {
-        // Check specific status codes or error messages
         const status = error.response.status;
         const serverMessage = error.response.data?.message || "";
 
@@ -413,7 +456,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
         } else if (status === 404) {
           friendlyMessage = "The requested resource was not found.";
         } else if (serverMessage) {
-          // If server provides a clear message, use that (can also sanitize it if needed)
           friendlyMessage = serverMessage;
         }
       } else if (error.message === "Network Error") {
@@ -447,13 +489,56 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
     }));
   };
 
+  const handleAttachmentChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) {
+      console.log("No file selected.");
+      toast.error("No file selected. Please try again.");
+      return;
+    }
+
+    console.log("Selected file:", file.name, file.size, file.type); // Debugging
+
+    if (file.size > 5 * 1024 * 1024) {
+      console.log("File size exceeds 5MB:", file.size);
+      toast.error("File too large! Max 5MB.");
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      attachment: file,
+    }));
+    toast.success(`File selected: ${file.name}`);
+  };
+
+  const triggerCameraInput = () => {
+    if (cameraInputRef.current) {
+      console.log("Triggering camera input");
+      cameraInputRef.current.click();
+    } else {
+      console.error("Camera input ref not found");
+      toast.error("Camera input not available.");
+    }
+  };
+
+  const triggerFileInput = () => {
+    if (fileInputRef.current) {
+      console.log("Triggering file input");
+      fileInputRef.current.click();
+    } else {
+      console.error("File input ref not found");
+      toast.error("File input not available.");
+    }
+  };
+
   const renderStep = () => {
     switch (currentStep) {
       case 1:
         return (
           <>
             <Form.Group controlId="formCustomerName" className="mb-3">
-              <Form.Label>Customer Name</Form.Label>
+              <Form.Label>Customer Name *</Form.Label>
               <Form.Control
                 type="text"
                 name="customerName"
@@ -461,11 +546,12 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 onChange={handleInput}
                 placeholder="Enter customer name"
                 disabled={loading}
+                required
               />
             </Form.Group>
 
             <Form.Group controlId="mobileNumber" className="mb-3">
-              <Form.Label>Mobile Number</Form.Label>
+              <Form.Label>Mobile Number *</Form.Label>
               <Form.Control
                 type="text"
                 name="mobileNumber"
@@ -475,6 +561,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 maxLength={10}
                 pattern="[0-9]{10}"
                 disabled={loading}
+                required
               />
               {formData.mobileNumber && formData.mobileNumber.length < 10 && (
                 <Form.Text style={{ color: "red" }}>
@@ -506,7 +593,9 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   formData.firstdate ? new Date(formData.firstdate) : null
                 }
                 onChange={(date) =>
-                  handleInput({ target: { name: "firstdate", value: date } })
+                  handleInput({
+                    target: { name: "firstdate", value: date?.toISOString() },
+                  })
                 }
                 dateFormat="dd/MM/yy"
                 className="form-control"
@@ -604,9 +693,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                     {formData.products.map((product, index) => (
                       <tr key={index}>
                         <td data-label="Product">{product.name}</td>
-                        <td data-label="Specification">
-                          {product.specification}
-                        </td>
+                        <td data-label="Specification">{product.specification}</td>
                         <td data-label="Size">{product.size}</td>
                         <td data-label="Quantity">{product.quantity}</td>
                         <td data-label="Action">
@@ -639,7 +726,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
             </Form.Group>
 
             <Form.Group controlId="formCustomerType" className="mb-3">
-              <Form.Label>Customer Type</Form.Label>
+              <Form.Label>Customer Type *</Form.Label>
               <Form.Select
                 name="type"
                 value={formData.type}
@@ -723,7 +810,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 <option value="Private college">Private college</option>
                 <option value="Govt school">Govt school</option>
                 <option value="Govt college">Govt college</option>
-
                 <option value="Govt aided college">Govt aided college</option>
                 <option value="Ngo">Ngo</option>
                 <option value="Dealer/partner">Dealer/partner</option>
@@ -750,7 +836,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
         return (
           <>
             <Form.Group controlId="status" className="mb-3">
-              <Form.Label>Status</Form.Label>
+              <Form.Label>Status *</Form.Label>
               <Form.Control
                 as="select"
                 value={formData.status}
@@ -780,7 +866,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
             </Form.Group>
 
             <Form.Group controlId="formLiveLocation" className="mb-3">
-              <Form.Label>Live Location</Form.Label>
+              <Form.Label>Live Location *</Form.Label>
               <div style={{ display: "flex", gap: "10px" }}>
                 <Form.Control
                   type="text"
@@ -808,6 +894,49 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 value={formData.liveLocation}
                 required
               />
+            </Form.Group>
+
+            <Form.Group controlId="formAttachment" className="mb-3">
+              <Form.Label>📎 Attachment (Optional)</Form.Label>
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                <Button
+                  variant="outline-primary"
+                  onClick={triggerCameraInput}
+                  disabled={loading}
+                  style={{ flex: "1 1 auto", minWidth: "150px" }}
+                >
+                  <span role="img" aria-label="camera">📷</span> Capture Photo
+                </Button>
+                <Button
+                  variant="outline-secondary"
+                  onClick={triggerFileInput}
+                  disabled={loading}
+                  style={{ flex: "1 1 auto", minWidth: "150px" }}
+                >
+                  <span role="img" aria-label="upload">📤</span> Upload from Device
+                </Button>
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                style={{ display: "none" }}
+                ref={cameraInputRef}
+                onChange={handleAttachmentChange}
+              />
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                style={{ display: "none" }}
+                ref={fileInputRef}
+                onChange={handleAttachmentChange}
+              />
+              <Form.Text>Upload bills or documents (PDF, images, Word, max 5MB).</Form.Text>
+              {formData.attachment && (
+                <Form.Text style={{ color: "green" }}>
+                  Selected: {formData.attachment.name}
+                </Form.Text>
+              )}
             </Form.Group>
 
             <Form.Group controlId="formAssignedTo" className="mb-3">

@@ -14,7 +14,7 @@ import styled from "styled-components";
 import * as XLSX from "xlsx";
 import DisableCopy from "./DisableCopy";
 
-// Styled Components
+// Styled Components (unchanged)
 const GradientModalHeader = styled(Modal.Header)`
   background: linear-gradient(135deg, #2575fc, #6a11cb);
   color: #fff;
@@ -256,6 +256,15 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
     });
   };
 
+  // Sort history once
+  const sortedHistory = useMemo(() => {
+    return Array.isArray(entry?.history)
+      ? [...entry.history].sort(
+          (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+        )
+      : [];
+  }, [entry?.history]);
+
   useEffect(() => {
     setOpenSections({
       personal: true,
@@ -282,8 +291,6 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
           if (typeof user === "object" && user?.username) {
             return user.username;
           } else if (typeof user === "string") {
-            // Handle case where assignedTo contains ObjectIds (not populated)
-            // This assumes the entry.assignedTo is already populated, so we look there
             const foundUser = entry?.assignedTo?.find(
               (u) => u._id.toString() === user
             );
@@ -401,6 +408,7 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
           Updated: "Updated",
           "Created By": "Created By",
           "Assigned To": "Assigned To",
+          Attachment: "Attachment",
         },
         {
           Section: "Client Entry",
@@ -439,14 +447,37 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
           Updated: formatDate(entry.updatedAt),
           "Created By": entry.createdBy?.username || "Unknown",
           "Assigned To": assignedToText,
+          Attachment: entry.attachmentpath ? "Yes" : "No",
         },
       ];
 
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const historyData = sortedHistory.map((log, index) => ({
+        Section: `History #${sortedHistory.length - index}`,
+        Status: log.status || "N/A",
+        Remarks: log.remarks || "N/A",
+        Timestamp: formatDate(log.timestamp),
+        Location: log.liveLocation || "N/A",
+        Products: Array.isArray(log.products)
+          ? log.products
+              .map(
+                (p) =>
+                  `${p.name} (Spec: ${p.specification}, Size: ${p.size}, Qty: ${p.quantity})`
+              )
+              .join("; ")
+          : "N/A",
+        "Assigned To": formatAssignedTo(log.assignedTo),
+        "First Person Meet": log.firstPersonMeet || "N/A",
+        "Second Person Meet": log.secondPersonMeet || "N/A",
+        "Third Person Meet": log.thirdPersonMeet || "N/A",
+        "Fourth Person Meet": log.fourthPersonMeet || "N/A",
+        Attachment: log.attachmentpath ? "Yes" : "No",
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet([...exportData, ...historyData]);
       const colWidths = Object.keys(exportData[0]).map((key) => {
         const maxLength = Math.max(
           key.length,
-          ...exportData.map((row) => String(row[key] || "").length)
+          ...[...exportData, ...historyData].map((row) => String(row[key] || "").length)
         );
         return { wch: Math.min(maxLength + 2, 50) };
       });
@@ -480,7 +511,7 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
       console.error("Error exporting entry:", error);
       toast.error("Failed to export entry!");
     }
-  }, [entry, formatAssignedTo]);
+  }, [entry, formatAssignedTo, sortedHistory]);
 
   const getGoogleMapsUrl = (location) => {
     if (!location) return "#";
@@ -492,15 +523,66 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
     return `https://www.google.com/maps/search/${encodeURIComponent(location)}`;
   };
 
-  // Sort history once
-  const sortedHistory = useMemo(() => {
-    return Array.isArray(entry?.history)
-      ? [...entry.history].sort(
-          (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
-        )
-      : [];
-  }, [entry?.history]);
+  // New function to handle attachment download
+const handleDownloadAttachment = useCallback(
+  async (attachmentPath) => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
 
+      // Extract filename from attachmentPath (handle both full paths and filenames)
+      const filename = attachmentPath.split("/").pop();
+      if (!filename) {
+        throw new Error("Invalid attachment path");
+      }
+
+      const response = await fetch(
+        `${process.env.REACT_APP_URL}/api/download/${encodeURIComponent(filename)}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/octet-stream",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get("Content-Disposition");
+      let downloadFilename = filename;
+
+      // Extract filename from Content-Disposition header if available
+      if (contentDisposition) {
+        const matches = contentDisposition.match(/filename="(.+)"/);
+        if (matches && matches[1]) {
+          downloadFilename = matches[1];
+        }
+      }
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = downloadFilename || "attachment";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success("Attachment downloaded successfully!");
+    } catch (error) {
+      console.error("Error downloading attachment:", error);
+      toast.error(`Failed to download attachment: ${error.message}`);
+    }
+  },
+  []
+);
   if (!entry) return null;
 
   return (
@@ -994,6 +1076,19 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                           <InfoItem>
                             <Label>Fourth Person Meet</Label>
                             <Value>{log.fourthPersonMeet}</Value>
+                          </InfoItem>
+                        )}
+                        {log.attachmentpath && (
+                          <InfoItem>
+                            <Label>Attachment</Label>
+                            <GradientButton
+                              variant="primary"
+                              onClick={() => handleDownloadAttachment(log.attachmentpath)}
+                              aria-label="Download Attachment"
+                              style={{ marginTop: "0.5rem" }}
+                            >
+                              Download Attachment
+                            </GradientButton>
                           </InfoItem>
                         )}
                       </HistoryContent>

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { Modal, Form, Spinner, Alert, Button } from "react-bootstrap";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -116,6 +116,8 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       estimatedValue: "",
       closeamount: "",
       assignedTo: [],
+      createdAt:"",
+      attachment: null
     }),
     []
   );
@@ -144,6 +146,59 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
   const [users, setUsers] = useState([]);
   const status = watch("status");
   const selectedState = watch("state");
+  const [selectedFileName, setSelectedFileName] = useState(null);
+  // Attachment file watch
+  const fileInputRef = useRef(null);
+const cameraInputRef = useRef(null);
+
+const handleAttachmentChange = (e) => {
+  const file = e.target.files[0];
+  if (!file) {
+    console.log("No file selected.");
+    toast.error("Sorry, no file was selected. Please choose a file and try again.");
+    return;
+  }
+
+  console.log("Selected file:", file.name, file.size, file.type); // Debugging
+
+  if (file.size > 5 * 1024 * 1024) {
+    console.log("File size exceeds 5MB:", file.size);
+    toast.error("The file is too big. Please choose a file smaller than 5MB.");
+    return;
+  }
+
+  setValue("attachment", file, { shouldValidate: true, shouldDirty: true });
+  setSelectedFileName(file.name);
+  toast.success(`File selected successfully: ${file.name}`);
+}
+
+const triggerCameraInput = () => {
+  if (cameraInputRef.current) {
+    console.log("Triggering camera input");
+    cameraInputRef.current.click();
+  } else {
+    console.error("Camera input ref not found");
+    toast.error("Sorry, the camera option isn't available right now. Please try uploading from your device instead.");
+  }
+};
+
+const triggerFileInput = () => {
+  if (fileInputRef.current) {
+    console.log("Triggering file input");
+    fileInputRef.current.click();
+  } else {
+    console.error("File input ref not found");
+    toast.error("Sorry, the file upload option isn't available right now. Please try again later.");
+  }
+};
+const clearAttachment = () => {
+  setValue("attachment", null, { shouldValidate: true, shouldDirty: true });
+  setSelectedFileName(null);
+  if (fileInputRef.current) fileInputRef.current.value = null;
+  if (cameraInputRef.current) cameraInputRef.current.value = null;
+  toast.info("The attachment has been removed.");
+};
+  // Ends Attachment file watch
 
   // Sync form with entry prop
   useEffect(() => {
@@ -214,37 +269,37 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       console.error("Geolocation is not supported by your browser.");
       setLocationFetched(false);
       setLocationLoading(false);
-      toast.error("Your browser does not support location services.");
+      toast.error("Sorry, your browser doesn't support location sharing. Please try a different browser or device.");
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const location = `${position.coords.latitude}, ${position.coords.longitude}`;
-        setValue("liveLocation", location, { shouldValidate: true });
+        setValue("liveLocation", location, { shouldValidate: true, shouldDirty: true });
         setLocationFetched(true);
         setLocationLoading(false);
-        toast.success("Location fetched successfully!");
+        toast.success("Your location was fetched successfully!");
       },
       (error) => {
         console.error("Error fetching location:", error);
         setLocationFetched(false);
         setLocationLoading(false);
 
-        let message = "Failed to fetch your location.";
+        let message = "We couldn't get your location. Please check your settings and try again.";
         switch (error.code) {
           case error.PERMISSION_DENIED:
             message =
-              "Location permission denied. Please allow location access.";
+              "You haven't allowed access to your location. Please go to your browser settings and allow location sharing for this site.";
             break;
           case error.POSITION_UNAVAILABLE:
-            message = "Location information is unavailable.";
+            message = "Location information isn't available right now. Please try again later.";
             break;
           case error.TIMEOUT:
-            message = "Location request timed out. Please try again.";
+            message = "It took too long to get your location. Please try again.";
             break;
           default:
-            message = "An unknown error occurred while fetching location.";
+            message = "Something went wrong while trying to get your location. Please try again.";
         }
 
         toast.error(message);
@@ -305,7 +360,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     [users]
   );
 
-  const onSubmit = async (data) => {
+   const onSubmit = async (data) => {
     if (!showConfirm) {
       setShowConfirm(true);
       return;
@@ -317,13 +372,41 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         throw new Error("You must be logged in to update an entry.");
       }
 
+      const formDataToSend = new FormData();
+      const { attachment, ...restData } = data;
       const payload = {
-        ...data,
+        ...restData,
         products: data.products.filter(
           (p) => p.name && p.specification && p.size && p.quantity
         ),
         assignedTo: data.assignedTo.map((user) => user.value), // Extract user IDs
       };
+
+      // Append all fields to FormData
+      Object.keys(payload).forEach((key) => {
+        if (key === "products") {
+          payload[key].forEach((item, index) => {
+            Object.keys(item).forEach((subKey) => {
+              formDataToSend.append(`products[${index}][${subKey}]`, item[subKey]);
+            });
+          });
+        } else if (key === "assignedTo") {
+          payload[key].forEach((item, index) => {
+            formDataToSend.append(`assignedTo[${index}]`, item);
+          });
+        } else if (payload[key] !== undefined && payload[key] !== null) {
+          formDataToSend.append(key, payload[key]);
+        }
+      });
+
+      // Append file if present
+      const attachmentFile = attachment;
+      if (attachmentFile) {
+        if (attachmentFile.size > 5 * 1024 * 1024) {
+          throw new Error("File too large! Max 5MB.");
+        }
+        formDataToSend.append("attachment", attachmentFile);
+      }
 
       if (payload.status !== entry?.status && !payload.liveLocation) {
         throw new Error("Live location is required when updating status.");
@@ -331,11 +414,11 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
 
       const response = await axios.put(
         `${process.env.REACT_APP_URL}/api/editentry/${entry._id}`,
-        payload,
+        formDataToSend,
         {
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
+            // Content-Type is automatically set by FormData
           },
         }
       );
@@ -346,7 +429,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       }
 
       toast.success("Entry updated successfully!");
-      onEntryUpdated(updatedEntry); // Pass full updated entry with populated assignedTo
+      onEntryUpdated(updatedEntry);
       reset({
         ...initialFormData,
         assignedTo: Array.isArray(updatedEntry.assignedTo)
@@ -359,14 +442,14 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       onClose();
     } catch (err) {
       console.error("Submit error:", err.response?.data || err.message);
-      let errorMessage = "Failed to update entry. Please try again.";
+      let errorMessage = "Sorry, we couldn't update the entry. Please check your details and try again.";
 
       if (
         err.response?.data?.message &&
         err.response.data.message.toLowerCase().includes("token")
       ) {
         errorMessage =
-          "Your session has expired or you are not authenticated. Please log in again.";
+          "Your login session has expired. Please log in again to continue.";
       } else if (
         err.response?.data?.errors &&
         Array.isArray(err.response.data.errors)
@@ -402,7 +485,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         console.error("Error fetching users for tagging:", error);
         toast.error(
           error.response?.data?.message ||
-            "Unable to load users for tagging. Please try again later."
+            "Sorry, we couldn't load the list of users to tag. Please check your internet connection and try again later."
         );
         setUsers([]);
       }
@@ -1286,18 +1369,17 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
   const renderEditForm = () => (
     <Form onSubmit={handleSubmit(onSubmit)}>
       <FormSection>
-        <Form.Group controlId="createdAt">
+      <Form.Group controlId="createdAt">
           <Form.Label>📅 Created At</Form.Label>
           <Form.Control
             type="date"
-            {...register("createdAt", {
-              required: "Created At is required",
-            })}
+            {...register("createdAt")}
             isInvalid={!!errors.createdAt}
             aria-label="Created At"
             onChange={(e) =>
               debouncedHandleInputChange("createdAt", e.target.value)
             }
+          
           />
           <Form.Control.Feedback type="invalid">
             {errors.createdAt?.message}
@@ -1871,43 +1953,112 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
             {errors.expectedClosingDate?.message}
           </Form.Control.Feedback>
         </Form.Group>
-
-        <Form.Group controlId="remarks">
-          <Form.Label>✏️ Remarks</Form.Label>
-          <Form.Control
-            as="textarea"
-            {...register("remarks", {
-              required:
-                status !== entry?.status
-                  ? "Remarks are required when updating status"
-                  : false,
-              maxLength: { value: 500, message: "Max 500 characters" },
-              onChange: (e) => {
-                const value = e.target.value.slice(0, 500);
-                e.target.value = value;
-                return value;
-              },
-            })}
-            rows={3}
-            isInvalid={!!errors.remarks}
-            aria-label="Remarks"
-            onPaste={(e) => {
-              const pastedText = e.clipboardData.getData("text").slice(0, 500);
-              e.target.value = pastedText;
-              if (pastedText.length >= 500) {
-                toast.warn("Pasted content truncated to 500 characters.");
-              }
-
-              setValue("remarks", pastedText, { shouldValidate: true });
-            }}
-            spellCheck="true"
-            placeholder="Enter remarks"
-          />
-          <Form.Text>{watch("remarks")?.length || 0}/500</Form.Text>
-          <Form.Control.Feedback type="invalid">
-            {errors.remarks?.message}
-          </Form.Control.Feedback>
-        </Form.Group>
+<Form.Group controlId="attachment">
+  <Form.Label>📎 Attachment (Optional)</Form.Label>
+  <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "10px" }}>
+    <StyledButton
+      type="button"
+      variant="primary"
+      onClick={triggerCameraInput}
+      disabled={loading}
+      style={{ flex: "1 1 auto", minWidth: "150px" }}
+    >
+      <span role="img" aria-label="camera">📷</span> Capture Photo
+    </StyledButton>
+    <StyledButton
+      type="button"
+      variant="info"
+      onClick={triggerFileInput}
+      disabled={loading}
+      style={{ flex: "1 1 auto", minWidth: "150px" }}
+    >
+      <span role="img" aria-label="upload">📤</span> Upload from Device
+    </StyledButton>
+  </div>
+  <input
+    type="file"
+    accept="image/*"
+    capture="environment"
+    style={{ display: "none" }}
+    ref={cameraInputRef}
+    onChange={handleAttachmentChange}
+  />
+  <input
+    type="file"
+    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+    style={{ display: "none" }}
+    ref={fileInputRef}
+    onChange={handleAttachmentChange}
+  />
+  <Form.Text>Upload bills or documents (PDF, images, Word, max 5MB).</Form.Text>
+  {watch("attachment") && (
+    <div
+      style={{
+        marginTop: "10px",
+        padding: "10px",
+        border: "1px solid #ddd",
+        borderRadius: "8px",
+        display: "flex",
+        alignItems: "center",
+        gap: "10px",
+        background: "#f8f9fa",
+      }}
+    >
+      {watch("attachment").type.startsWith("image/") ? (
+        <img
+          src={URL.createObjectURL(watch("attachment"))}
+          alt="Preview"
+          style={{ maxWidth: "50px", maxHeight: "50px", objectFit: "cover", borderRadius: "4px" }}
+        />
+      ) : (
+        <span role="img" aria-label="document">📄</span>
+      )}
+      <Form.Text style={{ color: "green", flex: 1 }}>
+        Selected: {selectedFileName}
+      </Form.Text>
+      <Button
+        variant="outline-danger"
+        size="sm"
+        onClick={clearAttachment}
+        aria-label="Remove Attachment"
+      >
+        <FaTrash />
+      </Button>
+    </div>
+  )}
+</Form.Group>
+      <Form.Group controlId="remarks">
+  <Form.Label>✏️ Remarks</Form.Label>
+  <Form.Control
+    as="textarea"
+    {...register("remarks", {
+      required: status !== entry?.status && !watch("attachment") ? "Remarks are required when updating status without an attachment" : false,
+      maxLength: { value: 500, message: "Max 500 characters" },
+      onChange: (e) => {
+        const value = e.target.value.slice(0, 500);
+        e.target.value = value;
+        return value;
+      },
+    })}
+    rows={3}
+    isInvalid={!!errors.remarks}
+    aria-label="Remarks"
+    onPaste={(e) => {
+      const pastedText = e.clipboardData.getData("text").slice(0, 500);
+      e.target.value = pastedText;
+      if (pastedText.length >= 500) {
+        toast.warn("The pasted text was too long, so we shortened it to 500 characters.");
+      }
+      setValue("remarks", pastedText, { shouldValidate: true });
+    }}
+    spellCheck="true"
+    placeholder="Enter remarks"
+  />
+  <Form.Text>{watch("remarks")?.length || 0}/500</Form.Text>
+  <Form.Control.Feedback type="invalid">
+    {errors.remarks?.message}
+  </Form.Control.Feedback>
+</Form.Group>
       </FormSection>
     </Form>
   );
