@@ -101,9 +101,6 @@ const HistoryItem = styled.div`
   padding: 1rem 0 1rem 2.5rem;
   border-left: 3px solid #2575fc;
   margin-bottom: 1.5rem;
-  @media (max-width: 576px) {
-    padding: 0.75rem 0 0.75rem 2rem;
-  }
   &:before {
     content: "";
     position: absolute;
@@ -123,9 +120,6 @@ const HistoryContent = styled.div`
   border-radius: 10px;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
   transition: transform 0.2s ease;
-  @media (max-width: 576px) {
-    padding: 1rem;
-  }
   &:hover {
     transform: translateX(10px);
   }
@@ -176,16 +170,6 @@ const GradientButton = styled(Button)`
   color: #fff;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   transition: all 0.3s ease;
-  width: 100%;
-  max-width: 200px;
-  justify-self: center;
-  @media (max-width: 576px) {
-    padding: 10px 20px;
-    font-size: 0.875rem;
-    letter-spacing: 0.5px;
-    max-width: 100%;
-    width: 100%;
-  }
   &:hover {
     transform: translateY(-2px);
     background: ${(props) =>
@@ -1101,8 +1085,9 @@ const handleDownloadAttachment = useCallback(
                               variant="primary"
                               onClick={() => handleDownloadAttachment(log.attachmentpath)}
                               aria-label="Download Attachment"
+                              style={{ marginTop: "0.5rem" }}
                             >
-                              Download
+                              Download Attachment
                             </GradientButton>
                           </InfoItem>
                         )}
