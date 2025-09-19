@@ -473,11 +473,16 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
         Attachment: log.attachmentpath ? "Yes" : "No",
       }));
 
-      const worksheet = XLSX.utils.json_to_sheet([...exportData, ...historyData]);
+      const worksheet = XLSX.utils.json_to_sheet([
+        ...exportData,
+        ...historyData,
+      ]);
       const colWidths = Object.keys(exportData[0]).map((key) => {
         const maxLength = Math.max(
           key.length,
-          ...[...exportData, ...historyData].map((row) => String(row[key] || "").length)
+          ...[...exportData, ...historyData].map(
+            (row) => String(row[key] || "").length
+          )
         );
         return { wch: Math.min(maxLength + 2, 50) };
       });
@@ -524,8 +529,7 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
   };
 
   // New function to handle attachment download
-const handleDownloadAttachment = useCallback(
-  async (attachmentPath) => {
+  const handleDownloadAttachment = useCallback(async (attachmentPath) => {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
@@ -539,7 +543,9 @@ const handleDownloadAttachment = useCallback(
       }
 
       const response = await fetch(
-        `${process.env.REACT_APP_URL}/api/download/${encodeURIComponent(filename)}`,
+        `${process.env.REACT_APP_URL}/api/download/${encodeURIComponent(
+          filename
+        )}`,
         {
           method: "GET",
           headers: {
@@ -551,7 +557,9 @@ const handleDownloadAttachment = useCallback(
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        throw new Error(
+          `HTTP error! status: ${response.status}, message: ${errorText}`
+        );
       }
 
       const blob = await response.blob();
@@ -580,9 +588,7 @@ const handleDownloadAttachment = useCallback(
       console.error("Error downloading attachment:", error);
       toast.error(`Failed to download attachment: ${error.message}`);
     }
-  },
-  []
-);
+  }, []);
   if (!entry) return null;
 
   return (
@@ -1083,11 +1089,13 @@ const handleDownloadAttachment = useCallback(
                             <Label>Attachment</Label>
                             <GradientButton
                               variant="primary"
-                              onClick={() => handleDownloadAttachment(log.attachmentpath)}
+                              onClick={() =>
+                                handleDownloadAttachment(log.attachmentpath)
+                              }
                               aria-label="Download Attachment"
                               style={{ marginTop: "0.5rem" }}
                             >
-                              Download Attachment
+                              Download
                             </GradientButton>
                           </InfoItem>
                         )}
