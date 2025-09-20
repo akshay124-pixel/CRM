@@ -7,7 +7,7 @@ import Select from "react-select";
 import DatePicker from "react-datepicker";
 import { statesAndCities, productOptions } from "./Options"; // Adjust path
 import "react-datepicker/dist/react-datepicker.css";
-
+import imageCompression from "browser-image-compression";
 const customSelectStyles = {
   control: (provided, state) => ({
     ...provided,
@@ -321,8 +321,10 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
 
   const validateStep = (step) => {
     if (step === 1) {
+     
     }
     if (step === 2) {
+     
     }
     if (step === 4) {
       if (!formData.status) {
@@ -348,18 +350,22 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
     setCurrentStep((prev) => prev - 1);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    if (currentStep !== totalSteps) {
-      return;
-    }
+  if (currentStep !== totalSteps) {
+    return;
+  }
 
-    if (!validateStep(4)) {
-      return;
-    }
+  if (!validateStep(4)) {
+    return;
+  }
 
-    setLoading(true);
+  setLoading(true);
+  const maxRetries = 3;
+  let attempt = 0;
+
+  while (attempt < maxRetries) {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
@@ -387,7 +393,6 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
         }),
       };
 
-      // Append all fields to FormData
       Object.keys(submitData).forEach((key) => {
         if (key === "products") {
           formDataToSend.append("products", JSON.stringify(submitData[key]));
@@ -404,20 +409,15 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
         }
       });
 
-      // Log FormData for debugging
-      for (let pair of formDataToSend.entries()) {
-        console.log(`${pair[0]}: ${pair[1]}`);
-      }
-
       const response = await axios.post(
         `${process.env.REACT_APP_URL}/api/entry`,
         formDataToSend,
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data", // Explicitly set to ensure compatibility
+            "Content-Type": "multipart/form-data",
           },
-          timeout: 60000, // Increased timeout to 60 seconds for mobile uploads
+          timeout: 120000, // Increased to 120 seconds
         }
       );
 
@@ -432,44 +432,42 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
       setProductInput({ name: "", specification: "", size: "", quantity: "" });
       setLocationFetched(false);
       onClose();
-    } catch (error) {
-      console.error("Full error details:", error); // Improved logging for debugging
-
-      let friendlyMessage = "Oops! Something went wrong. Please try again.";
-
-      if (error.response) {
-        const status = error.response.status;
-        const serverMessage = error.response.data?.message || "";
-
-        if (status === 400) {
-          friendlyMessage =
-            "Please check the information you entered and try again.";
-        } else if (status === 401) {
-          friendlyMessage = "You are not authorized. Please log in again.";
-        } else if (status === 403) {
-          friendlyMessage =
-            "Access denied. You don't have permission to do this.";
-        } else if (status === 404) {
-          friendlyMessage = "The requested resource was not found.";
-        } else if (serverMessage) {
-          friendlyMessage = serverMessage;
-        }
-      } else if (
-        error.code === "ECONNABORTED" ||
-        error.message.includes("timeout")
-      ) {
-        friendlyMessage =
-          "Upload took too long. Please try a smaller file or better connection.";
-      } else if (error.message === "Network Error") {
-        friendlyMessage =
-          "Network issue detected. Please check your internet connection or try Wi-Fi.";
-      }
-
-      toast.error(friendlyMessage);
-    } finally {
       setLoading(false);
+      return; // Success, exit retry loop
+    } catch (error) {
+      attempt++;
+      console.error(`Attempt ${attempt} failed:`, error);
+
+      if (attempt === maxRetries) {
+        let friendlyMessage = "Failed to submit entry after multiple attempts.";
+        if (error.response) {
+          const status = error.response.status;
+          const serverMessage = error.response.data?.message || "";
+          if (status === 400) {
+            friendlyMessage = "Please check the information you entered.";
+          } else if (status === 401) {
+            friendlyMessage = "Session expired. Please log in again.";
+          } else if (status === 403) {
+            friendlyMessage = "Access denied.";
+          } else if (serverMessage) {
+            friendlyMessage = serverMessage;
+          }
+        } else if (error.code === "ECONNABORTED" || error.message.includes("timeout")) {
+          friendlyMessage = "Request timed out. Please check your network and try again.";
+        } else if (error.message === "Network Error") {
+          friendlyMessage = "Network issue detected. Please check your internet connection or try Wi-Fi.";
+        }
+
+        toast.error(friendlyMessage);
+        setLoading(false);
+        return;
+      }
+      // Wait before retrying
+      await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
     }
-  };
+  }
+};
+
   const handleStateChange = (e) => {
     const state = e.target.value;
     setSelectedState(state);
@@ -490,28 +488,52 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
     }));
   };
 
-  const handleAttachmentChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) {
-      console.log("No file selected.");
-      toast.error("No file selected. Please try again.");
+const handleAttachmentChange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) {
+    console.log("No file selected.");
+    toast.error("No file selected. Please try again.");
+    return;
+  }
+
+  console.log("Selected file:", file.name, file.size, file.type);
+
+  let processedFile = file;
+  if (file.type.startsWith("image/")) {
+    try {
+      const options = {
+        maxSizeMB: 1, // Compress to max 1MB
+        maxWidthOrHeight: 1024, // Resize to max 1024px
+        useWebWorker: true,
+        // Ensure the output MIME type uses full mimetype (e.g., 'image/jpeg')
+        fileType: file.type,
+      };
+      const compressedBlob = await imageCompression(file, options);
+      // Wrap the Blob into a File to preserve original filename and correct type
+      processedFile = new File([compressedBlob], file.name, {
+        type: compressedBlob.type || file.type,
+        lastModified: Date.now(),
+      });
+      console.log("Compressed file size:", processedFile.size, "Name:", processedFile.name, "Type:", processedFile.type);
+    } catch (error) {
+      console.error("Image compression error:", error);
+      toast.error("Failed to compress image. Please try a smaller file.");
       return;
     }
+  }
 
-    console.log("Selected file:", file.name, file.size, file.type); // Debugging
+  if (processedFile.size > 5 * 1024 * 1024) {
+    console.log("File size exceeds 5MB:", processedFile.size);
+    toast.error("File too large! Max 5MB.");
+    return;
+  }
 
-    if (file.size > 5 * 1024 * 1024) {
-      console.log("File size exceeds 5MB:", file.size);
-      toast.error("File too large! Max 5MB.");
-      return;
-    }
-
-    setFormData((prev) => ({
-      ...prev,
-      attachment: file,
-    }));
-    toast.success(`File selected: ${file.name}`);
-  };
+  setFormData((prev) => ({
+    ...prev,
+    attachment: processedFile,
+  }));
+  toast.success(`File selected: ${processedFile.name}`);
+};
 
   const triggerCameraInput = () => {
     if (cameraInputRef.current) {
@@ -694,9 +716,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                     {formData.products.map((product, index) => (
                       <tr key={index}>
                         <td data-label="Product">{product.name}</td>
-                        <td data-label="Specification">
-                          {product.specification}
-                        </td>
+                        <td data-label="Specification">{product.specification}</td>
                         <td data-label="Size">{product.size}</td>
                         <td data-label="Quantity">{product.quantity}</td>
                         <td data-label="Action">
@@ -908,10 +928,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   disabled={loading}
                   style={{ flex: "1 1 auto", minWidth: "150px" }}
                 >
-                  <span role="img" aria-label="camera">
-                    📷
-                  </span>{" "}
-                  Capture Photo
+                  <span role="img" aria-label="camera">📷</span> Capture Photo
                 </Button>
                 <Button
                   variant="outline-secondary"
@@ -919,10 +936,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                   disabled={loading}
                   style={{ flex: "1 1 auto", minWidth: "150px" }}
                 >
-                  <span role="img" aria-label="upload">
-                    📤
-                  </span>{" "}
-                  Upload from Device
+                  <span role="img" aria-label="upload">📤</span> Upload from Device
                 </Button>
               </div>
               <input
@@ -940,9 +954,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
                 ref={fileInputRef}
                 onChange={handleAttachmentChange}
               />
-              <Form.Text>
-                Upload bills or documents (PDF, images, Word, max 5MB).
-              </Form.Text>
+              <Form.Text>Upload bills or documents (PDF, images, Word, max 5MB).</Form.Text>
               {formData.attachment && (
                 <Form.Text style={{ color: "green" }}>
                   Selected: {formData.attachment.name}

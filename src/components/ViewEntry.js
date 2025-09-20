@@ -473,16 +473,11 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
         Attachment: log.attachmentpath ? "Yes" : "No",
       }));
 
-      const worksheet = XLSX.utils.json_to_sheet([
-        ...exportData,
-        ...historyData,
-      ]);
+      const worksheet = XLSX.utils.json_to_sheet([...exportData, ...historyData]);
       const colWidths = Object.keys(exportData[0]).map((key) => {
         const maxLength = Math.max(
           key.length,
-          ...[...exportData, ...historyData].map(
-            (row) => String(row[key] || "").length
-          )
+          ...[...exportData, ...historyData].map((row) => String(row[key] || "").length)
         );
         return { wch: Math.min(maxLength + 2, 50) };
       });
@@ -529,23 +524,21 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
   };
 
   // New function to handle attachment download
-  const handleDownloadAttachment = useCallback(async (attachmentPath) => {
+const handleDownloadAttachment = useCallback(
+  async (attachmentPath) => {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
         throw new Error("No authentication token found");
       }
 
-      // Extract filename from attachmentPath (handle both full paths and filenames)
       const filename = attachmentPath.split("/").pop();
       if (!filename) {
         throw new Error("Invalid attachment path");
       }
 
       const response = await fetch(
-        `${process.env.REACT_APP_URL}/api/download/${encodeURIComponent(
-          filename
-        )}`,
+        `${process.env.REACT_APP_URL}/api/download/${encodeURIComponent(filename)}`,
         {
           method: "GET",
           headers: {
@@ -557,27 +550,17 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(
-          `HTTP error! status: ${response.status}, message: ${errorText}`
-        );
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
 
       const blob = await response.blob();
-      const contentDisposition = response.headers.get("Content-Disposition");
-      let downloadFilename = filename;
-
-      // Extract filename from Content-Disposition header if available
-      if (contentDisposition) {
-        const matches = contentDisposition.match(/filename="(.+)"/);
-        if (matches && matches[1]) {
-          downloadFilename = matches[1];
-        }
-      }
+      const ext = filename.includes('.') ? '.' + filename.split('.').pop() : '';
+      let downloadFilename = `${entry.customerName ? entry.customerName.replace(/[^a-zA-Z0-9]/g, '_') : 'entry'}_attachment${ext}`;
 
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = downloadFilename || "attachment";
+      link.download = downloadFilename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -588,7 +571,9 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
       console.error("Error downloading attachment:", error);
       toast.error(`Failed to download attachment: ${error.message}`);
     }
-  }, []);
+  },
+  [entry]
+);
   if (!entry) return null;
 
   return (
@@ -1089,13 +1074,11 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                             <Label>Attachment</Label>
                             <GradientButton
                               variant="primary"
-                              onClick={() =>
-                                handleDownloadAttachment(log.attachmentpath)
-                              }
+                              onClick={() => handleDownloadAttachment(log.attachmentpath)}
                               aria-label="Download Attachment"
                               style={{ marginTop: "0.5rem" }}
                             >
-                              Download
+                              Download Attachment
                             </GradientButton>
                           </InfoItem>
                         )}

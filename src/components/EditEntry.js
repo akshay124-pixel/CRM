@@ -6,6 +6,7 @@ import { useForm, Controller } from "react-hook-form";
 import Select from "react-select";
 import styled from "styled-components";
 import { productOptions } from "./Options";
+import imageCompression from "browser-image-compression";
 import debounce from "lodash/debounce";
 import {
   FaEdit,
@@ -150,27 +151,50 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
   // Attachment file watch
   const fileInputRef = useRef(null);
 const cameraInputRef = useRef(null);
-
-const handleAttachmentChange = (e) => {
+const handleAttachmentChange = async (e) => {
   const file = e.target.files[0];
   if (!file) {
     console.log("No file selected.");
-    toast.error("Sorry, no file was selected. Please choose a file and try again.");
+    toast.error("No file selected. Please try again.");
     return;
   }
 
-  console.log("Selected file:", file.name, file.size, file.type); // Debugging
+  console.log("Selected file:", file.name, file.size, file.type);
 
-  if (file.size > 5 * 1024 * 1024) {
-    console.log("File size exceeds 5MB:", file.size);
-    toast.error("The file is too big. Please choose a file smaller than 5MB.");
+  // Compress image if it's an image file
+  let processedFile = file;
+  if (file.type.startsWith("image/")) {
+    try {
+      const options = {
+        maxSizeMB: 1, 
+        maxWidthOrHeight: 1024, 
+        useWebWorker: true,
+        fileType: file.type, 
+      };
+      const compressedBlob = await imageCompression(file, options);
+      // Wrap blob into a File to preserve the original name and proper type
+      processedFile = new File([compressedBlob], file.name, {
+        type: compressedBlob.type || file.type,
+        lastModified: Date.now(),
+      });
+      console.log("Compressed file size:", processedFile.size, "Name:", processedFile.name, "Type:", processedFile.type);
+    } catch (error) {
+      console.error("Image compression error:", error);
+      toast.error("Failed to compress image. Please try a smaller file.");
+      return;
+    }
+  }
+
+  if (processedFile.size > 5 * 1024 * 1024) {
+    console.log("File size exceeds 5MB:", processedFile.size);
+    toast.error("File too large! Max 5MB.");
     return;
   }
 
-  setValue("attachment", file, { shouldValidate: true, shouldDirty: true });
-  setSelectedFileName(file.name);
-  toast.success(`File selected successfully: ${file.name}`);
-}
+  setValue("attachment", processedFile, { shouldValidate: true, shouldDirty: true });
+  setSelectedFileName(processedFile.name);
+  toast.success(`File selected: ${processedFile.name}`);
+};
 
 const triggerCameraInput = () => {
   if (cameraInputRef.current) {
@@ -360,12 +384,16 @@ const clearAttachment = () => {
     [users]
   );
 
-   const onSubmit = async (data) => {
-    if (!showConfirm) {
-      setShowConfirm(true);
-      return;
-    }
-    setLoading(true);
+ const onSubmit = async (data) => {
+  if (!showConfirm) {
+    setShowConfirm(true);
+    return;
+  }
+  setLoading(true);
+  const maxRetries = 3;
+  let attempt = 0;
+
+  while (attempt < maxRetries) {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
@@ -379,10 +407,9 @@ const clearAttachment = () => {
         products: data.products.filter(
           (p) => p.name && p.specification && p.size && p.quantity
         ),
-        assignedTo: data.assignedTo.map((user) => user.value), // Extract user IDs
+        assignedTo: data.assignedTo.map((user) => user.value),
       };
 
-      // Append all fields to FormData
       Object.keys(payload).forEach((key) => {
         if (key === "products") {
           payload[key].forEach((item, index) => {
@@ -399,13 +426,11 @@ const clearAttachment = () => {
         }
       });
 
-      // Append file if present
-      const attachmentFile = attachment;
-      if (attachmentFile) {
-        if (attachmentFile.size > 5 * 1024 * 1024) {
+      if (attachment) {
+        if (attachment.size > 5 * 1024 * 1024) {
           throw new Error("File too large! Max 5MB.");
         }
-        formDataToSend.append("attachment", attachmentFile);
+        formDataToSend.append("attachment", attachment);
       }
 
       if (payload.status !== entry?.status && !payload.liveLocation) {
@@ -418,8 +443,9 @@ const clearAttachment = () => {
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            // Content-Type is automatically set by FormData
+            "Content-Type": "multipart/form-data",
           },
+          timeout: 120000, 
         }
       );
 
@@ -440,36 +466,43 @@ const clearAttachment = () => {
           : [],
       });
       onClose();
-    } catch (err) {
-      console.error("Submit error:", err.response?.data || err.message);
-      let errorMessage = "Sorry, we couldn't update the entry. Please check your details and try again.";
-
-      if (
-        err.response?.data?.message &&
-        err.response.data.message.toLowerCase().includes("token")
-      ) {
-        errorMessage =
-          "Your login session has expired. Please log in again to continue.";
-      } else if (
-        err.response?.data?.errors &&
-        Array.isArray(err.response.data.errors)
-      ) {
-        errorMessage = err.response.data.errors
-          .map((error) => `${error.field}: ${error.message}`)
-          .join(", ");
-      } else if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
       setLoading(false);
-      setShowConfirm(false);
+      return; 
+    } catch (err) {
+      attempt++;
+      console.error(`Attempt ${attempt} failed:`, err);
+
+      if (attempt === maxRetries) {
+        let errorMessage = "Failed to update entry after multiple attempts.";
+        if (err.response) {
+          const status = err.response.status;
+          const serverMessage = err.response.data?.message || "";
+          if (status === 400) {
+            errorMessage = "Please check the information you entered.";
+          } else if (status === 401) {
+            errorMessage = "Session expired. Please log in again.";
+          } else if (status === 403) {
+            errorMessage = "Access denied.";
+          } else if (serverMessage) {
+            errorMessage = serverMessage;
+          }
+        } else if (err.code === "ECONNABORTED" || err.message.includes("timeout")) {
+          errorMessage = "Request timed out. Please check your network and try again.";
+        } else if (err.message === "Network Error") {
+          errorMessage = "Network issue detected. Please check your internet connection or try Wi-Fi.";
+        }
+
+        setError(errorMessage);
+        toast.error(errorMessage);
+        setLoading(false);
+        setShowConfirm(false);
+        return;
+      }
+      // Wait before retrying
+      await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
     }
-  };
+  }
+};
   useEffect(() => {
     const fetchUsers = async () => {
       try {
