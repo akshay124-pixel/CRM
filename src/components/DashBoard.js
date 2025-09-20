@@ -1448,7 +1448,15 @@ function DashBoard() {
           </Typography>
           <Typography
             variant="body2"
-            sx={{ mb: 0.5, fontSize: "0.9rem", color: "#555" }}
+            sx={{
+              mb: 0.5,
+              fontSize: "0.9rem",
+              color: "#555",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              maxWidth: "100%",
+            }}
           >
             <strong>Address:</strong> {row.address}
           </Typography>
