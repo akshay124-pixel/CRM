@@ -502,14 +502,14 @@ const handleAttachmentChange = async (e) => {
   if (file.type.startsWith("image/")) {
     try {
       const options = {
-        maxSizeMB: 1, // Compress to max 1MB
-        maxWidthOrHeight: 1024, // Resize to max 1024px
+        maxSizeMB: 1, 
+        maxWidthOrHeight: 1024, 
         useWebWorker: true,
-        // Ensure the output MIME type uses full mimetype (e.g., 'image/jpeg')
+        
         fileType: file.type,
       };
       const compressedBlob = await imageCompression(file, options);
-      // Wrap the Blob into a File to preserve original filename and correct type
+    
       processedFile = new File([compressedBlob], file.name, {
         type: compressedBlob.type || file.type,
         lastModified: Date.now(),
