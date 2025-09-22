@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../App.css";
@@ -488,7 +488,7 @@ function DashBoard() {
                 remarks: newEntry.remarks || "",
                 liveLocation: newEntry.liveLocation || "",
                 products: newEntry.products || [],
-                assignedTo: assignedToUsers, // Include in history
+                assignedTo: assignedToUsers,
               },
             ],
           };
@@ -518,7 +518,7 @@ function DashBoard() {
                 _id: userId,
                 username: newEntry.createdBy?.username || "",
               },
-              assignedTo: [], // Default to empty if error
+              assignedTo: [],
               history: [
                 {
                   timestamp: new Date().toISOString(),
@@ -526,7 +526,7 @@ function DashBoard() {
                   remarks: newEntry.remarks || "",
                   liveLocation: newEntry.liveLocation || "",
                   products: newEntry.products || [],
-                  assignedTo: [], // Default to empty
+                  assignedTo: [],
                 },
               ],
             },
@@ -573,7 +573,7 @@ function DashBoard() {
             _id: userId,
             username: newEntry.createdBy?.username || "",
           },
-          assignedTo: [], // Default to empty
+          assignedTo: [],
           history: newEntry.history || [
             {
               timestamp: new Date().toISOString(),
@@ -581,7 +581,7 @@ function DashBoard() {
               remarks: newEntry.remarks || "",
               liveLocation: newEntry.liveLocation || "",
               products: newEntry.products || [],
-              assignedTo: [], // Default to empty
+              assignedTo: [],
             },
           ],
         };
@@ -594,11 +594,11 @@ function DashBoard() {
         ) {
           setUsernames((prev) => [...prev, newEntry.createdBy.username]);
         }
-        // Fetch latest entries to sync with backend
+
         fetchEntries();
       }
     },
-    [role, userId, usernames, fetchEntries] // Added fetchEntries to dependencies
+    [role, userId, usernames, fetchEntries]
   );
 
   // Naya handleEntryUpdated function
@@ -621,7 +621,7 @@ function DashBoard() {
                         username: updatedEntry.assignedTo.username || "",
                       },
                     ]
-                  : [], // Handle single user or empty
+                  : [],
               }
             : entry
         )
@@ -638,10 +638,10 @@ function DashBoard() {
         newUsernames.add(updatedEntry.assignedTo.username);
       }
       setUsernames([...newUsernames]);
-      // Fetch latest entries to sync with backend
+
       fetchEntries();
     },
-    [usernames, fetchEntries] // Added fetchEntries to dependencies
+    [usernames, fetchEntries]
   );
 
   const handleDelete = useCallback((deletedIds) => {
@@ -769,7 +769,6 @@ function DashBoard() {
         const parseProducts = (productsStr) => {
           if (!productsStr || productsStr.trim() === "") return [];
           try {
-            // Example: "IFPD (Android 9, 4GB RAM, 32GB ROM, 65 inch, Qty: 5)"
             const productMatch = productsStr.match(
               /^(.+?)\s*\((.+?),\s*(.+?),\s*(.+?),\s*Qty:\s*(\d+)\)$/
             );
@@ -1685,7 +1684,6 @@ function DashBoard() {
               ))}
           </select>
         )}
-
         <div>
           <input
             type="text"
@@ -1709,12 +1707,16 @@ function DashBoard() {
             transformOrigin={{ vertical: "top", horizontal: "left" }}
             PaperProps={{
               sx: {
-                maxWidth: isMobile ? "95vw" : "600px",
-                maxHeight: isMobile ? "80vh" : "auto",
-                overflowY: isMobile ? "auto" : "visible",
-                overflowX: "visible",
-                padding: isMobile ? "10px" : "0",
+                width: isMobile ? "100vw" : "600px",
+                maxWidth: isMobile ? "100vw" : "600px",
+                maxHeight: isMobile ? "80vh" : "500px",
+                overflowY: "auto",
+                overflowX: "hidden",
+                padding: isMobile ? "5px" : "10px",
                 boxSizing: "border-box",
+                borderRadius: isMobile ? "0" : "8px",
+                marginTop: isMobile ? "0" : "8px",
+                background: "#fff",
               },
             }}
           >
@@ -1729,9 +1731,100 @@ function DashBoard() {
               direction="vertical"
               className={isMobile ? "mobile-date-picker" : ""}
               calendarFocus="forwards"
+              staticRanges={
+                isMobile
+                  ? []
+                  : [
+                      {
+                        label: "Today",
+                        range: () => ({
+                          startDate: new Date(),
+                          endDate: new Date(),
+                          key: "selection",
+                        }),
+                        isSelected: (range) => {
+                          const today = new Date();
+                          return (
+                            range.startDate.toDateString() ===
+                              today.toDateString() &&
+                            range.endDate.toDateString() ===
+                              today.toDateString()
+                          );
+                        },
+                      },
+                      {
+                        label: "Yesterday",
+                        range: () => ({
+                          startDate: new Date(
+                            new Date().setDate(new Date().getDate() - 1)
+                          ),
+                          endDate: new Date(
+                            new Date().setDate(new Date().getDate() - 1)
+                          ),
+                          key: "selection",
+                        }),
+                        isSelected: (range) => {
+                          const yesterday = new Date(
+                            new Date().setDate(new Date().getDate() - 1)
+                          );
+                          return (
+                            range.startDate.toDateString() ===
+                              yesterday.toDateString() &&
+                            range.endDate.toDateString() ===
+                              yesterday.toDateString()
+                          );
+                        },
+                      },
+                      {
+                        label: "Last 7 Days",
+                        range: () => ({
+                          startDate: new Date(
+                            new Date().setDate(new Date().getDate() - 7)
+                          ),
+                          endDate: new Date(),
+                          key: "selection",
+                        }),
+                        isSelected: (range) => {
+                          const start = new Date(
+                            new Date().setDate(new Date().getDate() - 7)
+                          );
+                          const end = new Date();
+                          return (
+                            range.startDate.toDateString() ===
+                              start.toDateString() &&
+                            range.endDate.toDateString() === end.toDateString()
+                          );
+                        },
+                      },
+                      {
+                        label: "Last 30 Days",
+                        range: () => ({
+                          startDate: new Date(
+                            new Date().setDate(new Date().getDate() - 30)
+                          ),
+                          endDate: new Date(),
+                          key: "selection",
+                        }),
+                        isSelected: (range) => {
+                          const start = new Date(
+                            new Date().setDate(new Date().getDate() - 30)
+                          );
+                          const end = new Date();
+                          return (
+                            range.startDate.toDateString() ===
+                              start.toDateString() &&
+                            range.endDate.toDateString() === end.toDateString()
+                          );
+                        },
+                      },
+                    ]
+              }
+              inputRanges={isMobile ? [] : undefined}
+              weekStartsOn={1}
             />
           </Popover>
         </div>
+
         <select
           className="enhanced-filter-dropdown"
           value={selectedState}
