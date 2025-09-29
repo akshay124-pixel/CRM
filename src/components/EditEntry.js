@@ -108,7 +108,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       fourthPersonMeet: "",
       status: "",
       closetype: "",
-      firstMeetingDate: "",
+      firstdate: "",
       expectedClosingDate: "",
       followUpDate: "",
       remarks: "",
@@ -258,7 +258,7 @@ const clearAttachment = () => {
         fourthPersonMeet: entry.fourthPersonMeet || "",
         status: entry.status || "",
         closetype: entry.closetype || "",
-        firstMeetingDate: entry.firstdate
+        firstdate: entry.firstdate
           ? new Date(entry.firstdate).toISOString().split("T")[0]
           : "",
         expectedClosingDate: entry.expectedClosingDate
@@ -1951,7 +1951,7 @@ const clearAttachment = () => {
           <Form.Label>📅 First Meeting Date</Form.Label>
           <Form.Control
             type="date"
-            {...register("firstMeetingDate")}
+            {...register("firstdate")}
             max={new Date().toISOString().split("T")[0]}
             isInvalid={!!errors.firstMeetingDate}
             aria-label="First Meeting Date"
