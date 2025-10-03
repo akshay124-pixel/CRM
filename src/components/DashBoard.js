@@ -1681,7 +1681,7 @@ function DashBoard() {
             }
             placeholder="-- Select date range --"
             readOnly
-            className="cursor-pointer border p-2"
+            className="datefilter cursor-pointer border p-2"
             aria-label="Select date range"
           />
           <Popover

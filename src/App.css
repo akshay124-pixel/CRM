@@ -714,7 +714,7 @@ background: linear-gradient(135deg, #2575fc, #6a11cb);
 
 
 /* Date Range */
-.cursor-pointer {
+.datefilter {
     @media (max-width:768px){
         width: 280px !important;
     }
