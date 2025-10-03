@@ -1233,8 +1233,8 @@ export const productOptions = [
   },
   {
     name: "White Board",
-    sizes: ["N/A"],
-    specifications: ["N/A"],
+    sizes: ["3x4", "4x6", "4x8", "4x10", "4x12"],
+    specifications: ["Ceramic", "Non-Magnetic", "Magnetic (Rc)"],
   },
   {
     name: "C-type Cable",
