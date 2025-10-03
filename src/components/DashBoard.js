@@ -666,69 +666,54 @@ function DashBoard() {
 
   const handleExport = async () => {
     try {
-      const exportData = filteredData.map((entry) => ({
-        Customer_Name: entry.customerName || "",
-        Mobile_Number: entry.mobileNumber || "",
-        Contact_Person: entry.contactperson || "",
-        Address: entry.address || "",
-        State: entry.state || "",
-        City: entry.city || "",
-        Organization: entry.organization || "",
-        Category: entry.category || "",
-        createdBy: entry.createdBy?.username || "",
-        Created_At: entry.createdAt
-          ? new Date(entry.createdAt).toLocaleDateString()
-          : "",
-        Expected_Closing_Date: entry.expectedClosingDate
-          ? new Date(entry.expectedClosingDate).toLocaleDateString()
-          : "",
-        Follow_Up_Date: entry.followUpDate
-          ? new Date(entry.followUpDate).toLocaleDateString()
-          : "",
-        Remarks: entry.remarks || "",
-        Products:
-          entry.products
-            ?.map(
-              (p) =>
-                `${p.name} (${p.specification}, ${p.size}, Qty: ${p.quantity})`
-            )
-            .join("; ") || "",
-        Type: entry.type || "",
-        Status: entry.status || "",
-        Close_Type: entry.closetype || "",
-        Assigned_To: entry.assignedTo?.username || "",
-        Assigned_To: entry.assignedTo?.username || "",
-        Estimated_Value: entry.estimatedValue || "",
-        Close_Amount: entry.closeamount || "",
-        Next_Action: entry.nextAction || "",
-        Live_Location: entry.liveLocation || "",
-        First_Person_Met: entry.firstPersonMeet || "",
-        Second_Person_Met: entry.secondPersonMeet || "",
-        Third_Person_Met: entry.thirdPersonMeet || "",
-        Fourth_Person_Met: entry.fourthPersonMeet || "",
-      }));
+      // Build query params from current filters using state variables
+      const params = new URLSearchParams();
+      if (searchTerm) params.append("search", searchTerm);
+      // Remove specific mobileNumber append, as it's now handled in general search
+      if (dashboardFilter !== "total") {
+        params.append("status", dashboardFilter);
+      }
+      // No category filter in frontend, skip
+      if (selectedState) params.append("state", selectedState);
+      if (selectedCity) params.append("city", selectedCity);
+      if (selectedUsername) params.append("username", selectedUsername);
+      const fromDate = dateRange[0].startDate
+        ? dateRange[0].startDate.toISOString().split("T")[0]
+        : null;
+      const toDate = dateRange[0].endDate
+        ? dateRange[0].endDate.toISOString().split("T")[0]
+        : null;
+      if (fromDate && toDate) {
+        params.append("fromDate", fromDate);
+        params.append("toDate", toDate);
+      }
 
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Filtered Entries");
+      const response = await fetch(
+        `${process.env.REACT_APP_URL}/api/export?${params.toString()}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
 
-      const excelBuffer = XLSX.write(workbook, {
-        bookType: "xlsx",
-        type: "array",
-      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Export failed");
+      }
 
-      const blob = new Blob([excelBuffer], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = "Filtered_Entries.xlsx";
+      link.href = url;
+      link.download = "entries.xlsx";
       link.click();
-      URL.revokeObjectURL(link.href);
-      toast.success("Filtered entries exported successfully!");
+      window.URL.revokeObjectURL(url);
+      toast.success("Entries exported successfully!");
     } catch (error) {
-      console.error("Export error:", error.message);
-      toast.error("Failed to export filtered entries!");
+      console.error("Export error:", error);
+      toast.error(`Failed to export entries: ${error.message}`);
     }
   };
   const handleFileUpload = async (e) => {
