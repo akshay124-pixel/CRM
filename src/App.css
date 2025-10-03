@@ -454,7 +454,13 @@ background: linear-gradient(135deg, #2575fc, #6a11cb);
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
 }
 
-.enhanced-filter-dropdown,
+.enhanced-filter-dropdown{
+
+    @media(max-width: 768px){
+        width: 277px;
+    }
+
+}
 .enhanced-search-bar {
     padding: 12px;
     border-radius: 6px;
@@ -706,6 +712,14 @@ background: linear-gradient(135deg, #2575fc, #6a11cb);
     background-color: #fafafa;
 }
 
+
+/* Date Range */
+.cursor-pointer {
+    @media (max-width:768px){
+        width: 280px !important;
+    }
+}
+
 /* Existing Search Bar and Other Styles */
 .enhanced-search-bar-container {
     display: flex;
@@ -722,6 +736,9 @@ background: linear-gradient(135deg, #2575fc, #6a11cb);
     border: 1px solid #ddd;
     font-size: 1rem;
     width: 30%;
+    @media(max-width: 768px){
+        width: 80%
+    }
 }
 
 .enhanced-filter-dropdown {
