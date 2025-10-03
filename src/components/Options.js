@@ -1039,11 +1039,12 @@ export const productOptions = [
     sizes: ["N/A"],
     specifications: [
       "Non-Voice Tracking-Full HD",
-      "UHD 20x",
-      "FHD Voice Tracking",
-      "4K Auto Tracking",
-      "4K 12x",
-      "HD 20x",
+      "FHD Voice Tracking 20X",
+      "4K Auto Tracking 12X",
+      "4K Gesture Tracking 10X",
+      "PRO 208H: 10X, 4K, 30fps, Voice Tracking, Gesture Control",
+      "PRO 3008: 20X, Voice Tracking, Gesture Control, 30fps, USB 3.0",
+      "PRO 500V: 20X, 4K, Voice Tracking, Gesture Control, 60fps, USB 3.0",
     ],
   },
   {
