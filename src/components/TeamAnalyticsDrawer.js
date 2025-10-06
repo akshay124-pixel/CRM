@@ -241,21 +241,29 @@ const TeamAnalyticsDrawer = ({
     }
 
     const statsMap = {};
-    const filteredEntries = entries.filter((entry) => {
-      const createdAt = new Date(entry.createdAt);
-      const isValidDate =
-        !dateRange[0].startDate ||
-        !dateRange[0].endDate ||
-        (createdAt >= new Date(dateRange[0].startDate) &&
-          createdAt <= new Date(dateRange[0].endDate));
-      if (!isValidDate) {
-        console.log(
-          `Entry filtered out due to date range (ID: ${entry._id}):`,
-          entry
-        );
-      }
-      return isValidDate;
-    });
+   const filteredEntries = entries.filter((entry) => {
+  const createdAt = new Date(entry.createdAt);
+  const updatedAt = entry.updatedAt ? new Date(entry.updatedAt) : null;
+  const startDate = dateRange[0].startDate
+    ? new Date(dateRange[0].startDate)
+    : null;
+  const endDate = dateRange[0].endDate ? new Date(dateRange[0].endDate) : null;
+
+  const isInDateRange =
+    !startDate ||
+    !endDate ||
+    (createdAt >= startDate && createdAt <= endDate) ||
+    (updatedAt && updatedAt >= startDate && updatedAt <= endDate);
+
+  if (!isInDateRange) {
+    console.log(
+      `Entry filtered out due to date range (ID: ${entry._id}):`,
+      entry
+    );
+  }
+
+  return isInDateRange;
+});
 
     console.log("Filtered Entries:", filteredEntries);
 
