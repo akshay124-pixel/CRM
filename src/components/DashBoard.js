@@ -938,89 +938,93 @@ function DashBoard() {
     setIsDeleteModalOpen(true);
   }, [selectedEntries]);
   const { total, monthly } = useMemo(() => {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
 
-    // Filter entries based on role, userId, and selectedUsername
-    const filteredEntries = entries.filter((entry) => {
-      const isCreator = entry.createdBy?._id === userId;
-      const isAssigned = Array.isArray(entry.assignedTo)
-        ? entry.assignedTo.some((user) => user._id === userId)
-        : entry.assignedTo?._id === userId;
-      const usernameMatch =
-        !selectedUsername ||
-        entry.createdBy?.username === selectedUsername ||
-        (Array.isArray(entry.assignedTo) &&
-          entry.assignedTo.some((user) => user.username === selectedUsername));
+  // Initial filter based on role, userId, and selectedUsername
+  let filteredEntries = entries.filter((entry) => {
+    const isCreator = entry.createdBy?._id === userId;
+    const isAssigned = Array.isArray(entry.assignedTo)
+      ? entry.assignedTo.some((user) => user._id === userId)
+      : entry.assignedTo?._id === userId;
+    const usernameMatch =
+      !selectedUsername ||
+      entry.createdBy?.username === selectedUsername ||
+      (Array.isArray(entry.assignedTo) &&
+        entry.assignedTo.some((user) => user.username === selectedUsername));
 
+    return (
+      (role === "superadmin" ||
+        role === "admin" ||
+        isCreator ||
+        isAssigned) &&
+      usernameMatch
+    );
+  });
+
+  const startDate = dateRange?.[0]?.startDate
+    ? new Date(dateRange[0].startDate.setHours(0, 0, 0, 0))
+    : null;
+  const endDate = dateRange?.[0]?.endDate
+    ? new Date(dateRange[0].endDate.setHours(23, 59, 59, 999))
+    : null;
+
+  const hasDateRange = startDate && endDate;
+
+  // If date range is applied, further filter entries by createdAt or updatedAt
+  if (hasDateRange) {
+    filteredEntries = filteredEntries.filter((entry) => {
+      const createdAt = new Date(entry.createdAt);
+      const updatedAt = new Date(entry.updatedAt || entry.createdAt);
       return (
-        (role === "superadmin" ||
-          role === "admin" ||
-          isCreator ||
-          isAssigned) &&
-        usernameMatch
+        (createdAt >= startDate && createdAt <= endDate) ||
+        (updatedAt >= startDate && updatedAt <= endDate)
       );
     });
+  }
 
-    // Calculate total visits
-    const total = filteredEntries.reduce((sum, entry) => {
-      const startDate = dateRange[0].startDate
-        ? new Date(dateRange[0].startDate.setHours(0, 0, 0, 0))
-        : null;
-      const endDate = dateRange[0].endDate
-        ? new Date(dateRange[0].endDate.setHours(23, 59, 59, 999))
-        : null;
-
-      // Filter history items by date range if provided
-      const filteredHistory =
-        entry.history?.filter((historyItem) => {
-          const timestamp = new Date(historyItem.timestamp);
-          return (
-            !startDate ||
-            !endDate ||
-            (timestamp >= startDate && timestamp <= endDate)
-          );
-        }) || [];
-
+  // Calculate total visits (all history if no date range, else within range)
+  const total = filteredEntries.reduce((sum, entry) => {
+    if (!hasDateRange) {
+      return sum + (entry.history?.length || 0);
+    } else {
+      const filteredHistory = entry.history?.filter((historyItem) => {
+        const timestamp = new Date(historyItem.timestamp);
+        return timestamp >= startDate && timestamp <= endDate;
+      }) || [];
       return sum + filteredHistory.length;
-    }, 0);
+    }
+  }, 0);
 
-    // Calculate monthly visits based on history timestamps
-    const monthly = filteredEntries.reduce((sum, entry) => {
-      const startDate = dateRange[0].startDate
-        ? new Date(dateRange[0].startDate.setHours(0, 0, 0, 0))
-        : null;
-      const endDate = dateRange[0].endDate
-        ? new Date(dateRange[0].endDate.setHours(23, 59, 59, 999))
-        : null;
+  // Calculate monthly visits based on history timestamps
+  const monthly = filteredEntries.reduce((sum, entry) => {
+    // Filter history items by date range or current month
+    const filteredHistory =
+      entry.history?.filter((historyItem) => {
+        const timestamp = new Date(historyItem.timestamp);
+        const historyMonth = timestamp.getMonth();
+        const historyYear = timestamp.getFullYear();
 
-      // Filter history items by date range or current month
-      const filteredHistory =
-        entry.history?.filter((historyItem) => {
-          const timestamp = new Date(historyItem.timestamp);
-          const historyMonth = timestamp.getMonth();
-          const historyYear = timestamp.getFullYear();
+        if (!hasDateRange) {
+          // If no date range is applied, count history items for the current month
+          return historyMonth === currentMonth && historyYear === currentYear;
+        } else {
+          // If date range is applied, count history items within the range
+          return timestamp >= startDate && timestamp <= endDate;
+        }
+      }) || [];
 
-          if (!startDate || !endDate) {
-            // If no date range is applied, count history items for the current month
-            return historyMonth === currentMonth && historyYear === currentYear;
-          } else {
-            // If date range is applied, count history items within the range
-            return timestamp >= startDate && timestamp <= endDate;
-          }
-        }) || [];
+    return sum + filteredHistory.length;
+  }, 0);
 
-      return sum + filteredHistory.length;
-    }, 0);
+  return { total, monthly };
+}, [entries, role, userId, selectedUsername, dateRange]);
 
-    return { total, monthly };
-  }, [entries, role, userId, selectedUsername, dateRange]);
-
-  useEffect(() => {
-    setTotalVisits(total);
-    setMonthlyVisits(monthly);
-  }, [total, monthly]);
+useEffect(() => {
+  setTotalVisits(total);
+  setMonthlyVisits(monthly);
+}, [total, monthly]);
 
   useEffect(() => {
     let lastCheckedMonth = new Date().getMonth();
