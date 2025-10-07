@@ -578,13 +578,53 @@ const TeamAnalyticsDrawer = ({
     };
   }, [isOpen, role, onClose, teamStatsMemo, users]);
 
-
+  // Calculate overall stats
+  const overallStats = useMemo(() => {
+    const stats = filteredTeamStats.reduce(
+      (acc, team) => ({
+        total: acc.total + team.teamTotal.allTimeEntries,
+        monthTotal: acc.monthTotal + team.teamTotal.monthEntries,
+        hot: acc.hot + team.teamTotal.hot,
+        cold: acc.cold + team.teamTotal.cold,
+        warm: acc.warm + team.teamTotal.warm,
+        closedWon: acc.closedWon + team.teamTotal.closedWon,
+        closedLost: acc.closedLost + team.teamTotal.closedLost,
+        totalClosingAmount:
+          acc.totalClosingAmount + (team.teamTotal.totalClosingAmount || 0),
+      }),
+      {
+        total: 0,
+        monthTotal: 0,
+        hot: 0,
+        cold: 0,
+        warm: 0,
+        closedWon: 0,
+        closedLost: 0,
+        totalClosingAmount: 0,
+      }
+    );
+    console.log("TeamAnalytics Overall Stats:", stats);
+    return stats;
+  }, [filteredTeamStats]);
 
   // Export analytics to Excel
   const handleExport = useCallback(() => {
     try {
       const exportData = [
-       
+        {
+          Section: "Overall Statistics",
+          Team: "",
+          "Team Leader": "",
+          Member: "",
+          "Total Entries": overallStats.total,
+          "This Month": overallStats.monthTotal,
+          Hot: overallStats.hot,
+          Cold: overallStats.cold,
+          Warm: overallStats.warm,
+          Won: overallStats.closedWon,
+          Lost: overallStats.closedLost,
+          "Total Closing Amount": overallStats.totalClosingAmount,
+        },
         ...filteredTeamStats.flatMap((team) => [
           {
             Section: "Admin Statistics",
@@ -655,7 +695,7 @@ const TeamAnalyticsDrawer = ({
       toast.error("Failed to export team analytics!");
       console.error("Export error:", error);
     }
-  }, [filteredTeamStats,  dateRange, showZeroEntries]);
+  }, [filteredTeamStats, overallStats, dateRange, showZeroEntries]);
 
   const toggleTeamMembers = useCallback((adminId) => {
     setExpandedTeams((prev) => ({
@@ -948,7 +988,93 @@ const TeamAnalyticsDrawer = ({
           </Box>
         ) : (
           <>
-            
+            <Box sx={{ mb: 4 }}>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                // style={{
+                //   background: "rgba(255, 255, 255, 0.1)",
+                //   borderRadius: "16px",
+                //   padding: "20px",
+                //   boxShadow: "0 8px 24px rgba(0, 0, 0, 0.3)",
+                // }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: "1.6rem",
+                    fontWeight: 600,
+                    mb: 2.5,
+                    textAlign: "center",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  📊 Overall Stats
+                </Typography>
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "repeat(2, 1fr)",
+                      sm: "repeat(4, 1fr)",
+                    },
+                    gap: "8px",
+                  }}
+                >
+                  {[
+                    {
+                      label: "Total Entries",
+                      value: overallStats.total,
+                      color: "lightgreen",
+                    },
+                    {
+                      label: "This Month",
+                      value: overallStats.monthTotal,
+                      color: "yellow",
+                    },
+                    {
+                      label: "Hot",
+                      value: overallStats.hot,
+                      color: "yellow",
+                    },
+                    {
+                      label: "Cold",
+                      value: overallStats.cold,
+                      color: "orange",
+                    },
+                    {
+                      label: "Warm",
+                      value: overallStats.warm,
+                      color: "lightgreen",
+                    },
+                    {
+                      label: "Won",
+                      value: overallStats.closedWon,
+                      color: "lightgrey",
+                    },
+                    {
+                      label: "Lost",
+                      value: overallStats.closedLost,
+                      color: "#e91e63",
+                    },
+                    {
+                      label: "Total Closure",
+                      value: `₹${(
+                        overallStats.totalClosingAmount || 0
+                      ).toLocaleString("en-IN")}`,
+                      color: "lightgreen",
+                    },
+                  ].map((stat) => (
+                    <StatCard
+                      key={stat.label}
+                      label={stat.label}
+                      value={stat.value}
+                      color={stat.color}
+                    />
+                  ))}
+                </Box>
+              </motion.div>
+            </Box>
 
             <Box sx={{ mb: 4 }}>
               <Typography
@@ -982,6 +1108,17 @@ const TeamAnalyticsDrawer = ({
               </Box>
             </Box>
 
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showZeroEntries}
+                  onChange={() => setShowZeroEntries(!showZeroEntries)}
+                  sx={{ color: "#34d399" }}
+                />
+              }
+              label="Show Zero-Entry Members"
+              sx={{ mb: 2, color: "rgba(255, 255, 255, 0.9)" }}
+            />
 
             {filteredTeamStats.map((team, index) => (
               <Box key={team.adminId} sx={{ mb: 4 }}>
