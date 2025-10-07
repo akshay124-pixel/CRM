@@ -181,6 +181,7 @@ const TeamAnalyticsDrawer = ({
   }, [isOpen, role, entries, dateRange, users]);
 
   // Calculate team stats
+ // Calculate team stats
   const teamStatsMemo = useMemo(() => {
     if (role !== "superadmin" || !Array.isArray(users) || users.length === 0) {
       setDebugInfo("No superadmin role or no users found");
@@ -241,13 +242,21 @@ const TeamAnalyticsDrawer = ({
     }
 
     const statsMap = {};
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const startDate = dateRange[0].startDate ? new Date(dateRange[0].startDate) : null;
+    const endDate = dateRange[0].endDate ? new Date(dateRange[0].endDate) : null;
+    if (startDate) {
+      startDate.setHours(0, 0, 0, 0);
+    }
+    if (endDate) {
+      endDate.setHours(23, 59, 59, 999);
+    }
+
    const filteredEntries = entries.filter((entry) => {
   const createdAt = new Date(entry.createdAt);
   const updatedAt = entry.updatedAt ? new Date(entry.updatedAt) : null;
-  const startDate = dateRange[0].startDate
-    ? new Date(dateRange[0].startDate)
-    : null;
-  const endDate = dateRange[0].endDate ? new Date(dateRange[0].endDate) : null;
 
   const isInDateRange =
     !startDate ||
@@ -273,10 +282,6 @@ const TeamAnalyticsDrawer = ({
       );
     }
 
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-
     // Initialize stats for all admins
     admins.forEach((admin) => {
       statsMap[admin._id] = {
@@ -288,6 +293,7 @@ const TeamAnalyticsDrawer = ({
           username: admin.username,
           allTimeEntries: 0,
           monthEntries: 0,
+          totalVisits: 0,
           cold: 0,
           warm: 0,
           hot: 0,
@@ -299,6 +305,7 @@ const TeamAnalyticsDrawer = ({
         teamTotal: {
           allTimeEntries: 0,
           monthEntries: 0,
+          totalVisits: 0,
           cold: 0,
           warm: 0,
           hot: 0,
@@ -376,6 +383,7 @@ const TeamAnalyticsDrawer = ({
               username: memberName,
               allTimeEntries: 0,
               monthEntries: 0,
+              totalVisits: 0,
               cold: 0,
               warm: 0,
               hot: 0,
@@ -390,15 +398,30 @@ const TeamAnalyticsDrawer = ({
         targetAnalytics.allTimeEntries += 1;
         statsMap[adminId].teamTotal.allTimeEntries += 1;
 
-        const entryDate = new Date(entry.createdAt);
-        if (
-          !isNaN(entryDate) &&
-          entryDate.getMonth() === currentMonth &&
-          entryDate.getFullYear() === currentYear
-        ) {
-          targetAnalytics.monthEntries += entry.history?.length || 0;
-          statsMap[adminId].teamTotal.monthEntries += 1;
-        }
+        // Filter history items for monthEntries and totalVisits
+        const filteredHistory =
+          entry.history?.filter((historyItem) => {
+            const timestamp = new Date(historyItem.timestamp);
+            if (!startDate || !endDate) {
+              // If no date range, count history items for the current month
+              const historyMonth = timestamp.getMonth();
+              const historyYear = timestamp.getFullYear();
+              return historyMonth === currentMonth && historyYear === currentYear;
+            } else {
+              // If date range is applied, count history items within the range
+              return timestamp >= startDate && timestamp <= endDate;
+            }
+          }) || [];
+
+        // Update monthEntries and totalVisits
+        const visitsInRangeOrMonth = filteredHistory.length;
+        const allVisits = entry.history?.length || 0;
+        const visitsToAdd = (!startDate || !endDate) ? allVisits : visitsInRangeOrMonth;
+
+        targetAnalytics.monthEntries += visitsInRangeOrMonth;
+        targetAnalytics.totalVisits += visitsToAdd;
+        statsMap[adminId].teamTotal.monthEntries += visitsInRangeOrMonth;
+        statsMap[adminId].teamTotal.totalVisits += visitsToAdd;
 
         const status = entry.status ? entry.status.toLowerCase() : null;
         const closetype = entry.closetype
@@ -467,6 +490,7 @@ const TeamAnalyticsDrawer = ({
           username: admin.username,
           allTimeEntries: 0,
           monthEntries: 0,
+          totalVisits: 0,
           cold: 0,
           warm: 0,
           hot: 0,
@@ -478,6 +502,7 @@ const TeamAnalyticsDrawer = ({
         teamTotal: {
           allTimeEntries: 0,
           monthEntries: 0,
+          totalVisits: 0,
           cold: 0,
           warm: 0,
           hot: 0,
@@ -493,6 +518,13 @@ const TeamAnalyticsDrawer = ({
       ).reduce((sum, member) => sum + (member.totalClosingAmount || 0), 0);
       teamData.teamTotal.totalClosingAmount =
         teamData.adminAnalytics.totalClosingAmount + membersTotalClosingAmount;
+
+      // Calculate teamTotal.totalVisits as sum of admin and members' total visits
+      const membersTotalVisits = Object.values(
+        teamData.membersAnalytics
+      ).reduce((sum, member) => sum + (member.totalVisits || 0), 0);
+      teamData.teamTotal.totalVisits =
+        teamData.adminAnalytics.totalVisits + membersTotalVisits;
 
       return {
         adminId: admin._id,
@@ -512,7 +544,6 @@ const TeamAnalyticsDrawer = ({
 
     return result;
   }, [users, entries, role, dateRange]);
-
   // Filter teamStats based on search term for superadmin and admin roles
   const filteredTeamStats = useMemo(() => {
     if (role !== "superadmin" && role !== "admin") return teamStats; // No filtering for 'others'
@@ -547,53 +578,13 @@ const TeamAnalyticsDrawer = ({
     };
   }, [isOpen, role, onClose, teamStatsMemo, users]);
 
-  // Calculate overall stats
-  const overallStats = useMemo(() => {
-    const stats = filteredTeamStats.reduce(
-      (acc, team) => ({
-        total: acc.total + team.teamTotal.allTimeEntries,
-        monthTotal: acc.monthTotal + team.teamTotal.monthEntries,
-        hot: acc.hot + team.teamTotal.hot,
-        cold: acc.cold + team.teamTotal.cold,
-        warm: acc.warm + team.teamTotal.warm,
-        closedWon: acc.closedWon + team.teamTotal.closedWon,
-        closedLost: acc.closedLost + team.teamTotal.closedLost,
-        totalClosingAmount:
-          acc.totalClosingAmount + (team.teamTotal.totalClosingAmount || 0),
-      }),
-      {
-        total: 0,
-        monthTotal: 0,
-        hot: 0,
-        cold: 0,
-        warm: 0,
-        closedWon: 0,
-        closedLost: 0,
-        totalClosingAmount: 0,
-      }
-    );
-    console.log("TeamAnalytics Overall Stats:", stats);
-    return stats;
-  }, [filteredTeamStats]);
+
 
   // Export analytics to Excel
   const handleExport = useCallback(() => {
     try {
       const exportData = [
-        {
-          Section: "Overall Statistics",
-          Team: "",
-          "Team Leader": "",
-          Member: "",
-          "Total Entries": overallStats.total,
-          "This Month": overallStats.monthTotal,
-          Hot: overallStats.hot,
-          Cold: overallStats.cold,
-          Warm: overallStats.warm,
-          Won: overallStats.closedWon,
-          Lost: overallStats.closedLost,
-          "Total Closing Amount": overallStats.totalClosingAmount,
-        },
+       
         ...filteredTeamStats.flatMap((team) => [
           {
             Section: "Admin Statistics",
@@ -664,7 +655,7 @@ const TeamAnalyticsDrawer = ({
       toast.error("Failed to export team analytics!");
       console.error("Export error:", error);
     }
-  }, [filteredTeamStats, overallStats, dateRange, showZeroEntries]);
+  }, [filteredTeamStats,  dateRange, showZeroEntries]);
 
   const toggleTeamMembers = useCallback((adminId) => {
     setExpandedTeams((prev) => ({
@@ -957,93 +948,7 @@ const TeamAnalyticsDrawer = ({
           </Box>
         ) : (
           <>
-            <Box sx={{ mb: 4 }}>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                // style={{
-                //   background: "rgba(255, 255, 255, 0.1)",
-                //   borderRadius: "16px",
-                //   padding: "20px",
-                //   boxShadow: "0 8px 24px rgba(0, 0, 0, 0.3)",
-                // }}
-              >
-                <Typography
-                  sx={{
-                    fontSize: "1.6rem",
-                    fontWeight: 600,
-                    mb: 2.5,
-                    textAlign: "center",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  📊 Overall Stats
-                </Typography>
-                <Box
-                  sx={{
-                    display: "grid",
-                    gridTemplateColumns: {
-                      xs: "repeat(2, 1fr)",
-                      sm: "repeat(4, 1fr)",
-                    },
-                    gap: "8px",
-                  }}
-                >
-                  {[
-                    {
-                      label: "Total Entries",
-                      value: overallStats.total,
-                      color: "lightgreen",
-                    },
-                    {
-                      label: "This Month",
-                      value: overallStats.monthTotal,
-                      color: "yellow",
-                    },
-                    {
-                      label: "Hot",
-                      value: overallStats.hot,
-                      color: "yellow",
-                    },
-                    {
-                      label: "Cold",
-                      value: overallStats.cold,
-                      color: "orange",
-                    },
-                    {
-                      label: "Warm",
-                      value: overallStats.warm,
-                      color: "lightgreen",
-                    },
-                    {
-                      label: "Won",
-                      value: overallStats.closedWon,
-                      color: "lightgrey",
-                    },
-                    {
-                      label: "Lost",
-                      value: overallStats.closedLost,
-                      color: "#e91e63",
-                    },
-                    {
-                      label: "Total Closure",
-                      value: `₹${(
-                        overallStats.totalClosingAmount || 0
-                      ).toLocaleString("en-IN")}`,
-                      color: "lightgreen",
-                    },
-                  ].map((stat) => (
-                    <StatCard
-                      key={stat.label}
-                      label={stat.label}
-                      value={stat.value}
-                      color={stat.color}
-                    />
-                  ))}
-                </Box>
-              </motion.div>
-            </Box>
+            
 
             <Box sx={{ mb: 4 }}>
               <Typography
@@ -1077,17 +982,6 @@ const TeamAnalyticsDrawer = ({
               </Box>
             </Box>
 
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={showZeroEntries}
-                  onChange={() => setShowZeroEntries(!showZeroEntries)}
-                  sx={{ color: "#34d399" }}
-                />
-              }
-              label="Show Zero-Entry Members"
-              sx={{ mb: 2, color: "rgba(255, 255, 255, 0.9)" }}
-            />
 
             {filteredTeamStats.map((team, index) => (
               <Box key={team.adminId} sx={{ mb: 4 }}>
