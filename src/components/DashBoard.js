@@ -677,16 +677,17 @@ function DashBoard() {
       if (selectedState) params.append("state", selectedState);
       if (selectedCity) params.append("city", selectedCity);
       if (selectedUsername) params.append("username", selectedUsername);
-      const fromDate = dateRange[0].startDate
-        ? dateRange[0].startDate.toISOString().split("T")[0]
-        : null;
-      const toDate = dateRange[0].endDate
-        ? dateRange[0].endDate.toISOString().split("T")[0]
-        : null;
-      if (fromDate && toDate) {
-        params.append("fromDate", fromDate);
-        params.append("toDate", toDate);
-      }
+      const fromDate = dateRange[0]?.startDate
+      ? new Date(dateRange[0].startDate).setHours(0, 0, 0, 0)
+      : null;
+    const toDate = dateRange[0]?.endDate
+      ? new Date(dateRange[0].endDate).setHours(23, 59, 59, 999)
+      : null;
+    
+    if (fromDate && toDate) {
+      params.append("fromDate", new Date(fromDate).toISOString());
+      params.append("toDate", new Date(toDate).toISOString());
+    }
 
       const response = await fetch(
         `${process.env.REACT_APP_URL}/api/export?${params.toString()}`,
