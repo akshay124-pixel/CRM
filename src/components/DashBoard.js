@@ -1938,15 +1938,15 @@ useEffect(() => {
               <FaPlus size={16} />
               Add New Entry
             </motion.button>
-            <motion.button
-              onClick={() => setIsAnalyticsModalOpen(true)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              style={actionButtonStyle}
-            >
-              <FaChartBar size={16} />
-              Analytics
-            </motion.button>
+    <motion.button
+  onClick={() => setIsAnalyticsModalOpen(true)}
+  whileHover={{ scale: 1.05 }}
+  whileTap={{ scale: 0.95 }}
+  style={{ ...actionButtonStyle, width: "166px" ,gap:"11px" }}
+>
+  <FaChartBar size={16} />
+  Analytics
+</motion.button>
             {(role === "superadmin" || role === "admin") && (
               <>
                 <motion.button
