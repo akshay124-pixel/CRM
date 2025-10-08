@@ -682,6 +682,9 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
       anchor="top"
       open={open}
       onClose={handleClose}
+      ModalProps={{
+        onBackdropClick: handleClose,
+      }}
       PaperProps={{
         sx: {
           background: "transparent",
