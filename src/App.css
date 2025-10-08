@@ -907,12 +907,7 @@ background: linear-gradient(135deg, #2575fc, #6a11cb);
         max-width: 90vw !important;
         margin: 10px auto !important;
     }
-
-    .modal-content {
-        padding: 10px !important;
-    }
-
-    .modal-body {
+     .modal-body {
         font-size: 0.9rem !important;
     }
 
