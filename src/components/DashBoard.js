@@ -627,7 +627,7 @@ function DashBoard() {
         )
       );
       setIsEditModalOpen(false);
-      toast.success("Entry updated successfully!");
+      
       // Update usernames for dropdown
       const newUsernames = new Set(usernames);
       if (Array.isArray(updatedEntry.assignedTo)) {
@@ -1209,7 +1209,7 @@ useEffect(() => {
           backgroundColor: isSelected
             ? "rgba(37, 117, 252, 0.1)"
             : isAssigned
-            ? "rgba(200, 230, 255, 0.3)" // Light blue for assigned entries
+            ? "rgba(200, 230, 255, 0.3)"
             : "#fff",
           border: isSelected ? "2px solid #2575fc" : "none",
         }}
