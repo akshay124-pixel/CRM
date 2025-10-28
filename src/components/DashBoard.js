@@ -791,13 +791,33 @@ function DashBoard() {
             return [strValue];
           };
 
-          // Parse dates safely
-          const parseDate = (dateStr) => {
-            if (!dateStr) return null;
-            const date = new Date(dateStr);
-            return isNaN(date.getTime()) ? null : date.toISOString();
-          };
+// Parse dates safely
+const parseDate = (dateStr) => {
+  if (!dateStr) return null;
+  
+  // Handle DD/MM/YYYY explicitly (Excel common format)
+  const parts = String(dateStr).trim().split('/');
+  if (parts.length === 3) {
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;  // JS months: 0-11
+    const year = parseInt(parts[2], 10);
+    if (!isNaN(day) && !isNaN(month) && !isNaN(year) && month >= 0 && month < 12) {
+      // Fix: Use Date.UTC to avoid local timezone shift
+      const date = new Date(Date.UTC(year, month, day));
+      return date.toISOString();  // Now correctly "2025-06-13T00:00:00.000Z"
+    }
+  }
+  
+  // Fallback for other formats (e.g., YYYY-MM-DD) - also use UTC if possible
+  const date = new Date(dateStr);
+  if (!isNaN(date.getTime())) {
+    // Adjust to UTC midnight to avoid time shifts
+    return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())).toISOString();
+  }
+  return null;
+};
 
+const createdAtStr = parseDate(item.CreatedAt);  // Already correct
           return {
             customerName: item.Customer_Name || "",
             mobileNumber: item.Mobile_Number ? String(item.Mobile_Number) : "",
@@ -825,6 +845,7 @@ function DashBoard() {
             followUpDate: parseDate(item.Follow_Up_Date),
             products: parseProducts(item.Products),
             assignedTo: parseArrayField(item.Assigned_To),
+            createdAt: createdAtStr,
           };
         });
 
