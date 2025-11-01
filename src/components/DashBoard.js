@@ -1048,172 +1048,6 @@ useEffect(() => {
   setMonthlyVisits(monthly);
 }, [total, monthly]);
 
-  useEffect(() => {
-    let lastCheckedMonth = new Date().getMonth();
-
-    const checkMonthChange = () => {
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-
-      // Reset monthlyVisits if the month has changed
-      if (currentMonth !== lastCheckedMonth) {
-        setMonthlyVisits(0);
-        lastCheckedMonth = currentMonth;
-      }
-
-      const monthly = entries.reduce((sum, entry) => {
-        const createdAt = new Date(entry.createdAt);
-        const updatedAt = new Date(entry.updatedAt || entry.createdAt);
-        const createdMonth = createdAt.getMonth();
-        const createdYear = createdAt.getFullYear();
-        const updatedMonth = updatedAt.getMonth();
-        const updatedYear = updatedAt.getFullYear();
-
-        const isCreator = entry.createdBy?._id === userId;
-        const isAssigned = Array.isArray(entry.assignedTo)
-          ? entry.assignedTo.some((user) => user._id === userId)
-          : entry.assignedTo?._id === userId;
-        const usernameMatch =
-          !selectedUsername ||
-          entry.createdBy?.username === selectedUsername ||
-          (Array.isArray(entry.assignedTo) &&
-            entry.assignedTo.some(
-              (user) => user.username === selectedUsername
-            ));
-
-        const startDate = dateRange[0].startDate
-          ? new Date(dateRange[0].startDate.setHours(0, 0, 0, 0))
-          : null;
-        const endDate = dateRange[0].endDate
-          ? new Date(dateRange[0].endDate.setHours(23, 59, 59, 999))
-          : null;
-
-        if (
-          (role === "superadmin" ||
-            role === "admin" ||
-            isCreator ||
-            isAssigned) &&
-          usernameMatch
-        ) {
-          if (!startDate || !endDate) {
-            if (
-              (createdMonth === currentMonth && createdYear === currentYear) ||
-              (updatedMonth === currentMonth && updatedYear === currentYear)
-            ) {
-              return sum + (entry.history?.length || 0);
-            }
-          } else {
-            if (
-              (createdAt >= startDate && createdAt <= endDate) ||
-              (updatedAt >= startDate && updatedAt <= endDate)
-            ) {
-              return sum + (entry.history?.length || 0);
-            }
-          }
-        }
-        return sum;
-      }, 0);
-
-      setMonthlyVisits(monthly);
-    };
-
-    checkMonthChange();
-    const interval = setInterval(checkMonthChange, 60000);
-    return () => clearInterval(interval);
-  }, [entries, role, userId, selectedUsername, dateRange]);
-
-  useEffect(() => {
-    setTotalVisits(total);
-    setMonthlyVisits(monthly);
-  }, [total, monthly]);
-
-  useEffect(() => {
-    let lastCheckedMonth = new Date().getMonth();
-
-    const checkMonthChange = () => {
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-
-      // Reset monthlyVisits if the month has changed
-      if (currentMonth !== lastCheckedMonth) {
-        setMonthlyVisits(0);
-        lastCheckedMonth = currentMonth;
-      }
-
-      const monthly = entries.reduce((sum, entry) => {
-        const entryDate = new Date(entry.createdAt);
-        const updatedAt = new Date(entry.updatedAt || entry.createdAt);
-        const entryMonth = entryDate.getMonth();
-        const entryYear = entryDate.getFullYear();
-        const updatedMonth = updatedAt.getMonth();
-        const updatedYear = updatedAt.getFullYear();
-
-        const isCreator = entry.createdBy?._id === userId;
-        const isAssigned = Array.isArray(entry.assignedTo)
-          ? entry.assignedTo.some((user) => user._id === userId)
-          : entry.assignedTo?._id === userId;
-        const usernameMatch =
-          !selectedUsername ||
-          entry.createdBy?.username === selectedUsername ||
-          (Array.isArray(entry.assignedTo) &&
-            entry.assignedTo.some(
-              (user) => user.username === selectedUsername
-            ));
-
-        if (
-          (role === "superadmin" ||
-            role === "admin" ||
-            isCreator ||
-            isAssigned) &&
-          usernameMatch &&
-          !dateRange[0].startDate &&
-          !dateRange[0].endDate &&
-          ((entryMonth === currentMonth && entryYear === currentYear) ||
-            (updatedMonth === currentMonth && updatedYear === currentYear))
-        ) {
-          return sum + (entry.history?.length || 0);
-        }
-        return sum;
-      }, 0);
-
-      setMonthlyVisits(monthly);
-    };
-
-    checkMonthChange(); // Run initially
-    const interval = setInterval(checkMonthChange, 60000); // Check every minute
-    return () => clearInterval(interval);
-  }, [entries, role, userId, selectedUsername, dateRange]);
-  useEffect(() => {
-    setTotalVisits(total);
-    setMonthlyVisits(monthly);
-  });
-
-  useEffect(() => {
-    const checkMonthChange = () => {
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-
-      const monthly = entries.reduce((sum, entry) => {
-        const entryDate = new Date(entry.createdAt);
-        const entryMonth = entryDate.getMonth();
-        const entryYear = entryDate.getFullYear();
-
-        if (entryMonth === currentMonth && entryYear === currentYear) {
-          return sum + (entry.history?.length || 0);
-        }
-        return sum;
-      }, 0);
-
-      setMonthlyVisits(monthly);
-    };
-
-    const interval = setInterval(checkMonthChange, 60000);
-    return () => clearInterval(interval);
-  }, [entries]);
-
   const rowRenderer = ({ index, key, style }) => {
     const row = filteredData[index];
     const isSelected = selectedEntries.includes(row._id);
@@ -2220,19 +2054,24 @@ useEffect(() => {
                   <div>Actions</div>
                 </Box>
                 {filteredData.length === 0 ? (
-                  <Box
-                    sx={{
-                      height: "calc(100% - 60px)",
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      fontSize: "1.2rem",
-                      color: "#666",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    No Entries Available
-                  </Box>
+                  <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "65vh",
+         
+        }}
+      >
+        <div className="loading-wave">
+          <div className="loading-bar"></div>
+          <div className="loading-bar"></div>
+          <div className="loading-bar"></div>
+          <div className="loading-bar"></div>
+         
+        </div>
+       
+      </div>
                 ) : (
                   <AutoSizer>
                     {({ height, width }) => (
