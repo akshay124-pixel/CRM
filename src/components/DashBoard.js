@@ -753,28 +753,65 @@ function DashBoard() {
 
         // Parse Products string into structured object
         const parseProducts = (productsStr) => {
-          if (!productsStr || productsStr.trim() === "") return [];
-          try {
-            const productMatch = productsStr.match(
-              /^(.+?)\s*\((.+?),\s*(.+?),\s*(.+?),\s*Qty:\s*(\d+)\)$/
-            );
-            if (productMatch) {
-              const [, name, spec1, spec2, size, quantity] = productMatch;
-              return [
-                {
-                  name: name.trim(),
-                  specification: `${spec1.trim()}, ${spec2.trim()}`,
-                  size: size.trim(),
-                  quantity: parseInt(quantity),
-                },
-              ];
+          if (!productsStr || typeof productsStr !== "string") return [];
+          const items = productsStr
+            .split(";")
+            .map((s) => s.trim())
+            .filter(Boolean);
+
+          const results = [];
+          for (const item of items) {
+            // 1) Preferred format: Name (Spec: SPEC, SIZE, Qty: N)
+            let m = item.match(/^(.+?)\s*\(\s*Spec:\s*(.+?)\s*,\s*(.+?)\s*,\s*Qty:\s*(\d+)\s*\)$/i);
+            if (m) {
+              const [, name, spec, size, qty] = m;
+              results.push({
+                name: String(name).trim(),
+                specification: String(spec).trim(),
+                size: String(size).trim(),
+                quantity: Number(qty),
+              });
+              continue;
             }
-            return [];
-          } catch {
-            console.warn(`Failed to parse products: ${productsStr}`);
-            return [];
+
+            // 2) Legacy format without 'Spec:' label: Name (SPEC, SIZE, Qty: N)
+            m = item.match(/^(.+?)\s*\(\s*(.+?)\s*,\s*(.+?)\s*,\s*Qty:\s*(\d+)\s*\)$/i);
+            if (m) {
+              const [, name, spec, size, qty] = m;
+              results.push({
+                name: String(name).trim(),
+                specification: String(spec).trim(),
+                size: String(size).trim(),
+                quantity: Number(qty),
+              });
+              continue;
+            }
+
+            // 3) Minimal fallback: Name (SPEC, SIZE) => quantity defaults to 1
+            m = item.match(/^(.+?)\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)$/i);
+            if (m) {
+              const [, name, spec, size] = m;
+              results.push({
+                name: String(name).trim(),
+                specification: String(spec).trim(),
+                size: String(size).trim(),
+                quantity: 1,
+              });
+              continue;
+            }
+
+            // 4) If nothing matches, treat whole token as name
+            results.push({
+              name: item,
+              specification: "",
+              size: "",
+              quantity: 1,
+            });
           }
+
+          return results;
         };
+
 
         const newEntries = parsedData.map((item) => {
           const parseArrayField = (value) => {
@@ -1946,7 +1983,24 @@ useEffect(() => {
                   WebkitOverflowScrolling: "touch",
                 }}
               >
-                {filteredData.length === 0 ? (
+                {loading ? (
+                  <Box
+                    sx={{
+                      height: "100%",
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      p: 4,
+                    }}
+                  >
+                    <div className="loading-wave">
+                      <div className="loading-bar"></div>
+                      <div className="loading-bar"></div>
+                      <div className="loading-bar"></div>
+                      <div className="loading-bar"></div>
+                    </div>
+                  </Box>
+                ) : filteredData.length === 0 ? (
                   <Box
                     sx={{
                       height: "100%",
@@ -2053,25 +2107,38 @@ useEffect(() => {
                   <div>Users</div>
                   <div>Actions</div>
                 </Box>
-                {filteredData.length === 0 ? (
+                {loading ? (
                   <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "65vh",
-         
-        }}
-      >
-        <div className="loading-wave">
-          <div className="loading-bar"></div>
-          <div className="loading-bar"></div>
-          <div className="loading-bar"></div>
-          <div className="loading-bar"></div>
-         
-        </div>
-       
-      </div>
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      height: "65vh",
+                    }}
+                  >
+                    <div className="loading-wave">
+                      <div className="loading-bar"></div>
+                      <div className="loading-bar"></div>
+                      <div className="loading-bar"></div>
+                      <div className="loading-bar"></div>
+                    </div>
+                  </div>
+                ) : filteredData.length === 0 ? (
+                   <Box
+                    sx={{
+                      height: "100%",
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      fontSize: "1.2rem",
+                      color: "#666",
+                      fontWeight: "bold",
+                      textAlign: "center",
+                      p: 4,
+                    }}
+                  >
+                    No Entries Available
+                  </Box>
                 ) : (
                   <AutoSizer>
                     {({ height, width }) => (
