@@ -280,6 +280,7 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
+
   // Enhanced function to format assignedTo for display
   const formatAssignedTo = useCallback(
     (assignedTo) => {

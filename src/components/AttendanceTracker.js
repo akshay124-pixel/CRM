@@ -682,6 +682,9 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
       anchor="top"
       open={open}
       onClose={handleClose}
+      ModalProps={{
+        onBackdropClick: handleClose,
+      }}
       PaperProps={{
         sx: {
           background: "transparent",
@@ -691,11 +694,11 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
     >
       <Box
         sx={{
-          width: "90%",
-          maxWidth: "1200px",
+          width: { xs: "100%", md: "90%" },
+          maxWidth: { xs: "none", md: "1200px" },
           mx: "auto",
-          p: 4,
-          borderRadius: 4,
+          p: { xs: 1, sm: 2, md: 4 },
+          borderRadius: { xs: 0, md: 4 },
           backdropFilter: "blur(12px)",
           color: "white",
           boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
@@ -743,11 +746,12 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
             <Box
               sx={{
                 display: "flex",
-                flexWrap: "wrap",
-                gap: 1.5,
-                mb: 3,
-                alignItems: "center",
-                justifyContent: "flex-start",
+                flexDirection: { xs: "column", sm: "row" },
+                flexWrap: { sm: "wrap" },
+                gap: { xs: 1, md: 1.5 },
+                mb: { xs: 2, md: 3 },
+                alignItems: { xs: "stretch", md: "center" },
+                justifyContent: { xs: "stretch", md: "flex-start" },
               }}
             >
               <TextField
@@ -759,82 +763,99 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
                 sx={{
                   background: "white",
                   borderRadius: 1,
-                  minWidth: "150px",
-                  maxWidth: "180px",
+                  flex: { xs: 1, md: "unset" },
+                  minWidth: { xs: "auto", md: "150px" },
+                  maxWidth: { xs: "none", md: "180px" },
                 }}
                 inputProps={{ maxLength: 200 }}
               />
-              <Button
-                onClick={() => handleAction("check-in")}
-                variant="contained"
-                startIcon={<FaClock />}
-                disabled={
-                  loadingAction === "check-in" || locationStatus === "fetching"
-                }
+              <Box
                 sx={{
-                  bgcolor: "#43e97b",
-                  color: "black",
-                  fontWeight: "bold",
-                  "&:hover": { bgcolor: "#38d476" },
-                  minWidth: "100px",
-                  height: "40px",
+                  display: "flex",
+                  flexDirection: { xs: "column", sm: "row" },
+                  gap: { xs: 1, md: 1.5 },
+                  flex: { xs: 1, md: "unset" },
+                  justifyContent: { xs: "stretch", sm: "flex-start" },
                 }}
               >
-                {loadingAction === "check-in" ? (
-                  <CircularProgress size={18} color="inherit" />
-                ) : (
-                  "Check In"
-                )}
-              </Button>
-              <Button
-                onClick={() => handleAction("check-out")}
-                variant="contained"
-                startIcon={<FaClock />}
-                disabled={
-                  loadingAction === "check-out" || locationStatus === "fetching"
-                }
-                sx={{
-                  bgcolor: "#ff6a00",
-                  color: "white",
-                  fontWeight: "bold",
-                  "&:hover": { bgcolor: "#e65c00" },
-                  minWidth: "100px",
-                  height: "40px",
-                }}
-              >
-                {loadingAction === "check-out" ? (
-                  <CircularProgress size={18} color="inherit" />
-                ) : (
-                  "Check Out"
-                )}
-              </Button>
-              {/* Naya Leave button add kiya gaya hai, jo leave mark karega */}
-              <Button
-                onClick={() => handleAction("leave")}
-                variant="contained"
-                startIcon={<FaClock />}
-                disabled={loadingAction === "leave"}
-                sx={{
-                  bgcolor: "#f44336",
-                  color: "white",
-                  fontWeight: "bold",
-                  "&:hover": { bgcolor: "#d32f2f" },
-                  minWidth: "100px",
-                  height: "40px",
-                }}
-              >
-                {loadingAction === "leave" ? (
-                  <CircularProgress size={18} color="inherit" />
-                ) : (
-                  "Leave"
-                )}
-              </Button>
+                <Button
+                  onClick={() => handleAction("check-in")}
+                  variant="contained"
+                  startIcon={<FaClock />}
+                  disabled={
+                    loadingAction === "check-in" || locationStatus === "fetching"
+                  }
+                  sx={{
+                    bgcolor: "#43e97b",
+                    color: "black",
+                    fontWeight: "bold",
+                    "&:hover": { bgcolor: "#38d476" },
+                    minWidth: { xs: "100%", md: "100px" },
+                    height: "40px",
+                    flex: { xs: 1, md: "unset" },
+                  }}
+                >
+                  {loadingAction === "check-in" ? (
+                    <CircularProgress size={18} color="inherit" />
+                  ) : (
+                    "Check In"
+                  )}
+                </Button>
+                <Button
+                  onClick={() => handleAction("check-out")}
+                  variant="contained"
+                  startIcon={<FaClock />}
+                  disabled={
+                    loadingAction === "check-out" || locationStatus === "fetching"
+                  }
+                  sx={{
+                    bgcolor: "#ff6a00",
+                    color: "white",
+                    fontWeight: "bold",
+                    "&:hover": { bgcolor: "#e65c00" },
+                    minWidth: { xs: "100%", md: "100px" },
+                    height: "40px",
+                    flex: { xs: 1, md: "unset" },
+                  }}
+                >
+                  {loadingAction === "check-out" ? (
+                    <CircularProgress size={18} color="inherit" />
+                  ) : (
+                    "Check Out"
+                  )}
+                </Button>
+                {/* Naya Leave button add kiya gaya hai, jo leave mark karega */}
+                <Button
+                  onClick={() => handleAction("leave")}
+                  variant="contained"
+                  startIcon={<FaClock />}
+                  disabled={loadingAction === "leave"}
+                  sx={{
+                    bgcolor: "#f44336",
+                    color: "white",
+                    fontWeight: "bold",
+                    "&:hover": { bgcolor: "#d32f2f" },
+                    minWidth: { xs: "100%", md: "100px" },
+                    height: "40px",
+                    flex: { xs: 1, md: "unset" },
+                  }}
+                >
+                  {loadingAction === "leave" ? (
+                    <CircularProgress size={18} color="inherit" />
+                  ) : (
+                    "Leave"
+                  )}
+                </Button>
+              </Box>
               {/* User Filter - Only for Admin and SuperAdmin */}
               {(role === "admin" || role === "superadmin") && (
                 <FormControl
                   variant="outlined"
                   size="small"
-                  sx={{ minWidth: 150 }}
+                  sx={{
+                    minWidth: { xs: "100%", md: 150 },
+                    flex: { xs: 1, md: "unset" },
+                  }}
                 >
                   <InputLabel id="user-filter-label" sx={{ color: "black" }}>
                     Filter by User
@@ -848,6 +869,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
                       bgcolor: "white",
                       borderRadius: 1,
                       height: "40px",
+                      flex: 1,
                       "& .MuiOutlinedInput-notchedOutline": {
                         borderColor: "transparent",
                       },
@@ -875,34 +897,46 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
                   </Select>
                 </FormControl>
               )}
-              <TextField
-                label="Start Date"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                size="small"
-                InputLabelProps={{ shrink: true }}
+              <Box
                 sx={{
-                  bgcolor: "white",
-                  borderRadius: 1,
-                  minWidth: "110px",
-                  height: "40px",
+                  display: "flex",
+                  flexDirection: { xs: "column", sm: "row" },
+                  gap: { xs: 1, md: 1.5 },
+                  flex: { xs: 1, md: "unset" },
+                  justifyContent: { xs: "stretch", sm: "flex-start" },
                 }}
-              />
-              <TextField
-                label="End Date"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                size="small"
-                InputLabelProps={{ shrink: true }}
-                sx={{
-                  bgcolor: "white",
-                  borderRadius: 1,
-                  minWidth: "110px",
-                  height: "40px",
-                }}
-              />
+              >
+                <TextField
+                  label="Start Date"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                  sx={{
+                    bgcolor: "white",
+                    borderRadius: 1,
+                    flex: 1,
+                    minWidth: { xs: "auto", md: "110px" },
+                    height: "40px",
+                  }}
+                />
+                <TextField
+                  label="End Date"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                  sx={{
+                    bgcolor: "white",
+                    borderRadius: 1,
+                    flex: 1,
+                    minWidth: { xs: "auto", md: "110px" },
+                    height: "40px",
+                  }}
+                />
+              </Box>
               <Button
                 onClick={handleExport}
                 startIcon={<FaFileExcel />}
@@ -913,8 +947,9 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
                   color: "white",
                   fontWeight: "bold",
                   "&:hover": { bgcolor: "#2db7aa" },
-                  minWidth: "100px",
+                  minWidth: { xs: "100%", md: "100px" },
                   height: "40px",
+                  flex: { xs: 1, md: "unset" },
                 }}
               >
                 {loadingAction === "export" ? (
@@ -927,14 +962,15 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
 
             <Box
               sx={{
-                maxHeight: "400px",
+                maxHeight: { xs: "300px", md: "400px" },
                 overflowY: "auto",
                 background: "#fff",
                 borderRadius: 2,
                 boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                overflowX: "auto",
               }}
             >
-              <Table stickyHeader>
+              <Table stickyHeader size="small">
                 <TableHead>
                   <TableRow sx={{ backgroundColor: "#6a11cb" }}>
                     {[
@@ -953,6 +989,9 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
                           fontWeight: "bold",
                           color: "white",
                           backgroundColor: "#6a11cb",
+                          whiteSpace: "nowrap",
+                          minWidth: { xs: 80, md: 120 },
+                          padding: { xs: "8px 4px", md: "16px 16px" },
                         }}
                       >
                         {header}
@@ -977,7 +1016,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
             </Box>
 
             {totalRecords > 0 && (
-              <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
+              <Box sx={{ display: "flex", justifyContent: "center", mt: { xs: 2, md: 3 } }}>
                 <Pagination
                   count={totalPages}
                   page={currentPage}
@@ -1004,7 +1043,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
           </>
         )}
 
-        <Box sx={{ textAlign: "right", mt: 3 }}>
+        <Box sx={{ textAlign: "right", mt: { xs: 2, md: 3 } }}>
           <Button
             variant="outlined"
             onClick={handleClose}

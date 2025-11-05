@@ -85,15 +85,24 @@ const ValueAnalyticsDrawer = ({
         const statsMap = {};
         const totals = { totalClose: 0, totalHot: 0, totalWarm: 0 };
 
-        const filteredEntries = entries.filter((entry) => {
-          const createdAt = new Date(entry.createdAt);
-          return (
-            !dateRange[0].startDate ||
-            !dateRange[0].endDate ||
-            (createdAt >= new Date(dateRange[0].startDate) &&
-              createdAt <= new Date(dateRange[0].endDate))
-          );
-        });
+      const filteredEntries = entries.filter((entry) => {
+        const createdAt = new Date(entry.createdAt);
+        const updatedAt = new Date(entry.updatedAt);
+        const startDate = dateRange[0].startDate
+          ? new Date(dateRange[0].startDate)
+          : null;
+        const endDate = dateRange[0].endDate
+          ? new Date(dateRange[0].endDate)
+          : null;
+
+        const isInDateRange =
+          !startDate ||
+          !endDate ||
+          (createdAt >= startDate && createdAt <= endDate) ||
+          (updatedAt >= startDate && updatedAt <= endDate);
+
+        return isInDateRange;
+      });
 
         console.log("Filtered Entries Count:", filteredEntries.length);
 

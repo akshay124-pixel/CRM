@@ -392,8 +392,8 @@ const Navbar = () => {
               margin-bottom: 0.25rem;
             }
             .navbar-logo img {
-              width: 160px !important;
-              height: 65px !important;
+              width: 143px !important;
+              height: 46px !important;
               margin-left: 0 !important;
               margin-right: 0 !important;
             }

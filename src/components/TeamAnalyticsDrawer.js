@@ -181,6 +181,7 @@ const TeamAnalyticsDrawer = ({
   }, [isOpen, role, entries, dateRange, users]);
 
   // Calculate team stats
+ // Calculate team stats
   const teamStatsMemo = useMemo(() => {
     if (role !== "superadmin" || !Array.isArray(users) || users.length === 0) {
       setDebugInfo("No superadmin role or no users found");
@@ -241,21 +242,37 @@ const TeamAnalyticsDrawer = ({
     }
 
     const statsMap = {};
-    const filteredEntries = entries.filter((entry) => {
-      const createdAt = new Date(entry.createdAt);
-      const isValidDate =
-        !dateRange[0].startDate ||
-        !dateRange[0].endDate ||
-        (createdAt >= new Date(dateRange[0].startDate) &&
-          createdAt <= new Date(dateRange[0].endDate));
-      if (!isValidDate) {
-        console.log(
-          `Entry filtered out due to date range (ID: ${entry._id}):`,
-          entry
-        );
-      }
-      return isValidDate;
-    });
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const startDate = dateRange[0].startDate ? new Date(dateRange[0].startDate) : null;
+    const endDate = dateRange[0].endDate ? new Date(dateRange[0].endDate) : null;
+    if (startDate) {
+      startDate.setHours(0, 0, 0, 0);
+    }
+    if (endDate) {
+      endDate.setHours(23, 59, 59, 999);
+    }
+
+   const filteredEntries = entries.filter((entry) => {
+  const createdAt = new Date(entry.createdAt);
+  const updatedAt = entry.updatedAt ? new Date(entry.updatedAt) : null;
+
+  const isInDateRange =
+    !startDate ||
+    !endDate ||
+    (createdAt >= startDate && createdAt <= endDate) ||
+    (updatedAt && updatedAt >= startDate && updatedAt <= endDate);
+
+  if (!isInDateRange) {
+    console.log(
+      `Entry filtered out due to date range (ID: ${entry._id}):`,
+      entry
+    );
+  }
+
+  return isInDateRange;
+});
 
     console.log("Filtered Entries:", filteredEntries);
 
@@ -264,10 +281,6 @@ const TeamAnalyticsDrawer = ({
         "No entries found; displaying admins and their teams without entries"
       );
     }
-
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
 
     // Initialize stats for all admins
     admins.forEach((admin) => {
@@ -280,6 +293,7 @@ const TeamAnalyticsDrawer = ({
           username: admin.username,
           allTimeEntries: 0,
           monthEntries: 0,
+          totalVisits: 0,
           cold: 0,
           warm: 0,
           hot: 0,
@@ -291,6 +305,7 @@ const TeamAnalyticsDrawer = ({
         teamTotal: {
           allTimeEntries: 0,
           monthEntries: 0,
+          totalVisits: 0,
           cold: 0,
           warm: 0,
           hot: 0,
@@ -368,6 +383,7 @@ const TeamAnalyticsDrawer = ({
               username: memberName,
               allTimeEntries: 0,
               monthEntries: 0,
+              totalVisits: 0,
               cold: 0,
               warm: 0,
               hot: 0,
@@ -382,15 +398,30 @@ const TeamAnalyticsDrawer = ({
         targetAnalytics.allTimeEntries += 1;
         statsMap[adminId].teamTotal.allTimeEntries += 1;
 
-        const entryDate = new Date(entry.createdAt);
-        if (
-          !isNaN(entryDate) &&
-          entryDate.getMonth() === currentMonth &&
-          entryDate.getFullYear() === currentYear
-        ) {
-          targetAnalytics.monthEntries += entry.history?.length || 0;
-          statsMap[adminId].teamTotal.monthEntries += 1;
-        }
+        // Filter history items for monthEntries and totalVisits
+        const filteredHistory =
+          entry.history?.filter((historyItem) => {
+            const timestamp = new Date(historyItem.timestamp);
+            if (!startDate || !endDate) {
+              // If no date range, count history items for the current month
+              const historyMonth = timestamp.getMonth();
+              const historyYear = timestamp.getFullYear();
+              return historyMonth === currentMonth && historyYear === currentYear;
+            } else {
+              // If date range is applied, count history items within the range
+              return timestamp >= startDate && timestamp <= endDate;
+            }
+          }) || [];
+
+        // Update monthEntries and totalVisits
+        const visitsInRangeOrMonth = filteredHistory.length;
+        const allVisits = entry.history?.length || 0;
+        const visitsToAdd = (!startDate || !endDate) ? allVisits : visitsInRangeOrMonth;
+
+        targetAnalytics.monthEntries += visitsInRangeOrMonth;
+        targetAnalytics.totalVisits += visitsToAdd;
+        statsMap[adminId].teamTotal.monthEntries += visitsInRangeOrMonth;
+        statsMap[adminId].teamTotal.totalVisits += visitsToAdd;
 
         const status = entry.status ? entry.status.toLowerCase() : null;
         const closetype = entry.closetype
@@ -459,6 +490,7 @@ const TeamAnalyticsDrawer = ({
           username: admin.username,
           allTimeEntries: 0,
           monthEntries: 0,
+          totalVisits: 0,
           cold: 0,
           warm: 0,
           hot: 0,
@@ -470,6 +502,7 @@ const TeamAnalyticsDrawer = ({
         teamTotal: {
           allTimeEntries: 0,
           monthEntries: 0,
+          totalVisits: 0,
           cold: 0,
           warm: 0,
           hot: 0,
@@ -485,6 +518,13 @@ const TeamAnalyticsDrawer = ({
       ).reduce((sum, member) => sum + (member.totalClosingAmount || 0), 0);
       teamData.teamTotal.totalClosingAmount =
         teamData.adminAnalytics.totalClosingAmount + membersTotalClosingAmount;
+
+      // Calculate teamTotal.totalVisits as sum of admin and members' total visits
+      const membersTotalVisits = Object.values(
+        teamData.membersAnalytics
+      ).reduce((sum, member) => sum + (member.totalVisits || 0), 0);
+      teamData.teamTotal.totalVisits =
+        teamData.adminAnalytics.totalVisits + membersTotalVisits;
 
       return {
         adminId: admin._id,
@@ -504,7 +544,6 @@ const TeamAnalyticsDrawer = ({
 
     return result;
   }, [users, entries, role, dateRange]);
-
   // Filter teamStats based on search term for superadmin and admin roles
   const filteredTeamStats = useMemo(() => {
     if (role !== "superadmin" && role !== "admin") return teamStats; // No filtering for 'others'

@@ -627,7 +627,7 @@ function DashBoard() {
         )
       );
       setIsEditModalOpen(false);
-      toast.success("Entry updated successfully!");
+      
       // Update usernames for dropdown
       const newUsernames = new Set(usernames);
       if (Array.isArray(updatedEntry.assignedTo)) {
@@ -677,16 +677,17 @@ function DashBoard() {
       if (selectedState) params.append("state", selectedState);
       if (selectedCity) params.append("city", selectedCity);
       if (selectedUsername) params.append("username", selectedUsername);
-      const fromDate = dateRange[0].startDate
-        ? dateRange[0].startDate.toISOString().split("T")[0]
-        : null;
-      const toDate = dateRange[0].endDate
-        ? dateRange[0].endDate.toISOString().split("T")[0]
-        : null;
-      if (fromDate && toDate) {
-        params.append("fromDate", fromDate);
-        params.append("toDate", toDate);
-      }
+      const fromDate = dateRange[0]?.startDate
+      ? new Date(dateRange[0].startDate).setHours(0, 0, 0, 0)
+      : null;
+    const toDate = dateRange[0]?.endDate
+      ? new Date(dateRange[0].endDate).setHours(23, 59, 59, 999)
+      : null;
+    
+    if (fromDate && toDate) {
+      params.append("fromDate", new Date(fromDate).toISOString());
+      params.append("toDate", new Date(toDate).toISOString());
+    }
 
       const response = await fetch(
         `${process.env.REACT_APP_URL}/api/export?${params.toString()}`,
@@ -752,28 +753,65 @@ function DashBoard() {
 
         // Parse Products string into structured object
         const parseProducts = (productsStr) => {
-          if (!productsStr || productsStr.trim() === "") return [];
-          try {
-            const productMatch = productsStr.match(
-              /^(.+?)\s*\((.+?),\s*(.+?),\s*(.+?),\s*Qty:\s*(\d+)\)$/
-            );
-            if (productMatch) {
-              const [, name, spec1, spec2, size, quantity] = productMatch;
-              return [
-                {
-                  name: name.trim(),
-                  specification: `${spec1.trim()}, ${spec2.trim()}`,
-                  size: size.trim(),
-                  quantity: parseInt(quantity),
-                },
-              ];
+          if (!productsStr || typeof productsStr !== "string") return [];
+          const items = productsStr
+            .split(";")
+            .map((s) => s.trim())
+            .filter(Boolean);
+
+          const results = [];
+          for (const item of items) {
+            // 1) Preferred format: Name (Spec: SPEC, SIZE, Qty: N)
+            let m = item.match(/^(.+?)\s*\(\s*Spec:\s*(.+?)\s*,\s*(.+?)\s*,\s*Qty:\s*(\d+)\s*\)$/i);
+            if (m) {
+              const [, name, spec, size, qty] = m;
+              results.push({
+                name: String(name).trim(),
+                specification: String(spec).trim(),
+                size: String(size).trim(),
+                quantity: Number(qty),
+              });
+              continue;
             }
-            return [];
-          } catch {
-            console.warn(`Failed to parse products: ${productsStr}`);
-            return [];
+
+            // 2) Legacy format without 'Spec:' label: Name (SPEC, SIZE, Qty: N)
+            m = item.match(/^(.+?)\s*\(\s*(.+?)\s*,\s*(.+?)\s*,\s*Qty:\s*(\d+)\s*\)$/i);
+            if (m) {
+              const [, name, spec, size, qty] = m;
+              results.push({
+                name: String(name).trim(),
+                specification: String(spec).trim(),
+                size: String(size).trim(),
+                quantity: Number(qty),
+              });
+              continue;
+            }
+
+            // 3) Minimal fallback: Name (SPEC, SIZE) => quantity defaults to 1
+            m = item.match(/^(.+?)\s*\(\s*(.+?)\s*,\s*(.+?)\s*\)$/i);
+            if (m) {
+              const [, name, spec, size] = m;
+              results.push({
+                name: String(name).trim(),
+                specification: String(spec).trim(),
+                size: String(size).trim(),
+                quantity: 1,
+              });
+              continue;
+            }
+
+            // 4) If nothing matches, treat whole token as name
+            results.push({
+              name: item,
+              specification: "",
+              size: "",
+              quantity: 1,
+            });
           }
+
+          return results;
         };
+
 
         const newEntries = parsedData.map((item) => {
           const parseArrayField = (value) => {
@@ -790,13 +828,33 @@ function DashBoard() {
             return [strValue];
           };
 
-          // Parse dates safely
-          const parseDate = (dateStr) => {
-            if (!dateStr) return null;
-            const date = new Date(dateStr);
-            return isNaN(date.getTime()) ? null : date.toISOString();
-          };
+// Parse dates safely
+const parseDate = (dateStr) => {
+  if (!dateStr) return null;
+  
+  // Handle DD/MM/YYYY explicitly (Excel common format)
+  const parts = String(dateStr).trim().split('/');
+  if (parts.length === 3) {
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;  // JS months: 0-11
+    const year = parseInt(parts[2], 10);
+    if (!isNaN(day) && !isNaN(month) && !isNaN(year) && month >= 0 && month < 12) {
+      // Fix: Use Date.UTC to avoid local timezone shift
+      const date = new Date(Date.UTC(year, month, day));
+      return date.toISOString();  // Now correctly "2025-06-13T00:00:00.000Z"
+    }
+  }
+  
+  // Fallback for other formats (e.g., YYYY-MM-DD) - also use UTC if possible
+  const date = new Date(dateStr);
+  if (!isNaN(date.getTime())) {
+    // Adjust to UTC midnight to avoid time shifts
+    return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())).toISOString();
+  }
+  return null;
+};
 
+const createdAtStr = parseDate(item.CreatedAt);  // Already correct
           return {
             customerName: item.Customer_Name || "",
             mobileNumber: item.Mobile_Number ? String(item.Mobile_Number) : "",
@@ -824,6 +882,7 @@ function DashBoard() {
             followUpDate: parseDate(item.Follow_Up_Date),
             products: parseProducts(item.Products),
             assignedTo: parseArrayField(item.Assigned_To),
+            createdAt: createdAtStr,
           };
         });
 
@@ -938,255 +997,93 @@ function DashBoard() {
     setIsDeleteModalOpen(true);
   }, [selectedEntries]);
   const { total, monthly } = useMemo(() => {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
 
-    // Filter entries based on role, userId, and selectedUsername
-    const filteredEntries = entries.filter((entry) => {
-      const isCreator = entry.createdBy?._id === userId;
-      const isAssigned = Array.isArray(entry.assignedTo)
-        ? entry.assignedTo.some((user) => user._id === userId)
-        : entry.assignedTo?._id === userId;
-      const usernameMatch =
-        !selectedUsername ||
-        entry.createdBy?.username === selectedUsername ||
-        (Array.isArray(entry.assignedTo) &&
-          entry.assignedTo.some((user) => user.username === selectedUsername));
+  // Initial filter based on role, userId, and selectedUsername
+  let filteredEntries = entries.filter((entry) => {
+    const isCreator = entry.createdBy?._id === userId;
+    const isAssigned = Array.isArray(entry.assignedTo)
+      ? entry.assignedTo.some((user) => user._id === userId)
+      : entry.assignedTo?._id === userId;
+    const usernameMatch =
+      !selectedUsername ||
+      entry.createdBy?.username === selectedUsername ||
+      (Array.isArray(entry.assignedTo) &&
+        entry.assignedTo.some((user) => user.username === selectedUsername));
 
-      return (
-        (role === "superadmin" ||
-          role === "admin" ||
-          isCreator ||
-          isAssigned) &&
-        usernameMatch
-      );
-    });
-
-    // Calculate total visits
-    const total = filteredEntries.reduce((sum, entry) => {
-      const startDate = dateRange[0].startDate
-        ? new Date(dateRange[0].startDate.setHours(0, 0, 0, 0))
-        : null;
-      const endDate = dateRange[0].endDate
-        ? new Date(dateRange[0].endDate.setHours(23, 59, 59, 999))
-        : null;
-
-      // Filter history items by date range if provided
-      const filteredHistory =
-        entry.history?.filter((historyItem) => {
-          const timestamp = new Date(historyItem.timestamp);
-          return (
-            !startDate ||
-            !endDate ||
-            (timestamp >= startDate && timestamp <= endDate)
-          );
-        }) || [];
-
-      return sum + filteredHistory.length;
-    }, 0);
-
-    // Calculate monthly visits based on history timestamps
-    const monthly = filteredEntries.reduce((sum, entry) => {
-      const startDate = dateRange[0].startDate
-        ? new Date(dateRange[0].startDate.setHours(0, 0, 0, 0))
-        : null;
-      const endDate = dateRange[0].endDate
-        ? new Date(dateRange[0].endDate.setHours(23, 59, 59, 999))
-        : null;
-
-      // Filter history items by date range or current month
-      const filteredHistory =
-        entry.history?.filter((historyItem) => {
-          const timestamp = new Date(historyItem.timestamp);
-          const historyMonth = timestamp.getMonth();
-          const historyYear = timestamp.getFullYear();
-
-          if (!startDate || !endDate) {
-            // If no date range is applied, count history items for the current month
-            return historyMonth === currentMonth && historyYear === currentYear;
-          } else {
-            // If date range is applied, count history items within the range
-            return timestamp >= startDate && timestamp <= endDate;
-          }
-        }) || [];
-
-      return sum + filteredHistory.length;
-    }, 0);
-
-    return { total, monthly };
-  }, [entries, role, userId, selectedUsername, dateRange]);
-
-  useEffect(() => {
-    setTotalVisits(total);
-    setMonthlyVisits(monthly);
-  }, [total, monthly]);
-
-  useEffect(() => {
-    let lastCheckedMonth = new Date().getMonth();
-
-    const checkMonthChange = () => {
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-
-      // Reset monthlyVisits if the month has changed
-      if (currentMonth !== lastCheckedMonth) {
-        setMonthlyVisits(0);
-        lastCheckedMonth = currentMonth;
-      }
-
-      const monthly = entries.reduce((sum, entry) => {
-        const createdAt = new Date(entry.createdAt);
-        const updatedAt = new Date(entry.updatedAt || entry.createdAt);
-        const createdMonth = createdAt.getMonth();
-        const createdYear = createdAt.getFullYear();
-        const updatedMonth = updatedAt.getMonth();
-        const updatedYear = updatedAt.getFullYear();
-
-        const isCreator = entry.createdBy?._id === userId;
-        const isAssigned = Array.isArray(entry.assignedTo)
-          ? entry.assignedTo.some((user) => user._id === userId)
-          : entry.assignedTo?._id === userId;
-        const usernameMatch =
-          !selectedUsername ||
-          entry.createdBy?.username === selectedUsername ||
-          (Array.isArray(entry.assignedTo) &&
-            entry.assignedTo.some(
-              (user) => user.username === selectedUsername
-            ));
-
-        const startDate = dateRange[0].startDate
-          ? new Date(dateRange[0].startDate.setHours(0, 0, 0, 0))
-          : null;
-        const endDate = dateRange[0].endDate
-          ? new Date(dateRange[0].endDate.setHours(23, 59, 59, 999))
-          : null;
-
-        if (
-          (role === "superadmin" ||
-            role === "admin" ||
-            isCreator ||
-            isAssigned) &&
-          usernameMatch
-        ) {
-          if (!startDate || !endDate) {
-            if (
-              (createdMonth === currentMonth && createdYear === currentYear) ||
-              (updatedMonth === currentMonth && updatedYear === currentYear)
-            ) {
-              return sum + (entry.history?.length || 0);
-            }
-          } else {
-            if (
-              (createdAt >= startDate && createdAt <= endDate) ||
-              (updatedAt >= startDate && updatedAt <= endDate)
-            ) {
-              return sum + (entry.history?.length || 0);
-            }
-          }
-        }
-        return sum;
-      }, 0);
-
-      setMonthlyVisits(monthly);
-    };
-
-    checkMonthChange();
-    const interval = setInterval(checkMonthChange, 60000);
-    return () => clearInterval(interval);
-  }, [entries, role, userId, selectedUsername, dateRange]);
-
-  useEffect(() => {
-    setTotalVisits(total);
-    setMonthlyVisits(monthly);
-  }, [total, monthly]);
-
-  useEffect(() => {
-    let lastCheckedMonth = new Date().getMonth();
-
-    const checkMonthChange = () => {
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-
-      // Reset monthlyVisits if the month has changed
-      if (currentMonth !== lastCheckedMonth) {
-        setMonthlyVisits(0);
-        lastCheckedMonth = currentMonth;
-      }
-
-      const monthly = entries.reduce((sum, entry) => {
-        const entryDate = new Date(entry.createdAt);
-        const updatedAt = new Date(entry.updatedAt || entry.createdAt);
-        const entryMonth = entryDate.getMonth();
-        const entryYear = entryDate.getFullYear();
-        const updatedMonth = updatedAt.getMonth();
-        const updatedYear = updatedAt.getFullYear();
-
-        const isCreator = entry.createdBy?._id === userId;
-        const isAssigned = Array.isArray(entry.assignedTo)
-          ? entry.assignedTo.some((user) => user._id === userId)
-          : entry.assignedTo?._id === userId;
-        const usernameMatch =
-          !selectedUsername ||
-          entry.createdBy?.username === selectedUsername ||
-          (Array.isArray(entry.assignedTo) &&
-            entry.assignedTo.some(
-              (user) => user.username === selectedUsername
-            ));
-
-        if (
-          (role === "superadmin" ||
-            role === "admin" ||
-            isCreator ||
-            isAssigned) &&
-          usernameMatch &&
-          !dateRange[0].startDate &&
-          !dateRange[0].endDate &&
-          ((entryMonth === currentMonth && entryYear === currentYear) ||
-            (updatedMonth === currentMonth && updatedYear === currentYear))
-        ) {
-          return sum + (entry.history?.length || 0);
-        }
-        return sum;
-      }, 0);
-
-      setMonthlyVisits(monthly);
-    };
-
-    checkMonthChange(); // Run initially
-    const interval = setInterval(checkMonthChange, 60000); // Check every minute
-    return () => clearInterval(interval);
-  }, [entries, role, userId, selectedUsername, dateRange]);
-  useEffect(() => {
-    setTotalVisits(total);
-    setMonthlyVisits(monthly);
+    return (
+      (role === "superadmin" ||
+        role === "admin" ||
+        isCreator ||
+        isAssigned) &&
+      usernameMatch
+    );
   });
 
-  useEffect(() => {
-    const checkMonthChange = () => {
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
+  const startDate = dateRange?.[0]?.startDate
+    ? new Date(dateRange[0].startDate.setHours(0, 0, 0, 0))
+    : null;
+  const endDate = dateRange?.[0]?.endDate
+    ? new Date(dateRange[0].endDate.setHours(23, 59, 59, 999))
+    : null;
 
-      const monthly = entries.reduce((sum, entry) => {
-        const entryDate = new Date(entry.createdAt);
-        const entryMonth = entryDate.getMonth();
-        const entryYear = entryDate.getFullYear();
+  const hasDateRange = startDate && endDate;
 
-        if (entryMonth === currentMonth && entryYear === currentYear) {
-          return sum + (entry.history?.length || 0);
+  // If date range is applied, further filter entries by createdAt or updatedAt
+  if (hasDateRange) {
+    filteredEntries = filteredEntries.filter((entry) => {
+      const createdAt = new Date(entry.createdAt);
+      const updatedAt = new Date(entry.updatedAt || entry.createdAt);
+      return (
+        (createdAt >= startDate && createdAt <= endDate) ||
+        (updatedAt >= startDate && updatedAt <= endDate)
+      );
+    });
+  }
+
+  // Calculate total visits (all history if no date range, else within range)
+  const total = filteredEntries.reduce((sum, entry) => {
+    if (!hasDateRange) {
+      return sum + (entry.history?.length || 0);
+    } else {
+      const filteredHistory = entry.history?.filter((historyItem) => {
+        const timestamp = new Date(historyItem.timestamp);
+        return timestamp >= startDate && timestamp <= endDate;
+      }) || [];
+      return sum + filteredHistory.length;
+    }
+  }, 0);
+
+  // Calculate monthly visits based on history timestamps
+  const monthly = filteredEntries.reduce((sum, entry) => {
+    // Filter history items by date range or current month
+    const filteredHistory =
+      entry.history?.filter((historyItem) => {
+        const timestamp = new Date(historyItem.timestamp);
+        const historyMonth = timestamp.getMonth();
+        const historyYear = timestamp.getFullYear();
+
+        if (!hasDateRange) {
+          // If no date range is applied, count history items for the current month
+          return historyMonth === currentMonth && historyYear === currentYear;
+        } else {
+          // If date range is applied, count history items within the range
+          return timestamp >= startDate && timestamp <= endDate;
         }
-        return sum;
-      }, 0);
+      }) || [];
 
-      setMonthlyVisits(monthly);
-    };
+    return sum + filteredHistory.length;
+  }, 0);
 
-    const interval = setInterval(checkMonthChange, 60000);
-    return () => clearInterval(interval);
-  }, [entries]);
+  return { total, monthly };
+}, [entries, role, userId, selectedUsername, dateRange]);
+
+useEffect(() => {
+  setTotalVisits(total);
+  setMonthlyVisits(monthly);
+}, [total, monthly]);
 
   const rowRenderer = ({ index, key, style }) => {
     const row = filteredData[index];
@@ -1204,7 +1101,7 @@ function DashBoard() {
           backgroundColor: isSelected
             ? "rgba(37, 117, 252, 0.1)"
             : isAssigned
-            ? "rgba(200, 230, 255, 0.3)" // Light blue for assigned entries
+            ? "rgba(200, 230, 255, 0.3)"
             : "#fff",
           border: isSelected ? "2px solid #2575fc" : "none",
         }}
@@ -1933,15 +1830,15 @@ function DashBoard() {
               <FaPlus size={16} />
               Add New Entry
             </motion.button>
-            <motion.button
-              onClick={() => setIsAnalyticsModalOpen(true)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              style={actionButtonStyle}
-            >
-              <FaChartBar size={16} />
-              Analytics
-            </motion.button>
+    <motion.button
+  onClick={() => setIsAnalyticsModalOpen(true)}
+  whileHover={{ scale: 1.05 }}
+  whileTap={{ scale: 0.95 }}
+  style={{ ...actionButtonStyle, width: "166px" ,gap:"11px" }}
+>
+  <FaChartBar size={16} />
+  Analytics
+</motion.button>
             {(role === "superadmin" || role === "admin") && (
               <>
                 <motion.button
@@ -2086,7 +1983,24 @@ function DashBoard() {
                   WebkitOverflowScrolling: "touch",
                 }}
               >
-                {filteredData.length === 0 ? (
+                {loading ? (
+                  <Box
+                    sx={{
+                      height: "100%",
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      p: 4,
+                    }}
+                  >
+                    <div className="loading-wave">
+                      <div className="loading-bar"></div>
+                      <div className="loading-bar"></div>
+                      <div className="loading-bar"></div>
+                      <div className="loading-bar"></div>
+                    </div>
+                  </Box>
+                ) : filteredData.length === 0 ? (
                   <Box
                     sx={{
                       height: "100%",
@@ -2193,16 +2107,34 @@ function DashBoard() {
                   <div>Users</div>
                   <div>Actions</div>
                 </Box>
-                {filteredData.length === 0 ? (
-                  <Box
+                {loading ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      height: "65vh",
+                    }}
+                  >
+                    <div className="loading-wave">
+                      <div className="loading-bar"></div>
+                      <div className="loading-bar"></div>
+                      <div className="loading-bar"></div>
+                      <div className="loading-bar"></div>
+                    </div>
+                  </div>
+                ) : filteredData.length === 0 ? (
+                   <Box
                     sx={{
-                      height: "calc(100% - 60px)",
+                      height: "100%",
                       display: "flex",
                       justifyContent: "center",
                       alignItems: "center",
                       fontSize: "1.2rem",
                       color: "#666",
                       fontWeight: "bold",
+                      textAlign: "center",
+                      p: 4,
                     }}
                   >
                     No Entries Available
