@@ -774,7 +774,7 @@ const TeamAnalyticsDrawer = ({
       PaperProps={{
         sx: {
           width: "100%",
-          maxHeight: "90vh",
+          maxHeight: "100vh",
           background: "linear-gradient(135deg, #2575fc, #6a11cb)",
           color: "white",
           borderRadius: "20px 20px 0 0",
