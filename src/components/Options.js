@@ -184,6 +184,7 @@ export const statesAndCities = {
     "Una",
   ],
   Jharkhand: [
+    "Koderma",
     "Ranchi",
     "Jamshedpur",
     "Dhanbad",
