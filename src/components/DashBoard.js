@@ -423,187 +423,92 @@ function DashBoard() {
     dateRange,
   ]);
 
-  // Naya handleEntryAdded function
+  // Optimized handleEntryAdded - instant local state update without refetch
   const handleEntryAdded = useCallback(
     (newEntry) => {
-      // Fetch users to map assignedTo IDs to user objects with usernames
-      const fetchUsers = async () => {
-        try {
-          const token = localStorage.getItem("token");
-          const response = await axios.get(
-            `${process.env.REACT_APP_URL}/api/users`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
+      // Map assignedTo IDs to user objects with usernames
+      const assignedToUsers = Array.isArray(newEntry.assignedTo)
+        ? newEntry.assignedTo.map((user) => {
+            if (typeof user === "object" && user._id) {
+              return { _id: user._id, username: user.username || "" };
             }
-          );
-          const users = response.data;
+            // If it's just an ID, we'll need to look it up later
+            return { _id: user, username: "" };
+          })
+        : [];
 
-          // Map assignedTo IDs to user objects
-          const assignedToUsers = Array.isArray(newEntry.assignedTo)
-            ? newEntry.assignedTo
-                .map((id) => users.find((user) => user._id === id))
-                .filter(Boolean)
-                .map((user) => ({ _id: user._id, username: user.username }))
-            : [];
-
-          const completeEntry = {
-            _id: newEntry._id || Date.now().toString(),
-            customerName: newEntry.customerName || "",
-            mobileNumber: newEntry.mobileNumber || "",
-            contactperson: newEntry.contactperson || "",
-            products: newEntry.products || [],
-            type: newEntry.type || "",
-            address: newEntry.address || "",
-            state: newEntry.state || "",
-            city: newEntry.city || "",
-            organization: newEntry.organization || "",
-            category: newEntry.category || "",
-            createdAt: newEntry.createdAt || new Date().toISOString(),
+      const completeEntry = {
+        _id: newEntry._id || Date.now().toString(),
+        customerName: newEntry.customerName || "",
+        customerEmail: newEntry.customerEmail || "",
+        mobileNumber: newEntry.mobileNumber || "",
+        contactperson: newEntry.contactperson || "",
+        products: newEntry.products || [],
+        type: newEntry.type || "",
+        address: newEntry.address || "",
+        state: newEntry.state || "",
+        city: newEntry.city || "",
+        organization: newEntry.organization || "",
+        category: newEntry.category || "",
+        createdAt: newEntry.createdAt || new Date().toISOString(),
+        status: newEntry.status || "Not Found",
+        expectedClosingDate: newEntry.expectedClosingDate || "",
+        followUpDate: newEntry.followUpDate || "",
+        remarks: newEntry.remarks || "",
+        firstdate: newEntry.firstdate || "",
+        estimatedValue: newEntry.estimatedValue || "",
+        nextAction: newEntry.nextAction || "",
+        closetype:
+          newEntry.status === "Closed" &&
+          ["Closed Won", "Closed Lost"].includes(newEntry.closetype)
+            ? newEntry.closetype
+            : "",
+        priority: newEntry.priority || "",
+        updatedAt: newEntry.updatedAt || new Date().toISOString(),
+        createdBy: {
+          _id: newEntry.createdBy?._id || userId,
+          username:
+            newEntry.createdBy?.username ||
+            localStorage.getItem("username") ||
+            "",
+        },
+        assignedTo: assignedToUsers,
+        history: newEntry.history || [
+          {
+            timestamp: new Date().toISOString(),
             status: newEntry.status || "Not Found",
-            expectedClosingDate: newEntry.expectedClosingDate || "",
-            followUpDate: newEntry.followUpDate || "",
             remarks: newEntry.remarks || "",
-            firstdate: newEntry.firstdate || "",
-            estimatedValue: newEntry.estimatedValue || "",
-            nextAction: newEntry.nextAction || "",
-            closetype:
-              newEntry.status === "Closed" &&
-              ["Closed Won", "Closed Lost"].includes(newEntry.closetype)
-                ? newEntry.closetype
-                : "",
-            priority: newEntry.priority || "",
-            updatedAt: newEntry.updatedAt || new Date().toISOString(),
-            createdBy: {
-              _id: userId,
-              username:
-                newEntry.createdBy?.username ||
-                localStorage.getItem("username") ||
-                "",
-            },
-            assignedTo: assignedToUsers, // Use mapped user objects
-            history: newEntry.history || [
-              {
-                timestamp: new Date().toISOString(),
-                status: newEntry.status || "Not Found",
-                remarks: newEntry.remarks || "",
-                liveLocation: newEntry.liveLocation || "",
-                products: newEntry.products || [],
-                assignedTo: assignedToUsers,
-              },
-            ],
-          };
-
-          setEntries((prev) => [completeEntry, ...prev]);
-
-          // Update usernames for dropdown
-          const newUsernames = new Set(usernames);
-          if (newEntry.createdBy?.username) {
-            newUsernames.add(newEntry.createdBy.username);
-          }
-          assignedToUsers.forEach((user) => {
-            if (user.username) newUsernames.add(user.username);
-          });
-          setUsernames([...newUsernames]);
-
-          // Fetch latest entries to sync with backend
-          await fetchEntries();
-        } catch (error) {
-          console.error("Error fetching users for assignedTo:", error);
-          toast.error("Failed to fetch user details for assignment.");
-          setEntries((prev) => [
-            {
-              ...newEntry,
-              _id: newEntry._id || Date.now().toString(),
-              createdBy: {
-                _id: userId,
-                username: newEntry.createdBy?.username || "",
-              },
-              assignedTo: [],
-              history: [
-                {
-                  timestamp: new Date().toISOString(),
-                  status: newEntry.status || "Not Found",
-                  remarks: newEntry.remarks || "",
-                  liveLocation: newEntry.liveLocation || "",
-                  products: newEntry.products || [],
-                  assignedTo: [],
-                },
-              ],
-            },
-            ...prev,
-          ]);
-        }
+            liveLocation: newEntry.liveLocation || "",
+            products: newEntry.products || [],
+            assignedTo: assignedToUsers,
+          },
+        ],
       };
 
-      if (
-        role === "superadmin" ||
-        role === "admin" ||
-        newEntry.assignedTo?.length > 0
-      ) {
-        fetchUsers();
-      } else {
-        const completeEntry = {
-          _id: newEntry._id || Date.now().toString(),
-          customerName: newEntry.customerName || "",
-          mobileNumber: newEntry.mobileNumber || "",
-          contactperson: newEntry.contactperson || "",
-          products: newEntry.products || [],
-          type: newEntry.type || "",
-          address: newEntry.address || "",
-          state: newEntry.state || "",
-          city: newEntry.city || "",
-          organization: newEntry.organization || "",
-          category: newEntry.category || "",
-          createdAt: newEntry.createdAt || new Date().toISOString(),
-          status: newEntry.status || "Not Found",
-          expectedClosingDate: newEntry.expectedClosingDate || "",
-          followUpDate: newEntry.followUpDate || "",
-          remarks: newEntry.remarks || "",
-          firstdate: newEntry.firstdate || "",
-          estimatedValue: newEntry.estimatedValue || "",
-          nextAction: newEntry.nextAction || "",
-          closetype:
-            newEntry.status === "Closed" &&
-            ["Closed Won", "Closed Lost"].includes(newEntry.closetype)
-              ? newEntry.closetype
-              : "",
-          priority: newEntry.priority || "",
-          updatedAt: newEntry.updatedAt || new Date().toISOString(),
-          createdBy: {
-            _id: userId,
-            username: newEntry.createdBy?.username || "",
-          },
-          assignedTo: [],
-          history: newEntry.history || [
-            {
-              timestamp: new Date().toISOString(),
-              status: newEntry.status || "Not Found",
-              remarks: newEntry.remarks || "",
-              liveLocation: newEntry.liveLocation || "",
-              products: newEntry.products || [],
-              assignedTo: [],
-            },
-          ],
-        };
-        setEntries((prev) => [completeEntry, ...prev]);
+      // Instant local state update - add to top of list
+      setEntries((prev) => [completeEntry, ...prev]);
 
-        if (
-          (role === "superadmin" || role === "admin") &&
-          newEntry.createdBy?.username &&
-          !usernames.includes(newEntry.createdBy.username)
-        ) {
-          setUsernames((prev) => [...prev, newEntry.createdBy.username]);
-        }
-
-        fetchEntries();
+      // Update usernames for dropdown
+      const newUsernames = new Set(usernames);
+      if (completeEntry.createdBy?.username) {
+        newUsernames.add(completeEntry.createdBy.username);
       }
+      assignedToUsers.forEach((user) => {
+        if (user.username) newUsernames.add(user.username);
+      });
+      if (newUsernames.size > usernames.length) {
+        setUsernames([...newUsernames]);
+      }
+
+      toast.success("Entry added successfully!");
     },
-    [role, userId, usernames, fetchEntries]
+    [role, userId, usernames]
   );
 
-  // Naya handleEntryUpdated function
+  // Optimized handleEntryUpdated - instant local state update without refetch
   const handleEntryUpdated = useCallback(
     (updatedEntry) => {
+      // Immutable state update - replace the specific entry
       setEntries((prev) =>
         prev.map((entry) =>
           entry._id === updatedEntry._id
@@ -626,7 +531,6 @@ function DashBoard() {
             : entry
         )
       );
-      setIsEditModalOpen(false);
       
       // Update usernames for dropdown
       const newUsernames = new Set(usernames);
@@ -637,11 +541,14 @@ function DashBoard() {
       } else if (updatedEntry.assignedTo?.username) {
         newUsernames.add(updatedEntry.assignedTo.username);
       }
-      setUsernames([...newUsernames]);
+      if (newUsernames.size > usernames.length) {
+        setUsernames([...newUsernames]);
+      }
 
-      fetchEntries();
+      setIsEditModalOpen(false);
+      toast.success("Entry updated successfully!");
     },
-    [usernames, fetchEntries]
+    [usernames]
   );
 
   const handleDelete = useCallback((deletedIds) => {
@@ -857,6 +764,7 @@ const parseDate = (dateStr) => {
 const createdAtStr = parseDate(item.CreatedAt);  // Already correct
           return {
             customerName: item.Customer_Name || "",
+             customerEmail: item.Customer_Email || "",
             mobileNumber: item.Mobile_Number ? String(item.Mobile_Number) : "",
             contactperson: item.Contact_Person || "",
             address: item.Address || "",

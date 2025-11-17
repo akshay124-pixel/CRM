@@ -100,6 +100,8 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     () => ({
       customerName: "",
       mobileNumber: "",
+        customerEmail: "",
+    
       contactperson: "",
       products: [{ name: "", specification: "", size: "", quantity: "" }],
       type: "",
@@ -249,6 +251,9 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     if (isOpen && entry) {
       const formData = {
         customerName: entry.customerName || "",
+          customerEmail: entry.customerEmail || "",
+        
+
         mobileNumber: entry.mobileNumber || "",
         contactperson: entry.contactperson || "",
         assignedTo: Array.isArray(entry.assignedTo)
@@ -486,7 +491,6 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           throw new Error("Invalid response from server.");
         }
 
-        toast.success("Entry updated successfully!");
         onEntryUpdated(updatedEntry);
         reset({
           ...initialFormData,
@@ -1469,20 +1473,53 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
             {errors.customerName?.message}
           </Form.Control.Feedback>
         </Form.Group>
+<Form.Group controlId="customerEmail">
+  <Form.Label>📧 Customer Email</Form.Label>
+  <Form.Control
+    type="email"
+    {...register("customerEmail")}
+    isInvalid={!!errors.customerEmail}
+    aria-label="Customer Email"
+    onChange={(e) =>
+      debouncedHandleInputChange("customerEmail", e.target.value)
+    }
+  />
+  <Form.Control.Feedback type="invalid">
+    {errors.customerEmail?.message}
+  </Form.Control.Feedback>
+</Form.Group>
 
         <Form.Group controlId="mobileNumber">
           <Form.Label>📱 Mobile Number</Form.Label>
-          <Form.Control
-            {...register("mobileNumber")}
-            isInvalid={!!errors.mobileNumber}
-            aria-label="Mobile Number"
-            onChange={(e) =>
-              debouncedHandleInputChange(
-                "mobileNumber",
-                e.target.value.replace(/\D/g, "").slice(0, 10)
-              )
-            }
+          <Controller
+            name="mobileNumber"
+            control={control}
+            render={({ field }) => (
+              <Form.Control
+                {...field}
+                type="text"
+                inputMode="numeric"
+                placeholder="Enter 10-digit mobile number"
+                isInvalid={!!errors.mobileNumber}
+                aria-label="Mobile Number"
+                onChange={(e) => {
+                  const numericValue = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  field.onChange(numericValue);
+                }}
+                value={field.value || ""}
+              />
+            )}
           />
+          {watch("mobileNumber") && watch("mobileNumber").length > 0 && watch("mobileNumber").length < 10 && (
+            <Form.Text style={{ color: "red" }}>
+              Mobile number must be exactly 10 digits
+            </Form.Text>
+          )}
+          {watch("mobileNumber") && watch("mobileNumber").length === 10 && (
+            <Form.Text style={{ color: "green" }}>
+              ✓ Valid mobile number
+            </Form.Text>
+          )}
           <Form.Control.Feedback type="invalid">
             {errors.mobileNumber?.message}
           </Form.Control.Feedback>

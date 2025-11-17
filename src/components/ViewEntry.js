@@ -329,6 +329,7 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
     const textToCopy = `
       Date: ${formatDate(entry.createdAt)}
       Customer Name: ${entry.customerName || "N/A"}
+       Customer Email: ${entry.customerEmail || "N/A"}
       Mobile Number: ${entry.mobileNumber || "N/A"}
       Contact Person Name: ${entry.contactperson || "N/A"}
       First Meeting Date: ${formatDate(entry.firstdate)}
@@ -386,6 +387,8 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
         {
           Section: "Client Entry",
           Customer: entry.customerName || "",
+           CustomerEmail: entry.customerEmail || "",
+          
           "Mobile Number": entry.mobileNumber || "",
           "Contact Person": entry.contactperson || "",
           Address: entry.address || "",
@@ -695,6 +698,10 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                 <InfoItem>
                   <Label>Customer Name</Label>
                   <Value>{entry.customerName || "N/A"}</Value>
+                </InfoItem>
+                 <InfoItem>
+                  <Label>Customer Email</Label>
+                  <Value>{entry.customerEmail || "N/A"}</Value>
                 </InfoItem>
                 <InfoItem>
                   <Label>Mobile</Label>

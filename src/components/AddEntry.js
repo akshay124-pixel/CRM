@@ -163,6 +163,7 @@ const ResponsiveTableWrapper = styled.div`
 function AddEntry({ isOpen, onClose, onEntryAdded }) {
   const initialFormData = {
     customerName: "",
+    customerEmail: "",
     mobileNumber: "",
     contactperson: "",
     status: "",
@@ -422,7 +423,6 @@ const handleSubmit = async (e) => {
       );
 
       const newEntry = response.data.data;
-      toast.success("Entry added successfully!");
       onEntryAdded(newEntry);
 
       setFormData({ ...initialFormData, createdAt: new Date().toISOString() });
@@ -572,6 +572,19 @@ const handleAttachmentChange = async (e) => {
                 required
               />
             </Form.Group>
+            <Form.Group controlId="formCustomerEmail" className="mb-3">
+  <Form.Label>Customer Email *</Form.Label>
+  <Form.Control
+    type="email"
+    name="customerEmail"
+    value={formData.customerEmail}
+    onChange={handleInput}
+    placeholder="Enter customer email"
+    disabled={loading}
+    required
+  />
+</Form.Group>
+
 
             <Form.Group controlId="mobileNumber" className="mb-3">
               <Form.Label>Mobile Number *</Form.Label>
@@ -580,15 +593,19 @@ const handleAttachmentChange = async (e) => {
                 name="mobileNumber"
                 value={formData.mobileNumber}
                 onChange={handleInput}
-                placeholder="Enter mobile number"
-                maxLength={10}
-                pattern="[0-9]{10}"
+                placeholder="Enter 10-digit mobile number"
+                inputMode="numeric"
                 disabled={loading}
                 required
               />
-              {formData.mobileNumber && formData.mobileNumber.length < 10 && (
+              {formData.mobileNumber && formData.mobileNumber.length > 0 && formData.mobileNumber.length < 10 && (
                 <Form.Text style={{ color: "red" }}>
                   Mobile number must be exactly 10 digits
+                </Form.Text>
+              )}
+              {formData.mobileNumber && formData.mobileNumber.length === 10 && (
+                <Form.Text style={{ color: "green" }}>
+                  ✓ Valid mobile number
                 </Form.Text>
               )}
             </Form.Group>
