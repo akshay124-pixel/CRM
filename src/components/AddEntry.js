@@ -8,6 +8,7 @@ import DatePicker from "react-datepicker";
 import { statesAndCities, productOptions } from "./Options"; // Adjust path
 import "react-datepicker/dist/react-datepicker.css";
 import imageCompression from "browser-image-compression";
+import { validatePhoneNumber } from "../utils/phoneValidation";
 const customSelectStyles = {
   control: (provided, state) => ({
     ...provided,
@@ -322,7 +323,15 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
 
   const validateStep = (step) => {
     if (step === 1) {
-     
+      // CHANGE: Prevent user from entering their own mobile number
+      if (formData.mobileNumber) {
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        const phoneValidation = validatePhoneNumber(formData.mobileNumber, user.username);
+        if (!phoneValidation.isValid) {
+          toast.error(phoneValidation.message);
+          return false;
+        }
+      }
     }
     if (step === 2) {
      

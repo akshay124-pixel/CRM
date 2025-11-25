@@ -8,6 +8,7 @@ import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 import TeamAnalyticsDrawer from "./TeamAnalyticsDrawer.js";
 import { jwtDecode } from "jwt-decode";
+import { validatePhoneNumber } from "../utils/phoneValidation";
 import { useNavigate } from "react-router-dom";
 import {
   Popover,
@@ -719,7 +720,9 @@ function DashBoard() {
           return results;
         };
 
-
+       // CHANGE: Prevent user from entering their own mobile number
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        
         const newEntries = parsedData.map((item) => {
           const parseArrayField = (value) => {
             if (Array.isArray(value)) return value;
@@ -794,7 +797,31 @@ const createdAtStr = parseDate(item.CreatedAt);  // Already correct
           };
         });
 
-        console.log("Mapped entries:", JSON.stringify(newEntries, null, 2));
+         console.log("Mapped entries:", JSON.stringify(newEntries, null, 2));
+        
+        // CHANGE: Prevent user from entering their own mobile number
+        // Validate all phone numbers before sending to API
+        const invalidEntries = [];
+        newEntries.forEach((entry, index) => {
+          if (entry.mobileNumber) {
+            const phoneValidation = validatePhoneNumber(entry.mobileNumber, user.username);
+            if (!phoneValidation.isValid) {
+              invalidEntries.push({
+                row: index + 2, // +2 because Excel is 1-indexed and has header row
+                customerName: entry.customerName,
+                mobileNumber: entry.mobileNumber
+              });
+            }
+          }
+        });
+
+        if (invalidEntries.length > 0) {
+          const errorMsg = `Cannot upload: ${invalidEntries.length} row(s) contain your own mobile number. Please update these entries:\n` +
+            invalidEntries.map(e => `Row ${e.row}: ${e.customerName} (${e.mobileNumber})`).join('\n');
+          toast.error(errorMsg, { autoClose: 10000 });
+          return;
+        }
+
         console.log(`Sending ${newEntries.length} entries to API`);
         const response = await axios.post(
           `${process.env.REACT_APP_URL}/api/entries`,

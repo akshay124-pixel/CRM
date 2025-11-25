@@ -13,6 +13,7 @@ import Select from "react-select";
 import styled from "styled-components";
 import { productOptions } from "./Options";
 import imageCompression from "browser-image-compression";
+import { validatePhoneNumber } from "../utils/phoneValidation";
 import debounce from "lodash/debounce";
 import {
   FaEdit,
@@ -423,6 +424,17 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       setShowConfirm(true);
       return;
     }
+    // CHANGE: Prevent user from entering their own mobile number
+    if (data.mobileNumber) {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const phoneValidation = validatePhoneNumber(data.mobileNumber, user.username);
+      if (!phoneValidation.isValid) {
+        toast.error(phoneValidation.message);
+        setShowConfirm(false);
+        return;
+      }
+    }
+
     setLoading(true);
     const maxRetries = 3;
     let attempt = 0;
