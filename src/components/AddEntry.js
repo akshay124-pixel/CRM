@@ -5,7 +5,7 @@ import { toast } from "react-toastify";
 import styled from "styled-components";
 import Select from "react-select";
 import DatePicker from "react-datepicker";
-import { statesAndCities, productOptions } from "./Options"; // Adjust path
+import { statesAndCities, productOptions } from "./Options"; 
 import "react-datepicker/dist/react-datepicker.css";
 import imageCompression from "browser-image-compression";
 import { validatePhoneNumber } from "../utils/phoneValidation";
