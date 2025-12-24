@@ -87,6 +87,12 @@ const HistoryContainer = styled.div`
   overflow-y: auto;
   padding-right: 1rem;
   margin-top: 1rem;
+  
+  @media (max-width: 576px) {
+    padding-right: 0.5rem;
+    max-height: 350px;
+  }
+  
   &::-webkit-scrollbar {
     width: 8px;
   }
@@ -101,6 +107,12 @@ const HistoryItem = styled.div`
   padding: 0 0 2rem 3rem;
   border-left: 3px solid #e0e7ff;
   margin-bottom: 1.5rem;
+  
+  @media (max-width: 576px) {
+    padding: 0 0 1.5rem 2.5rem;
+    margin-bottom: 1rem;
+  }
+  
   &:last-child {
     border-left-color: transparent;
   }
@@ -115,6 +127,13 @@ const HistoryItem = styled.div`
     border-radius: 50%;
     box-shadow: 0 0 8px rgba(37, 117, 252, 0.6);
     z-index: 2;
+    
+    @media (max-width: 576px) {
+      width: 14px;
+      height: 14px;
+      left: -7px;
+      top: 1rem;
+    }
   }
 `;
 
@@ -125,6 +144,12 @@ const HistoryContent = styled.div`
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   border: 1px solid #f0f4f8;
   transition: all 0.3s ease;
+  
+  @media (max-width: 576px) {
+    padding: 1rem;
+    border-radius: 8px;
+  }
+  
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
@@ -139,6 +164,14 @@ const HistoryHeader = styled.div`
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
   border-bottom: 2px solid #f8fafc;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  
+  @media (max-width: 576px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
 `;
 
 const HistoryNumber = styled.div`
@@ -151,6 +184,7 @@ const HistoryNumber = styled.div`
   min-width: 40px;
   text-align: center;
   box-shadow: 0 2px 8px rgba(37, 117, 252, 0.3);
+  flex-shrink: 0;
 `;
 
 const HistoryTimestamp = styled.div`
@@ -160,6 +194,15 @@ const HistoryTimestamp = styled.div`
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
+  word-break: keep-all;
+  white-space: nowrap;
+  
+  @media (max-width: 576px) {
+    font-size: 0.85rem;
+    align-self: flex-start;
+  }
+  
   &:before {
     content: "📅";
     font-size: 0.8rem;

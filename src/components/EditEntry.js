@@ -164,8 +164,26 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     startTime: null,
     lastKnownLocation: null
   });
+  
+  // Track if user is actively editing update follow-up fields
+  const [isEditingFollowUp, setIsEditingFollowUp] = useState(false);
   const status = watch("status");
   const selectedState = watch("state");
+  
+  // Watch all update follow-up fields for auto-location trigger
+  const assignedTo = watch("assignedTo");
+  const closetype = watch("closetype");
+  const closeamount = watch("closeamount");
+  const firstPersonMeet = watch("firstPersonMeet");
+  const secondPersonMeet = watch("secondPersonMeet");
+  const thirdPersonMeet = watch("thirdPersonMeet");
+  const fourthPersonMeet = watch("fourthPersonMeet");
+  const nextAction = watch("nextAction");
+  const estimatedValue = watch("estimatedValue");
+  const firstdate = watch("firstdate");
+  const followUpDate = watch("followUpDate");
+  const expectedClosingDate = watch("expectedClosingDate");
+  const remarks = watch("remarks");
   const [selectedFileName, setSelectedFileName] = useState(null);
   // Attachment file watch
   const fileInputRef = useRef(null);
@@ -328,6 +346,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         startTime: null,
         lastKnownLocation: null
       });
+      setIsEditingFollowUp(false);
     }
   }, [isOpen, entry, reset]);
 
@@ -457,20 +476,53 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     }
   }, [setValue]);
 
-  // Trigger location fetch when status changes
+  // Auto-trigger location fetch when any update follow-up field changes
   useEffect(() => {
-    if (
-      status &&
-      status !== entry?.status &&
-      !getValues("liveLocation") &&
-      locationState.status === 'idle'
-    ) {
-      // Auto-start location fetching when status changes
-      setTimeout(() => {
-        fetchLiveLocation();
-      }, 500);
+    // Check if we're in update view and any field has been modified
+    if (view === "update" && entry) {
+      const hasFieldChanged = 
+        status !== entry?.status ||
+        (Array.isArray(assignedTo) && Array.isArray(entry?.assignedTo) && 
+         assignedTo.length !== entry.assignedTo.length) ||
+        closetype !== entry?.closetype ||
+        closeamount !== entry?.closeamount ||
+        firstPersonMeet !== entry?.firstPersonMeet ||
+        secondPersonMeet !== entry?.secondPersonMeet ||
+        thirdPersonMeet !== entry?.thirdPersonMeet ||
+        fourthPersonMeet !== entry?.fourthPersonMeet ||
+        nextAction !== entry?.nextAction ||
+        estimatedValue !== entry?.estimatedValue ||
+        firstdate !== (entry?.firstdate ? new Date(entry.firstdate).toISOString().split("T")[0] : "") ||
+        followUpDate !== (entry?.followUpDate ? new Date(entry.followUpDate).toISOString().split("T")[0] : "") ||
+        expectedClosingDate !== (entry?.expectedClosingDate ? new Date(entry.expectedClosingDate).toISOString().split("T")[0] : "") ||
+        remarks !== entry?.remarks;
+
+      // Update editing state
+      setIsEditingFollowUp(hasFieldChanged);
+
+      // Only trigger location fetch if:
+      // 1. Any field has changed
+      // 2. Location is not already fetched or in progress
+      // 3. Location state is idle or error (not fetching, slow, timeout, or success)
+      if (hasFieldChanged && 
+          !getValues("liveLocation") && 
+          (locationState.status === 'idle' || locationState.status === 'error')) {
+        // Small delay to prevent excessive API calls during rapid typing
+        const timeoutId = setTimeout(() => {
+          fetchLiveLocation();
+        }, 1000);
+
+        return () => clearTimeout(timeoutId);
+      }
+    } else {
+      setIsEditingFollowUp(false);
     }
-  }, [status, entry?.status, fetchLiveLocation, getValues, locationState.status]);
+  }, [
+    view, entry, status, assignedTo, closetype, closeamount, 
+    firstPersonMeet, secondPersonMeet, thirdPersonMeet, fourthPersonMeet,
+    nextAction, estimatedValue, firstdate, followUpDate, expectedClosingDate, remarks,
+    fetchLiveLocation, getValues, locationState.status
+  ]);
 
   const debouncedHandleInputChange = useCallback(
     debounce((name, value) => {
@@ -2211,7 +2263,8 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
 
           {/* Help Text */}
           <Form.Text className="text-muted">
-            {locationState.status === 'idle' && "Location is required when updating status. Please fetch your location."}
+            {locationState.status === 'idle' && !isEditingFollowUp && "Location will be automatically fetched when you start editing fields."}
+            {locationState.status === 'idle' && isEditingFollowUp && "Auto-fetching location due to field changes..."}
             {locationState.status === 'success' && "✓ Location saved successfully"}
             {(locationState.status === 'error' || locationState.status === 'timeout') && "Location is required. Please retry to get your location."}
           </Form.Text>
@@ -2389,13 +2442,15 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           )}
         </Form.Group>
         <Form.Group controlId="remarks">
-          <Form.Label>✏️ Remarks</Form.Label>
+          <Form.Label>
+            ✏️ Remarks {status !== entry?.status && <span style={{ color: 'red' }}>*</span>}
+          </Form.Label>
           <Form.Control
             as="textarea"
             {...register("remarks", {
               required:
-                status !== entry?.status && !watch("attachment")
-                  ? "Remarks are required when updating status without an attachment"
+                status !== entry?.status
+                  ? "Remarks are required when updating status"
                   : false,
               maxLength: { value: 500, message: "Max 500 characters" },
               onChange: (e) => {
