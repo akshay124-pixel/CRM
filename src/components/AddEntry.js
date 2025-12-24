@@ -190,6 +190,16 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
   const [selectedCity, setSelectedCity] = useState("");
   const [locationFetched, setLocationFetched] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // Enhanced location state management
+  const [locationState, setLocationState] = useState({
+    status: 'idle', // 'idle', 'fetching', 'slow', 'timeout', 'success', 'error'
+    coordinates: null,
+    error: null,
+    attempts: 0,
+    startTime: null,
+    lastKnownLocation: null
+  });
   const [productInput, setProductInput] = useState({
     name: "",
     specification: "",
@@ -229,6 +239,34 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
       setCurrentStep(1);
       setProductInput({ name: "", specification: "", size: "", quantity: "" });
       setLocationFetched(false);
+      
+      // Reset location state
+      setLocationState({
+        status: 'idle',
+        coordinates: null,
+        error: null,
+        attempts: 0,
+        startTime: null,
+        lastKnownLocation: null
+      });
+      
+      // Try to load last known location from localStorage
+      const savedLocation = localStorage.getItem('lastKnownLocation');
+      if (savedLocation) {
+        try {
+          const parsed = JSON.parse(savedLocation);
+          const locationAge = Date.now() - parsed.timestamp;
+          // Use location if it's less than 1 hour old
+          if (locationAge < 3600000) {
+            setLocationState(prev => ({
+              ...prev,
+              lastKnownLocation: parsed
+            }));
+          }
+        } catch (e) {
+          console.warn('Failed to parse saved location:', e);
+        }
+      }
     }
   }, [isOpen]);
 
@@ -292,34 +330,201 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
     toast.info("Product removed from list.");
   };
 
-  const fetchLocation = () => {
-    setLoading(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const location = `${position.coords.latitude}, ${position.coords.longitude}`;
-          setFormData((prev) => ({
-            ...prev,
-            liveLocation: location,
-          }));
-          setLocationFetched(true);
-          setLoading(false);
-          toast.success("Location fetched successfully!");
-        },
-        (error) => {
-          console.error("Error fetching location:", error);
-          setLocationFetched(false);
-          setLoading(false);
-          toast.error("Failed to fetch location!");
-        }
-      );
-    } else {
-      console.error("Geolocation is not supported by this browser.");
-      setLocationFetched(false);
-      setLoading(false);
-      toast.error("Geolocation not supported!");
+  // Enhanced location fetching with timeout, retry, and progressive feedback
+  const fetchLocation = useCallback(async (isRetry = false) => {
+    if (!isRetry) {
+      setLocationState(prev => ({
+        ...prev,
+        status: 'fetching',
+        startTime: Date.now(),
+        attempts: prev.attempts + 1,
+        error: null
+      }));
     }
-  };
+
+    // Check if geolocation is supported
+    if (!navigator.geolocation) {
+      setLocationState(prev => ({
+        ...prev,
+        status: 'error',
+        error: 'Geolocation is not supported by this device'
+      }));
+      toast.error("Location services not supported on this device");
+      return;
+    }
+
+    // Set up progressive feedback timers
+    const slowTimer = setTimeout(() => {
+      setLocationState(prev => prev.status === 'fetching' ? {
+        ...prev,
+        status: 'slow'
+      } : prev);
+    }, 8000); // Show "taking longer" after 8 seconds
+
+    const timeoutTimer = setTimeout(() => {
+      setLocationState(prev => prev.status === 'fetching' || prev.status === 'slow' ? {
+        ...prev,
+        status: 'timeout'
+      } : prev);
+    }, 30000); // Timeout after 30 seconds
+
+    try {
+      const position = await new Promise((resolve, reject) => {
+        const options = {
+          enableHighAccuracy: true,
+          timeout: 25000, // 25 second timeout
+          maximumAge: 300000 // Accept 5-minute old cached location
+        };
+
+        navigator.geolocation.getCurrentPosition(
+          resolve,
+          reject,
+          options
+        );
+      });
+
+      // Clear timers on success
+      clearTimeout(slowTimer);
+      clearTimeout(timeoutTimer);
+
+      const coordinates = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy
+      };
+
+      const locationString = `${coordinates.latitude}, ${coordinates.longitude}`;
+
+      // Save to localStorage for future use
+      const locationData = {
+        coordinates,
+        locationString,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('lastKnownLocation', JSON.stringify(locationData));
+
+      // Update state
+      setLocationState(prev => ({
+        ...prev,
+        status: 'success',
+        coordinates,
+        error: null
+      }));
+
+      setFormData(prev => ({
+        ...prev,
+        liveLocation: locationString
+      }));
+
+      setLocationFetched(true);
+      
+      const accuracyText = coordinates.accuracy < 100 ? 
+        `Location obtained with ${Math.round(coordinates.accuracy)}m accuracy` :
+        'Location obtained (low accuracy)';
+      
+      toast.success(accuracyText);
+
+    } catch (error) {
+      clearTimeout(slowTimer);
+      clearTimeout(timeoutTimer);
+
+      console.error("Location error:", error);
+      
+      let errorMessage = "Unable to get location";
+      let errorType = 'error';
+
+      switch (error.code) {
+        case error.PERMISSION_DENIED:
+          errorMessage = "Location access denied. Please enable location permissions.";
+          break;
+        case error.POSITION_UNAVAILABLE:
+          errorMessage = "Location information unavailable. Check your GPS settings.";
+          break;
+        case error.TIMEOUT:
+          errorMessage = "Location request timed out. GPS might be taking longer than usual.";
+          errorType = 'timeout';
+          break;
+        default:
+          errorMessage = "Failed to get location. Please try again.";
+      }
+
+      setLocationState(prev => ({
+        ...prev,
+        status: errorType,
+        error: errorMessage
+      }));
+
+      // Don't show toast for timeout - let UI handle it
+      if (error.code !== error.TIMEOUT) {
+        toast.error(errorMessage);
+      }
+    }
+  }, []);
+
+  // Use last known location
+  const useLastKnownLocation = useCallback(() => {
+    if (locationState.lastKnownLocation) {
+      const { locationString, coordinates } = locationState.lastKnownLocation;
+      
+      setFormData(prev => ({
+        ...prev,
+        liveLocation: locationString
+      }));
+
+      setLocationState(prev => ({
+        ...prev,
+        status: 'success',
+        coordinates
+      }));
+
+      setLocationFetched(true);
+      
+      const ageMinutes = Math.round((Date.now() - locationState.lastKnownLocation.timestamp) / 60000);
+      toast.success(`Using location from ${ageMinutes} minutes ago`);
+    }
+  }, [locationState.lastKnownLocation]);
+
+  // Continue without location (for non-critical flows)
+  const continueWithoutLocation = useCallback(() => {
+    setFormData(prev => ({
+      ...prev,
+      liveLocation: "Location not provided"
+    }));
+
+    setLocationState(prev => ({
+      ...prev,
+      status: 'success'
+    }));
+
+    setLocationFetched(true);
+    toast.info("Continuing without location");
+  }, []);
+
+  // Manual location entry
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [manualLocation, setManualLocation] = useState("");
+
+  const submitManualLocation = useCallback(() => {
+    if (!manualLocation.trim()) {
+      toast.error("Please enter a location");
+      return;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      liveLocation: `Manual: ${manualLocation.trim()}`
+    }));
+
+    setLocationState(prev => ({
+      ...prev,
+      status: 'success'
+    }));
+
+    setLocationFetched(true);
+    setShowManualEntry(false);
+    setManualLocation("");
+    toast.success("Manual location saved");
+  }, [manualLocation]);
 
   const validateStep = (step) => {
     if (step === 1) {
@@ -341,10 +546,8 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
         toast.error("Status is required!");
         return false;
       }
-      if (!formData.liveLocation) {
-        toast.error("Live location is required!");
-        return false;
-      }
+      // REMOVED: Location is no longer required for form submission
+      // The form can be submitted without location, but we'll encourage users to provide it
     }
     return true;
   };
@@ -352,7 +555,16 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
   const handleNext = (e) => {
     e.preventDefault();
     if (validateStep(currentStep)) {
-      setCurrentStep((prev) => prev + 1);
+      const nextStep = currentStep + 1;
+      setCurrentStep(nextStep);
+      
+      // Auto-start location fetching when reaching the final step
+      if (nextStep === 4 && locationState.status === 'idle') {
+        // Small delay to let the UI render first
+        setTimeout(() => {
+          fetchLocation();
+        }, 500);
+      }
     }
   };
 
@@ -369,6 +581,16 @@ const handleSubmit = async (e) => {
 
   if (!validateStep(4)) {
     return;
+  }
+
+  // Warn user if submitting without location (but don't block)
+  if (!formData.liveLocation || formData.liveLocation === "Location not provided") {
+    const confirmSubmit = window.confirm(
+      "You're submitting without location data. This may affect visit tracking and reporting accuracy. Continue anyway?"
+    );
+    if (!confirmSubmit) {
+      return;
+    }
   }
 
   setLoading(true);
@@ -440,6 +662,16 @@ const handleSubmit = async (e) => {
       setCurrentStep(1);
       setProductInput({ name: "", specification: "", size: "", quantity: "" });
       setLocationFetched(false);
+      setLocationState({
+        status: 'idle',
+        coordinates: null,
+        error: null,
+        attempts: 0,
+        startTime: null,
+        lastKnownLocation: null
+      });
+      setShowManualEntry(false);
+      setManualLocation("");
       onClose();
       setLoading(false);
       return; // Success, exit retry loop
@@ -915,34 +1147,208 @@ const handleAttachmentChange = async (e) => {
             </Form.Group>
 
             <Form.Group controlId="formLiveLocation" className="mb-3">
-              <Form.Label>Live Location *</Form.Label>
-              <div style={{ display: "flex", gap: "10px" }}>
-                <Form.Control
-                  type="text"
-                  name="liveLocationDisplay"
-                  value={
-                    locationFetched
-                      ? "Location Fetched ✅"
-                      : "Location Not Fetched ❌"
-                  }
-                  readOnly
-                  disabled={loading}
-                  style={{ flex: 1, backgroundColor: "#f8f9fa" }}
-                />
-                <Button
-                  variant="outline-primary"
-                  onClick={fetchLocation}
-                  disabled={loading}
-                >
-                  {loading ? "Fetching..." : "Get Location"}
-                </Button>
+              <Form.Label>Live Location</Form.Label>
+              
+              {/* Location Status Display */}
+              <div style={{ 
+                padding: "12px", 
+                borderRadius: "8px", 
+                marginBottom: "12px",
+                backgroundColor: locationState.status === 'success' ? '#d4edda' : 
+                                locationState.status === 'error' ? '#f8d7da' : 
+                                locationState.status === 'timeout' ? '#fff3cd' : '#e2e3e5',
+                border: `1px solid ${
+                  locationState.status === 'success' ? '#c3e6cb' : 
+                  locationState.status === 'error' ? '#f5c6cb' : 
+                  locationState.status === 'timeout' ? '#ffeaa7' : '#d1d3d4'
+                }`
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {locationState.status === 'success' && <span>📍</span>}
+                    {locationState.status === 'fetching' && <span>🔄</span>}
+                    {locationState.status === 'slow' && <span>⏳</span>}
+                    {locationState.status === 'timeout' && <span>⚠️</span>}
+                    {locationState.status === 'error' && <span>❌</span>}
+                    {locationState.status === 'idle' && <span>📍</span>}
+                    
+                    <span style={{ fontWeight: '500' }}>
+                      {locationState.status === 'success' && 'Location obtained'}
+                      {locationState.status === 'fetching' && 'Getting your location...'}
+                      {locationState.status === 'slow' && 'Taking longer than usual...'}
+                      {locationState.status === 'timeout' && 'Location request timed out'}
+                      {locationState.status === 'error' && 'Location unavailable'}
+                      {locationState.status === 'idle' && 'Location not set'}
+                    </span>
+                  </div>
+                  
+                  {locationState.status === 'success' && locationState.coordinates && (
+                    <small style={{ color: '#6c757d' }}>
+                      Accuracy: ~{Math.round(locationState.coordinates.accuracy || 0)}m
+                    </small>
+                  )}
+                </div>
+                
+                {locationState.status === 'slow' && (
+                  <div style={{ marginTop: '8px', fontSize: '0.9em', color: '#856404' }}>
+                    GPS is taking longer than usual. This is common on Android devices.
+                  </div>
+                )}
+                
+                {locationState.status === 'timeout' && (
+                  <div style={{ marginTop: '8px', fontSize: '0.9em', color: '#856404' }}>
+                    Location request timed out. You can retry, use a previous location, or continue without location.
+                  </div>
+                )}
+                
+                {locationState.error && (
+                  <div style={{ marginTop: '8px', fontSize: '0.9em', color: '#721c24' }}>
+                    {locationState.error}
+                  </div>
+                )}
               </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                {/* Primary Get Location Button */}
+                {(locationState.status === 'idle' || locationState.status === 'error') && (
+                  <Button
+                    variant="primary"
+                    onClick={() => fetchLocation()}
+                    disabled={loading}
+                    style={{ flex: '1', minWidth: '140px' }}
+                  >
+                    📍 Get Location
+                  </Button>
+                )}
+                
+                {/* Retry Button */}
+                {(locationState.status === 'timeout' || locationState.status === 'error') && (
+                  <Button
+                    variant="outline-primary"
+                    onClick={() => fetchLocation(true)}
+                    disabled={loading}
+                    style={{ flex: '1', minWidth: '100px' }}
+                  >
+                    🔄 Retry
+                  </Button>
+                )}
+                
+                {/* Use Last Known Location */}
+                {locationState.lastKnownLocation && locationState.status !== 'success' && (
+                  <Button
+                    variant="outline-success"
+                    onClick={useLastKnownLocation}
+                    disabled={loading}
+                    style={{ flex: '1', minWidth: '140px' }}
+                  >
+                    📍 Use Recent Location
+                  </Button>
+                )}
+                
+                {/* Manual Entry Toggle */}
+                {locationState.status !== 'success' && (
+                  <Button
+                    variant="outline-secondary"
+                    onClick={() => setShowManualEntry(!showManualEntry)}
+                    disabled={loading}
+                    style={{ flex: '1', minWidth: '120px' }}
+                  >
+                    ✏️ Enter Manually
+                  </Button>
+                )}
+                
+                {/* Continue Without Location */}
+                {(locationState.status === 'timeout' || locationState.status === 'error') && (
+                  <Button
+                    variant="outline-warning"
+                    onClick={continueWithoutLocation}
+                    disabled={loading}
+                    style={{ flex: '1', minWidth: '140px' }}
+                  >
+                    ⏭️ Continue Without
+                  </Button>
+                )}
+              </div>
+
+              {/* Manual Location Entry */}
+              {showManualEntry && (
+                <div style={{ 
+                  padding: '12px', 
+                  backgroundColor: '#f8f9fa', 
+                  borderRadius: '6px',
+                  marginBottom: '12px'
+                }}>
+                  <Form.Label style={{ fontSize: '0.9em', marginBottom: '8px' }}>
+                    Enter Location Manually
+                  </Form.Label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <Form.Control
+                      type="text"
+                      value={manualLocation}
+                      onChange={(e) => setManualLocation(e.target.value)}
+                      placeholder="e.g., Office address, landmark, or area name"
+                      disabled={loading}
+                      style={{ flex: 1 }}
+                    />
+                    <Button
+                      variant="success"
+                      onClick={submitManualLocation}
+                      disabled={loading || !manualLocation.trim()}
+                      size="sm"
+                    >
+                      Save
+                    </Button>
+                    <Button
+                      variant="outline-secondary"
+                      onClick={() => {
+                        setShowManualEntry(false);
+                        setManualLocation("");
+                      }}
+                      disabled={loading}
+                      size="sm"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Progress Indicator for Active Location Fetch */}
+              {(locationState.status === 'fetching' || locationState.status === 'slow') && (
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <small style={{ color: '#6c757d' }}>
+                      {locationState.status === 'fetching' ? 'Searching for GPS signal...' : 'Still searching...'}
+                    </small>
+                    <small style={{ color: '#6c757d' }}>
+                      {locationState.startTime && `${Math.round((Date.now() - locationState.startTime) / 1000)}s`}
+                    </small>
+                  </div>
+                  <ProgressBar 
+                    animated 
+                    now={locationState.status === 'fetching' ? 30 : 70} 
+                    style={{ height: '4px' }}
+                    variant={locationState.status === 'slow' ? 'warning' : 'primary'}
+                  />
+                </div>
+              )}
+
+              {/* Hidden field for form submission */}
               <Form.Control
                 type="hidden"
                 name="liveLocation"
                 value={formData.liveLocation}
-                required
               />
+              
+              {/* Help Text */}
+              <Form.Text className="text-muted">
+                {locationState.status === 'idle' && "Location helps track visit accuracy and provides better service."}
+                {locationState.status === 'success' && "✓ Location saved successfully"}
+                {locationState.lastKnownLocation && locationState.status !== 'success' && 
+                  `Recent location available from ${Math.round((Date.now() - locationState.lastKnownLocation.timestamp) / 60000)} minutes ago`
+                }
+              </Form.Text>
             </Form.Group>
 
             <Form.Group controlId="formAttachment" className="mb-3">
