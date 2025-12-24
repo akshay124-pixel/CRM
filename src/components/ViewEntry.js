@@ -83,7 +83,7 @@ const Value = styled.span`
 `;
 
 const HistoryContainer = styled.div`
-  max-height: 300px;
+  max-height: 400px;
   overflow-y: auto;
   padding-right: 1rem;
   margin-top: 1rem;
@@ -98,9 +98,12 @@ const HistoryContainer = styled.div`
 
 const HistoryItem = styled.div`
   position: relative;
-  padding: 1rem 0 1rem 2.5rem;
-  border-left: 3px solid #2575fc;
+  padding: 0 0 2rem 3rem;
+  border-left: 3px solid #e0e7ff;
   margin-bottom: 1.5rem;
+  &:last-child {
+    border-left-color: transparent;
+  }
   &:before {
     content: "";
     position: absolute;
@@ -111,49 +114,170 @@ const HistoryItem = styled.div`
     background: linear-gradient(135deg, #2575fc, #6a11cb);
     border-radius: 50%;
     box-shadow: 0 0 8px rgba(37, 117, 252, 0.6);
+    z-index: 2;
   }
 `;
 
 const HistoryContent = styled.div`
   background: #fff;
-  padding: 1.2rem;
-  border-radius: 10px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
-  transition: transform 0.2s ease;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #f0f4f8;
+  transition: all 0.3s ease;
   &:hover {
-    transform: translateX(10px);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    border-color: #e0e7ff;
   }
+`;
+
+const HistoryHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #f8fafc;
+`;
+
+const HistoryNumber = styled.div`
+  background: linear-gradient(135deg, #2575fc, #6a11cb);
+  color: white;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  min-width: 40px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(37, 117, 252, 0.3);
 `;
 
 const HistoryTimestamp = styled.div`
   font-size: 0.9rem;
-  color: #666;
-  margin-bottom: 0.6rem;
+  color: #64748b;
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  &:before {
+    content: "📅";
+    font-size: 0.8rem;
+  }
 `;
 
-const HistoryRemarks = styled.div`
-  font-size: 1rem;
-  color: #333;
-  margin-bottom: 0.6rem;
+const HistoryStatusChip = styled(Chip)`
+  font-weight: 600;
+  font-size: 0.8rem;
+  height: 28px;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+`;
+
+const HistorySection = styled.div`
+  margin-bottom: 1rem;
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const HistorySectionTitle = styled.div`
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #2575fc;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`;
+
+const HistoryValue = styled.div`
+  font-size: 0.95rem;
+  color: #374151;
+  line-height: 1.5;
+  padding: 0.5rem 0.75rem;
+  background: #f8fafc;
+  border-radius: 6px;
+  border-left: 3px solid #e0e7ff;
+`;
+
+const PersonMeetGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+`;
+
+const PersonMeetItem = styled.div`
+  background: #f1f5f9;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  border-left: 3px solid #3b82f6;
+  font-size: 0.9rem;
+  color: #1e293b;
 `;
 
 const HistoryLocation = styled.div`
-  font-size: 0.9rem;
-  color: #2575fc;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  border-radius: 8px;
+  border: 1px solid #bfdbfe;
+  margin-top: 0.5rem;
 `;
 
 const MapLink = styled.a`
   text-decoration: none;
-  color: #2575fc;
+  color: #2563eb;
   font-weight: 500;
+  font-size: 0.9rem;
   transition: color 0.2s ease;
   &:hover {
-    color: #6a11cb;
+    color: #1d4ed8;
     text-decoration: underline;
+  }
+`;
+
+const TagContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+`;
+
+const TagChip = styled(Chip)`
+  background: linear-gradient(135deg, #e0f7fa, #b2ebf2);
+  color: #006064;
+  font-weight: 500;
+  border-radius: 16px;
+  font-size: 0.8rem;
+  height: 24px;
+`;
+
+const AttachmentButton = styled(Button)`
+  background: linear-gradient(135deg, #10b981, #059669);
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+  &:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  }
+  &:before {
+    content: "📎";
+    font-size: 0.9rem;
   }
 `;
 
@@ -221,19 +345,6 @@ const GradientDropdownItem = styled(Dropdown.Item)`
     );
     color: #2575fc;
   }
-`;
-
-const TagContainer = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-`;
-
-const TagChip = styled(Chip)`
-  background: linear-gradient(135deg, #e0f7fa, #b2ebf2);
-  color: #006064;
-  font-weight: 500;
-  border-radius: 16px;
 `;
 
 function ViewEntry({ isOpen, onClose, entry, role }) {
@@ -955,129 +1066,140 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                   sortedHistory.map((log, index, array) => (
                     <HistoryItem key={`${log.timestamp}-${index}`}>
                       <HistoryContent>
-                        <Box
-                          sx={{
-                            display: "flex",
-                            alignItems: "center",
-                            marginBottom: "0.6rem",
-                          }}
-                        >
-                          <Typography
-                            sx={{
-                              fontSize: "1.1rem",
-                              fontWeight: "600",
-                              color: "#2575fc",
-                              marginRight: "1rem",
-                            }}
-                          >
-                            #{array.length - index}
-                          </Typography>
+                        <HistoryHeader>
+                          <HistoryNumber>#{array.length - index}</HistoryNumber>
                           <HistoryTimestamp>
                             {formatDate(log.timestamp)}
                           </HistoryTimestamp>
-                        </Box>
-                        <Chip
+                        </HistoryHeader>
+
+                        <HistoryStatusChip
                           label={log.status || "N/A"}
                           color={
                             log.status === "Interested"
                               ? "success"
                               : log.status === "Not Interested"
                               ? "error"
+                              : log.status === "Closed"
+                              ? "info"
                               : "warning"
                           }
                           size="small"
-                          sx={{ marginBottom: "0.6rem" }}
                         />
-                        <HistoryRemarks>
-                          {log.remarks || "No remarks"}
-                        </HistoryRemarks>
-                        {Array.isArray(log.products) &&
-                          log.products.length > 0 && (
-                            <InfoItem>
-                              <Label>Products</Label>
-                              <Value>
-                                {log.products.map((product, idx) => (
-                                  <div key={idx}>
-                                    {product.name || "N/A"} (Spec:{" "}
-                                    {product.specification || "N/A"}, Size:{" "}
-                                    {product.size || "N/A"}, Qty:{" "}
-                                    {product.quantity || "N/A"})
-                                  </div>
-                                ))}
-                              </Value>
-                            </InfoItem>
-                          )}
-                        {log.liveLocation && (
-                          <HistoryLocation>
-                            <FaMapMarkerAlt />
-                            <MapLink
-                              href={getGoogleMapsUrl(log.liveLocation)}
-                              target="_blank"
-                              rel="noreferrer"
-                              aria-label="View Location on Google Maps"
-                            >
-                              View Location
-                            </MapLink>
-                          </HistoryLocation>
+
+                        {log.remarks && (
+                          <HistorySection>
+                            <HistorySectionTitle>
+                              💬 Remarks
+                            </HistorySectionTitle>
+                            <HistoryValue>{log.remarks}</HistoryValue>
+                          </HistorySection>
                         )}
-                        <InfoItem>
-                          <Label>Tagged With</Label>
-                          <TagContainer>
-                            {Array.isArray(log.assignedTo) &&
-                            log.assignedTo.length > 0 ? (
-                              log.assignedTo.map((user, index) => {
+
+                        {log.liveLocation && (
+                          <HistorySection>
+                            <HistoryLocation>
+                              <FaMapMarkerAlt style={{ color: '#2563eb' }} />
+                              <MapLink
+                                href={getGoogleMapsUrl(log.liveLocation)}
+                                target="_blank"
+                                rel="noreferrer"
+                                aria-label="View Location on Google Maps"
+                              >
+                                View Location
+                              </MapLink>
+                            </HistoryLocation>
+                          </HistorySection>
+                        )}
+
+                        {Array.isArray(log.assignedTo) && log.assignedTo.length > 0 && (
+                          <HistorySection>
+                            <HistorySectionTitle>
+                              🏷️ Tagged With
+                            </HistorySectionTitle>
+                            <TagContainer>
+                              {log.assignedTo.map((user, userIndex) => {
                                 const username = formatAssignedTo([user]);
-                                return (
+                                return username !== "Not Assigned" ? (
                                   <TagChip
-                                    key={index}
-                                    label={username || "Unknown"}
+                                    key={userIndex}
+                                    label={username}
                                     size="small"
                                   />
-                                );
-                              })
-                            ) : (
-                              <Value>Not Assigned</Value>
-                            )}
-                          </TagContainer>
-                        </InfoItem>
-                        {log.firstPersonMeet && (
-                          <InfoItem>
-                            <Label>First Person Meet</Label>
-                            <Value>{log.firstPersonMeet}</Value>
-                          </InfoItem>
+                                ) : null;
+                              })}
+                              {log.assignedTo.every(user => formatAssignedTo([user]) === "Not Assigned") && (
+                                <HistoryValue style={{ background: '#fef3c7', borderLeftColor: '#f59e0b' }}>
+                                  Not Assigned
+                                </HistoryValue>
+                              )}
+                            </TagContainer>
+                          </HistorySection>
                         )}
-                        {log.secondPersonMeet && (
-                          <InfoItem>
-                            <Label>Second Person Meet</Label>
-                            <Value>{log.secondPersonMeet}</Value>
-                          </InfoItem>
+
+                        {(log.firstPersonMeet || log.secondPersonMeet || log.thirdPersonMeet || log.fourthPersonMeet) && (
+                          <HistorySection>
+                            <HistorySectionTitle>
+                              👥 Third Person Meet
+                            </HistorySectionTitle>
+                            <PersonMeetGrid>
+                              {log.firstPersonMeet && (
+                                <PersonMeetItem>
+                                  <strong>1st:</strong> {log.firstPersonMeet}
+                                </PersonMeetItem>
+                              )}
+                              {log.secondPersonMeet && (
+                                <PersonMeetItem>
+                                  <strong>2nd:</strong> {log.secondPersonMeet}
+                                </PersonMeetItem>
+                              )}
+                              {log.thirdPersonMeet && (
+                                <PersonMeetItem>
+                                  <strong>3rd:</strong> {log.thirdPersonMeet}
+                                </PersonMeetItem>
+                              )}
+                              {log.fourthPersonMeet && (
+                                <PersonMeetItem>
+                                  <strong>4th:</strong> {log.fourthPersonMeet}
+                                </PersonMeetItem>
+                              )}
+                            </PersonMeetGrid>
+                          </HistorySection>
                         )}
-                        {log.thirdPersonMeet && (
-                          <InfoItem>
-                            <Label>Third Person Meet</Label>
-                            <Value>{log.thirdPersonMeet}</Value>
-                          </InfoItem>
+
+                        {Array.isArray(log.products) && log.products.length > 0 && (
+                          <HistorySection>
+                            <HistorySectionTitle>
+                              📦 Products
+                            </HistorySectionTitle>
+                            <HistoryValue>
+                              {log.products.map((product, idx) => (
+                                <div key={idx} style={{ marginBottom: '0.5rem' }}>
+                                  <strong>{product.name || "N/A"}</strong>
+                                  <br />
+                                  <small style={{ color: '#6b7280' }}>
+                                    Spec: {product.specification || "N/A"} | 
+                                    Size: {product.size || "N/A"} | 
+                                    Qty: {product.quantity || "N/A"}
+                                  </small>
+                                </div>
+                              ))}
+                            </HistoryValue>
+                          </HistorySection>
                         )}
-                        {log.fourthPersonMeet && (
-                          <InfoItem>
-                            <Label>Fourth Person Meet</Label>
-                            <Value>{log.fourthPersonMeet}</Value>
-                          </InfoItem>
-                        )}
+
                         {log.attachmentpath && (
-                          <InfoItem>
-                            <Label>Attachment</Label>
-                            <GradientButton
-                              variant="primary"
-                              onClick={() =>
-                                handleDownloadAttachment(log.attachmentpath)
-                              }
+                          <HistorySection>
+                            <HistorySectionTitle>
+                              📎 Attachment
+                            </HistorySectionTitle>
+                            <AttachmentButton
+                              onClick={() => handleDownloadAttachment(log.attachmentpath)}
                               aria-label="Download Attachment"
-                              style={{ marginTop: "0.5rem" }}
                             >
-                              Download
-                            </GradientButton>
-                          </InfoItem>
+                              Download File
+                            </AttachmentButton>
+                          </HistorySection>
                         )}
                       </HistoryContent>
                     </HistoryItem>
@@ -1085,9 +1207,17 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                 ) : (
                   <Typography
                     variant="subtitle2"
-                    sx={{ color: "#777", fontStyle: "italic", padding: "1rem" }}
+                    sx={{ 
+                      color: "#64748b", 
+                      fontStyle: "italic", 
+                      padding: "2rem",
+                      textAlign: "center",
+                      background: "#f8fafc",
+                      borderRadius: "8px",
+                      border: "2px dashed #cbd5e1"
+                    }}
                   >
-                    No history available.
+                    📝 No history available yet. Updates will appear here as they happen.
                   </Typography>
                 )}
               </HistoryContainer>
