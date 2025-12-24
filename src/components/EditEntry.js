@@ -164,10 +164,6 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     startTime: null,
     lastKnownLocation: null
   });
-  
-  // Manual location entry state
-  const [showManualEntry, setShowManualEntry] = useState(false);
-  const [manualLocationText, setManualLocationText] = useState("");
   const status = watch("status");
   const selectedState = watch("state");
   const [selectedFileName, setSelectedFileName] = useState(null);
@@ -332,26 +328,6 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         startTime: null,
         lastKnownLocation: null
       });
-      setShowManualEntry(false);
-      setManualLocationText("");
-      
-      // Try to load last known location from localStorage
-      const savedLocation = localStorage.getItem('lastKnownLocation');
-      if (savedLocation && !entry.liveLocation) {
-        try {
-          const parsed = JSON.parse(savedLocation);
-          const locationAge = Date.now() - parsed.timestamp;
-          // Use location if it's less than 1 hour old
-          if (locationAge < 3600000) {
-            setLocationState(prev => ({
-              ...prev,
-              lastKnownLocation: parsed
-            }));
-          }
-        } catch (e) {
-          console.warn('Failed to parse saved location:', e);
-        }
-      }
     }
   }, [isOpen, entry, reset]);
 
@@ -421,14 +397,6 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
 
       const locationString = `${coordinates.latitude}, ${coordinates.longitude}`;
 
-      // Save to localStorage for future use
-      const locationData = {
-        coordinates,
-        locationString,
-        timestamp: Date.now()
-      };
-      localStorage.setItem('lastKnownLocation', JSON.stringify(locationData));
-
       // Update state
       setLocationState(prev => ({
         ...prev,
@@ -488,68 +456,6 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       }
     }
   }, [setValue]);
-
-  // Use last known location
-  const useLastKnownLocation = useCallback(() => {
-    if (locationState.lastKnownLocation) {
-      const { locationString, coordinates } = locationState.lastKnownLocation;
-      
-      setValue("liveLocation", locationString, {
-        shouldValidate: true,
-        shouldDirty: true,
-      });
-
-      setLocationState(prev => ({
-        ...prev,
-        status: 'success',
-        coordinates
-      }));
-
-      setLocationFetched(true);
-      
-      const ageMinutes = Math.round((Date.now() - locationState.lastKnownLocation.timestamp) / 60000);
-      toast.success(`Using location from ${ageMinutes} minutes ago`);
-    }
-  }, [locationState.lastKnownLocation, setValue]);
-
-  // Continue without location (for non-critical flows)
-  const continueWithoutLocation = useCallback(() => {
-    setValue("liveLocation", "Location not provided", {
-      shouldValidate: true,
-      shouldDirty: true,
-    });
-
-    setLocationState(prev => ({
-      ...prev,
-      status: 'success'
-    }));
-
-    setLocationFetched(true);
-    toast.info("Continuing without location");
-  }, [setValue]);
-
-  // Manual location entry
-  const submitManualLocation = useCallback(() => {
-    if (!manualLocationText.trim()) {
-      toast.error("Please enter a location");
-      return;
-    }
-
-    setValue("liveLocation", `Manual: ${manualLocationText.trim()}`, {
-      shouldValidate: true,
-      shouldDirty: true,
-    });
-
-    setLocationState(prev => ({
-      ...prev,
-      status: 'success'
-    }));
-
-    setLocationFetched(true);
-    setShowManualEntry(false);
-    setManualLocationText("");
-    toast.success("Manual location saved");
-  }, [manualLocationText, setValue]);
 
   // Trigger location fetch when status changes
   useEffect(() => {
@@ -670,15 +576,11 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         }
 
         if (payload.status !== entry?.status && !payload.liveLocation) {
-          // Warn user but don't block submission
-          const confirmSubmit = window.confirm(
-            "You're updating status without location data. This may affect visit tracking and reporting accuracy. Continue anyway?"
-          );
-          if (!confirmSubmit) {
-            setLoading(false);
-            setShowConfirm(false);
-            return;
-          }
+          // Location is now mandatory when updating status
+          toast.error("Live location is required when updating status! Please fetch your location before submitting.");
+          setLoading(false);
+          setShowConfirm(false);
+          return;
         }
 
         const response = await axios.put(
@@ -2199,7 +2101,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           </Form.Control.Feedback>
         </Form.Group>
         <Form.Group controlId="liveLocation">
-          <Form.Label>📍 Live Location</Form.Label>
+          <Form.Label>📍 Live Location *</Form.Label>
           
           {/* Location Status Display */}
           <div style={{ 
@@ -2249,7 +2151,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
             
             {locationState.status === 'timeout' && (
               <div style={{ marginTop: '8px', fontSize: '0.9em', color: '#856404' }}>
-                Location request timed out. You can retry, use a previous location, or continue without location.
+                Location request timed out. Location is required to update status - please retry to get your location.
               </div>
             )}
             
@@ -2285,86 +2187,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
                 🔄 Retry
               </Button>
             )}
-            
-            {/* Use Last Known Location */}
-            {locationState.lastKnownLocation && locationState.status !== 'success' && (
-              <Button
-                variant="outline-success"
-                onClick={useLastKnownLocation}
-                disabled={loading}
-                style={{ flex: '1', minWidth: '140px' }}
-              >
-                📍 Use Recent Location
-              </Button>
-            )}
-            
-            {/* Manual Entry Toggle */}
-            {locationState.status !== 'success' && (
-              <Button
-                variant="outline-secondary"
-                onClick={() => setShowManualEntry(!showManualEntry)}
-                disabled={loading}
-                style={{ flex: '1', minWidth: '120px' }}
-              >
-                ✏️ Enter Manually
-              </Button>
-            )}
-            
-            {/* Continue Without Location */}
-            {(locationState.status === 'timeout' || locationState.status === 'error') && (
-              <Button
-                variant="outline-warning"
-                onClick={continueWithoutLocation}
-                disabled={loading}
-                style={{ flex: '1', minWidth: '140px' }}
-              >
-                ⏭️ Continue Without
-              </Button>
-            )}
           </div>
-
-          {/* Manual Location Entry */}
-          {showManualEntry && (
-            <div style={{ 
-              padding: '12px', 
-              backgroundColor: '#f8f9fa', 
-              borderRadius: '6px',
-              marginBottom: '12px'
-            }}>
-              <Form.Label style={{ fontSize: '0.9em', marginBottom: '8px' }}>
-                Enter Location Manually
-              </Form.Label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <Form.Control
-                  type="text"
-                  value={manualLocationText}
-                  onChange={(e) => setManualLocationText(e.target.value)}
-                  placeholder="e.g., Office address, landmark, or area name"
-                  disabled={loading}
-                  style={{ flex: 1 }}
-                />
-                <Button
-                  variant="success"
-                  onClick={submitManualLocation}
-                  disabled={loading || !manualLocationText.trim()}
-                  size="sm"
-                >
-                  Save
-                </Button>
-                <Button
-                  variant="outline-secondary"
-                  onClick={() => {
-                    setShowManualEntry(false);
-                    setManualLocationText("");
-                  }}
-                  disabled={loading}
-                  size="sm"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
 
           {/* Progress Indicator for Active Location Fetch */}
           {(locationState.status === 'fetching' || locationState.status === 'slow') && (
@@ -2388,11 +2211,9 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
 
           {/* Help Text */}
           <Form.Text className="text-muted">
-            {locationState.status === 'idle' && "Location helps track visit accuracy and provides better service."}
+            {locationState.status === 'idle' && "Location is required when updating status. Please fetch your location."}
             {locationState.status === 'success' && "✓ Location saved successfully"}
-            {locationState.lastKnownLocation && locationState.status !== 'success' && 
-              `Recent location available from ${Math.round((Date.now() - locationState.lastKnownLocation.timestamp) / 60000)} minutes ago`
-            }
+            {(locationState.status === 'error' || locationState.status === 'timeout') && "Location is required. Please retry to get your location."}
           </Form.Text>
         </Form.Group>
 
