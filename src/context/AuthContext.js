@@ -25,13 +25,15 @@ export const AuthProvider = ({ children }) => {
         }, 5000); // 5 second timeout
 
         const initSession = async () => {
+            let authStatus = false;
+            let userData = null;
             try {
                 // Use coordinated refresh to prevent duplicate attempts
                 const result = await refreshAccessToken();
 
                 if (result.success) {
-                    setUser(result.user);
-                    setIsAuthenticated(true);
+                    userData = result.user;
+                    authStatus = true;
                 }
             } catch (error) {
                 // Differentiate between error types
@@ -45,13 +47,12 @@ export const AuthProvider = ({ children }) => {
                     // Other errors
                     console.error("Session check error:", error);
                 }
-
-                setIsAuthenticated(false);
-                setUser(null);
             } finally {
-                clearTimeout(timeoutId);
+                setUser(userData);
+                setIsAuthenticated(authStatus);
                 setLoading(false);
                 setLoadingTimeout(false);
+                clearTimeout(timeoutId);
             }
         };
 
@@ -69,7 +70,7 @@ export const AuthProvider = ({ children }) => {
             clearTimeout(timeoutId);
             window.removeEventListener("auth:logout", handleLogoutEvent);
         };
-    }, [loading]);
+    }, []);
 
     // Memoized login to prevent re-creation
     const login = useCallback(async (email, password) => {
