@@ -1,12 +1,11 @@
 import React, { createContext, useState, useEffect, useContext, useMemo, useCallback } from "react";
-import api, { setAccessToken } from "../utils/api";
+import api, { setAccessToken, refreshAccessToken } from "../utils/api";
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [loading, setLoading] = useState(true);
-    const [user, setUser] = useState(null);
+    const [loadingTimeout, setLoadingTimeout] = useState(false);
 
     const initialized = React.useRef(false);
 
@@ -15,22 +14,42 @@ export const AuthProvider = ({ children }) => {
         if (initialized.current) return;
         initialized.current = true;
 
+        // Set timeout for loading state
+        const timeoutId = setTimeout(() => {
+            if (loading) {
+                setLoadingTimeout(true);
+                console.warn("Session check taking longer than expected");
+            }
+        }, 5000); // 5 second timeout
+
         const initSession = async () => {
             try {
-                const response = await api.post("/auth/refresh");
+                // Use coordinated refresh to prevent duplicate attempts
+                const result = await refreshAccessToken();
 
-                if (response.data.success) {
-                    const { accessToken, user } = response.data;
-                    setAccessToken(accessToken);
-                    setUser(user);
+                if (result.success) {
+                    setUser(result.user);
                     setIsAuthenticated(true);
                 }
             } catch (error) {
-                console.log("No active session found");
+                // Differentiate between error types
+                if (error.response?.status === 401 || error.response?.status === 403) {
+                    // Expired or invalid token - this is expected
+                    console.log("No active session found");
+                } else if (error.message === "Network Error") {
+                    // Network error - don't log out, just log
+                    console.warn("Network error during session check");
+                } else {
+                    // Other errors
+                    console.error("Session check error:", error);
+                }
+
                 setIsAuthenticated(false);
                 setUser(null);
             } finally {
+                clearTimeout(timeoutId);
                 setLoading(false);
+                setLoadingTimeout(false);
             }
         };
 
@@ -44,8 +63,11 @@ export const AuthProvider = ({ children }) => {
         };
 
         window.addEventListener("auth:logout", handleLogoutEvent);
-        return () => window.removeEventListener("auth:logout", handleLogoutEvent);
-    }, []);
+        return () => {
+            clearTimeout(timeoutId);
+            window.removeEventListener("auth:logout", handleLogoutEvent);
+        };
+    }, [loading]);
 
     // Memoized login to prevent re-creation
     const login = useCallback(async (email, password) => {
@@ -105,17 +127,18 @@ export const AuthProvider = ({ children }) => {
 
     // Memoize context value to prevent unnecessary re-renders
     const contextValue = useMemo(
-        () => ({ 
-            isAuthenticated, 
-            loading, 
-            user, 
-            role, 
-            userId, 
-            login, 
-            logout, 
-            signup 
+        () => ({
+            isAuthenticated,
+            loading,
+            loadingTimeout,
+            user,
+            role,
+            userId,
+            login,
+            logout,
+            signup
         }),
-        [isAuthenticated, loading, user, role, userId, login, logout, signup]
+        [isAuthenticated, loading, loadingTimeout, user, role, userId, login, logout, signup]
     );
 
     return (

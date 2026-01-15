@@ -768,7 +768,7 @@ function DashBoard() {
     }
   }, []);
 
-  // Optimized handleEntryAdded - Refresh to get correct stats and order
+  // Optimized handleEntryAdded - Real-time update without full refresh
   const handleEntryAdded = useCallback(
     (newEntry) => {
       if (newEntry) {
@@ -780,16 +780,15 @@ function DashBoard() {
           return;
         }
 
+        // Mark as processed immediately
+        recordOp(idStr, "created");
+
         // Strict Context Check - only show if matches current filters
         if (!matchesContext(newEntry)) {
-          // FIXED: Refresh stats even if entry doesn't match filters (it still affects totals)
-          fetchEntries();
+          // Update stats in background without affecting current view
           fetchAnalyticsEntries();
           return;
         }
-
-        // Mark as processed immediately
-        recordOp(idStr, "created");
 
         setEntries((prev) => {
           const filtered = prev.filter((e) => getId(e) !== idStr);
@@ -810,11 +809,8 @@ function DashBoard() {
           setPagination((prev) => ({ ...prev, total: prev.total + 1 }));
         }
 
-        // FIXED: Refresh backend stats after add to ensure accuracy
-        setTimeout(() => {
-          fetchEntries();
-          fetchAnalyticsEntries();
-        }, 500);
+        // Update analytics in background
+        fetchAnalyticsEntries();
       } else {
         // Fallback if no entry returned
         fetchEntries();
@@ -1047,7 +1043,9 @@ function DashBoard() {
 
   const handleDelete = useCallback(
     (deletedIds) => {
-      // Optimistic update
+      // Optimistic update - remove entries from local state immediately
+      const deletedCount = deletedIds.length;
+      
       setEntries((prev) => {
         let next = prev;
         for (const id of deletedIds) {
@@ -1060,23 +1058,38 @@ function DashBoard() {
         }
         return next;
       });
-      setPagination((prev) => ({
-        ...prev,
-        total: Math.max(0, prev.total - deletedIds.length),
-      }));
+      
+      // Update pagination counts
+      setPagination((prev) => {
+        const newTotal = Math.max(0, prev.total - deletedCount);
+        const newTotalPages = Math.ceil(newTotal / prev.limit) || 1;
+        
+        // Keep current page unless it's now beyond total pages
+        const newPage = prev.page > newTotalPages ? newTotalPages : prev.page;
+        
+        return {
+          ...prev,
+          total: newTotal,
+          pages: newTotalPages,
+          page: newPage,
+        };
+      });
+      
+      // Clear selected entries
       setSelectedEntries((prev) =>
         prev.filter((id) => !deletedIds.includes(id))
       );
 
-      // FIXED: Refresh backend stats after delete to ensure accuracy
-      setTimeout(() => {
-        fetchEntries();
-        fetchAnalyticsEntries();
-      }, 500);
+      // Update analytics in background
+      fetchAnalyticsEntries();
 
       setIsDeleteModalOpen(false);
+      
+      // Socket.io handles real-time updates for other users
+      // The deleted entry is removed from local state immediately
+      // No page refresh or jump occurs
     },
-    [fetchEntries, fetchAnalyticsEntries]
+    [fetchAnalyticsEntries, applyStatsDelta, recordOp, getId]
   );
 
   // Calculate stats exactly as AdminDrawer does to ensure consistency

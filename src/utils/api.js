@@ -3,26 +3,52 @@ import { toast } from "react-toastify";
 
 // Create Axios instance
 const api = axios.create({
-    baseURL: process.env.REACT_APP_URL || "http://localhost:5001",
+    baseURL: process.env.REACT_APP_URL || "http://localhost:4000",
     withCredentials: true, // Important for Cookies
 });
 
 // Memory Storage for Access Token and Refresh Logic
 let accessToken = null;
-let isRefreshing = false;
-let refreshSubscribers = [];
+
+// Coordinated refresh promise to prevent duplicate attempts
+let refreshPromise = null;
 
 export const setAccessToken = (token) => {
     accessToken = token;
 };
 
-const subscribeTokenRefresh = (cb) => {
-    refreshSubscribers.push(cb);
-};
+// Coordinated refresh function
+export const refreshAccessToken = async () => {
+    // If refresh is already in progress, return the existing promise
+    if (refreshPromise) {
+        return refreshPromise;
+    }
 
-const onRefreshed = (token) => {
-    refreshSubscribers.map((cb) => cb(token));
-    refreshSubscribers = [];
+    refreshPromise = axios.post(
+        `${api.defaults.baseURL}/auth/refresh`,
+        {},
+        { withCredentials: true }
+    )
+    .then(response => {
+        if (response.data.success && response.data.accessToken) {
+            setAccessToken(response.data.accessToken);
+            return {
+                success: true,
+                accessToken: response.data.accessToken,
+                user: response.data.user
+            };
+        }
+        throw new Error('Refresh failed');
+    })
+    .catch(error => {
+        setAccessToken(null);
+        throw error;
+    })
+    .finally(() => {
+        refreshPromise = null;
+    });
+
+    return refreshPromise;
 };
 
 export const getAccessToken = () => accessToken;
@@ -46,44 +72,17 @@ api.interceptors.response.use(
 
         // Prevent infinite loops and only handle 401s
         if (error.response?.status === 401 && !originalRequest._retry) {
-            if (isRefreshing) {
-                // If a refresh is already in progress, queue this request
-                return new Promise((resolve) => {
-                    subscribeTokenRefresh((token) => {
-                        originalRequest.headers.Authorization = `Bearer ${token}`;
-                        resolve(api(originalRequest));
-                    });
-                });
-            }
-
             originalRequest._retry = true;
-            isRefreshing = true;
 
             try {
-                // Attempt Silent Refresh
-                // Use absolute path or default baseURL
-                const response = await axios.post(
-                    `${api.defaults.baseURL}/auth/refresh`,
-                    {},
-                    { withCredentials: true }
-                );
-
-                if (response.data.success && response.data.accessToken) {
-                    const newAccessToken = response.data.accessToken;
-                    setAccessToken(newAccessToken);
-                    isRefreshing = false;
-                    onRefreshed(newAccessToken);
-
-                    // Update header for the original request
-                    originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-                    return api(originalRequest);
-                }
+                // Use coordinated refresh
+                const result = await refreshAccessToken();
+                
+                // Update header for the original request
+                originalRequest.headers.Authorization = `Bearer ${result.accessToken}`;
+                return api(originalRequest);
             } catch (refreshError) {
-                isRefreshing = false;
-                onRefreshed(null);
-
                 console.error("Session expired:", refreshError);
-                setAccessToken(null);
 
                 // Avoid toast loop on startup check or specific endpoints
                 if (!originalRequest.url.includes("/auth/refresh")) {
@@ -95,10 +94,11 @@ api.interceptors.response.use(
                 }
 
                 window.dispatchEvent(new Event("auth:logout"));
+                return Promise.reject(refreshError);
             }
         }
 
-        // Handle Network Errors (unchanged)
+        // Handle Network Errors
         if (error.message === "Network Error" && !originalRequest._retry) {
             toast.error("Network problem. Please check your connection.", {
                 position: "top-right",
