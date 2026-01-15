@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import "../App.css";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../utils/api";
 import { Spinner } from "react-bootstrap";
 import { toast } from "react-toastify";
+import { useAuth } from "../context/AuthContext";
 
 function ChangePassword() {
   const [formData, setFormData] = useState({
@@ -20,22 +21,20 @@ function ChangePassword() {
   const navigate = useNavigate();
 
   // Check if user is authenticated on component mount
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const { isAuthenticated, user, logout: authLogout } = useAuth();
 
+  useEffect(() => {
     console.log("ChangePassword: Component mounted", {
-      hasToken: !!token,
-      hasUserEmail: !!user.email,
-      userEmail: user.email,
+      isAuthenticated,
+      userEmail: user?.email,
     });
 
-    if (token && user.email) {
+    if (isAuthenticated && user?.email) {
       console.log("ChangePassword: User authenticated", { email: user.email });
     } else {
       console.log("ChangePassword: No authentication data found");
     }
-  }, []);
+  }, [isAuthenticated, user]);
 
   const handleInput = (e) => {
     const { name, value } = e.target;
@@ -126,12 +125,10 @@ function ChangePassword() {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem("token");
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const userEmail = user.email;
+      const userEmail = user?.email;
 
-      if (!token) {
-        toast.error("Authentication token not found. Please log in again.", {
+      if (!isAuthenticated) {
+        toast.error("Please log in again.", {
           position: "top-right",
           autoClose: 3000,
           theme: "colored",
@@ -150,15 +147,9 @@ function ChangePassword() {
         return;
       }
 
-      const response = await axios.post(
-        `${process.env.REACT_APP_URL}/auth/change-password`,
-        { ...formData, email: userEmail },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
+      const response = await api.post(
+        "/auth/change-password",
+        { ...formData, email: userEmail }
       );
 
       if (response.status === 200) {
@@ -172,10 +163,9 @@ function ChangePassword() {
           newPassword: "",
           confirmNewPassword: "",
         });
-        setTimeout(() => {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          navigate("/login");
+        setTimeout(async () => {
+          await authLogout();
+          navigate("/login", { replace: true });
         }, 3000);
       }
     } catch (error) {

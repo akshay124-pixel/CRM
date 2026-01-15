@@ -1,8 +1,15 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Drawer, Box, Typography, IconButton, TextField } from "@mui/material";
+import {
+  Drawer,
+  Box,
+  Typography,
+  IconButton,
+  TextField,
+  Button,
+} from "@mui/material";
 import { FaTimes, FaSearch } from "react-icons/fa";
-import axios from "axios";
+import api from "../utils/api";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
 
@@ -13,6 +20,7 @@ const ValueAnalyticsDrawer = ({
   role,
   userId,
   dateRange,
+  drawerUsers,
 }) => {
   const [valueStats, setValueStats] = useState([]);
   const [totalClosingAmount, setTotalClosingAmount] = useState(0);
@@ -20,205 +28,160 @@ const ValueAnalyticsDrawer = ({
   const [totalWarmValue, setTotalWarmValue] = useState(0);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  useEffect(() => {
-    const fetchAssignedUsersAndCalculateValueStats = async () => {
+  const fetchAssignedUsersAndCalculateValueStats = useCallback(async () => {
+    // If we already have users from parent, don't set global loading or fetch
+    let usersData = [];
+
+    if (drawerUsers && drawerUsers.length > 0) {
+      usersData = drawerUsers;
+    } else {
       setLoading(true);
       try {
-        const token = localStorage.getItem("token");
-        let relevantUserIds = [];
+        const response = await api.get("/api/users");
+        usersData = response.data;
+      } catch (error) {
+        console.error("Error loading value analytics:", error);
+        toast.error("Unable to load value analytics. Please try again later.");
+        setLoading(false);
+        return;
+      }
+    }
 
-        if (role === "superadmin") {
-          const response = await axios.get(
-            `${process.env.REACT_APP_URL}/api/users`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
-          const admins = response.data.filter(
+    try {
+      let relevantUserIds = [];
+
+      if (role === "superadmin") {
+        const admins = usersData.filter(
+          (user) =>
+            typeof user.role === "string" && user.role.toLowerCase() === "admin"
+        );
+        const teamMembers = usersData.filter(
+          (user) =>
+            typeof user.role === "string" &&
+            user.role.toLowerCase() === "others"
+        );
+        relevantUserIds = [...admins, ...teamMembers].map((user) => ({
+          _id: user._id,
+          username: user.username,
+          role: user.role,
+          assignedAdmins: user.assignedAdmins || [],
+        }));
+      } else if (role === "admin") {
+        relevantUserIds = usersData
+          .filter(
             (user) =>
-              typeof user.role === "string" &&
-              user.role.toLowerCase() === "admin"
-          );
-          const teamMembers = response.data.filter(
-            (user) =>
-              typeof user.role === "string" &&
-              user.role.toLowerCase() === "others"
-          );
-          relevantUserIds = [...admins, ...teamMembers].map((user) => ({
+              (user.assignedAdmins && user.assignedAdmins.includes(userId)) ||
+              user._id === userId
+          )
+          .map((user) => ({
             _id: user._id,
             username: user.username,
             role: user.role,
             assignedAdmins: user.assignedAdmins || [],
           }));
-        } else if (role === "admin") {
-          const response = await axios.get(
-            `${process.env.REACT_APP_URL}/api/users`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
-          relevantUserIds = response.data
-            .filter(
-              (user) =>
-                user.assignedAdmins?.includes(userId) || user._id === userId
-            )
-            .map((user) => ({
-              _id: user._id,
-              username: user.username,
-              role: user.role,
-              assignedAdmins: user.assignedAdmins || [],
-            }));
-        } else {
-          relevantUserIds = [{ _id: userId, username: "Self", role: "others" }];
-        }
+      } else {
+        const currentUser = usersData.find((user) => user._id === userId);
 
-        console.log(
-          "Relevant User IDs:",
-          relevantUserIds.map((u) => ({
-            id: u._id,
-            username: u.username,
-            role: u.role,
-          }))
-        );
+        relevantUserIds = [
+          {
+            _id: userId,
+            username: currentUser?.username || "Unknown",
+            role: currentUser?.role || "others",
+            assignedAdmins: currentUser?.assignedAdmins || [],
+          },
+        ];
+      }
 
-        const statsMap = {};
-        const totals = { totalClose: 0, totalHot: 0, totalWarm: 0 };
+      const statsMap = {};
+      const totals = { totalClose: 0, totalHot: 0, totalWarm: 0 };
 
-      const filteredEntries = entries.filter((entry) => {
-        const createdAt = new Date(entry.createdAt);
-        const updatedAt = new Date(entry.updatedAt);
-        const startDate = dateRange[0].startDate
-          ? new Date(dateRange[0].startDate)
-          : null;
-        const endDate = dateRange[0].endDate
-          ? new Date(dateRange[0].endDate)
-          : null;
-
-        const isInDateRange =
-          !startDate ||
-          !endDate ||
-          (createdAt >= startDate && createdAt <= endDate) ||
-          (updatedAt >= startDate && updatedAt <= endDate);
-
-        return isInDateRange;
-      });
-
-        console.log("Filtered Entries Count:", filteredEntries.length);
-
-        filteredEntries.forEach((entry, index) => {
-          console.log(`Entry ${index + 1}:`, {
-            id: entry._id,
-            createdBy: entry.createdBy,
-            closetype: entry.closetype,
-            closeamount: entry.closeamount,
-            status: entry.status,
-            estimatedValue: entry.estimatedValue,
-          });
-
-          // Process createdBy only
-          const creatorId = entry.createdBy
-            ? entry.createdBy._id?.toString() ||
-              entry.createdBy.$oid?.toString() ||
-              entry.createdBy.toString()
-            : null;
-          const creator = relevantUserIds.find(
-            (u) => u._id.toString() === creatorId
-          );
-          if (creator) {
-            processUserStats(creator, entry, statsMap, totals, role, userId);
-          } else {
-            console.warn(
-              `Creator not found for entry ${entry._id}:`,
-              creatorId
-            );
+      const statsLookup = {};
+      if (Array.isArray(entries)) {
+        entries.forEach((stat) => {
+          if (stat && stat._id) {
+            const key =
+              (stat._id && stat._id.$oid) ||
+              (typeof stat._id === "object" && stat._id.toString
+                ? stat._id.toString()
+                : String(stat._id));
+            statsLookup[key] = stat;
           }
         });
-
-        console.log("Stats Map:", statsMap);
-
-        setValueStats(Object.values(statsMap));
-        setTotalClosingAmount(totals.totalClose);
-        setTotalHotValue(totals.totalHot);
-        setTotalWarmValue(totals.totalWarm);
-      } catch (error) {
-        console.error("Error loading value analytics:", error);
-        toast.error("Unable to load value analytics. Please try again later.");
-      } finally {
-        setLoading(false);
       }
-    };
 
-    const processUserStats = (user, entry, statsMap, totals, role, userId) => {
-      const uId = user._id.toString();
-      const username = user.username;
-      const userRole =
-        typeof user.role === "string" ? user.role.toLowerCase() : "user";
+      relevantUserIds.forEach((user) => {
+        const uId = user._id.toString();
+        const username = user.username;
+        const userRole = user.role;
 
-      if (
-        (role === "superadmin" &&
-          (userRole === "admin" || userRole === "others")) ||
-        (role === "admin" &&
-          (uId === userId || user.assignedAdmins?.includes(userId))) ||
-        (role === "others" && uId === userId)
-      ) {
-        if (!statsMap[uId]) {
-          let displayName = username;
-          if (userRole === "superadmin")
-            displayName = `${username} (Superadmin)`;
-          else if (userRole === "admin") displayName = `${username} (Admin)`;
-          statsMap[uId] = {
-            username: displayName,
-            totalClosingAmount: 0,
-            hotValue: 0,
-            warmValue: 0,
-          };
+        let displayName = username;
+        if (userRole === "superadmin") displayName = `${username} (Superadmin)`;
+        else if (userRole === "admin") displayName = `${username} (Admin)`;
+
+        statsMap[uId] = {
+          username: displayName,
+          totalClosingAmount: 0,
+          hotValue: 0,
+          warmValue: 0,
+        };
+
+        if (statsLookup[uId]) {
+          const s = statsLookup[uId];
+          statsMap[uId].totalClosingAmount = s.totalClosingAmount || 0;
+          statsMap[uId].hotValue = s.hotValue || 0;
+          statsMap[uId].warmValue = s.warmValue || 0;
+
+          totals.totalClose += s.totalClosingAmount || 0;
+          totals.totalHot += s.hotValue || 0;
+          totals.totalWarm += s.warmValue || 0;
         }
-        if (
-          entry.closetype === "Closed Won" &&
-          entry.closeamount != null &&
-          typeof entry.closeamount === "number" &&
-          !isNaN(entry.closeamount)
-        ) {
-          console.log(
-            `Adding closeamount for ${username} on entry ${entry._id}: ₹${entry.closeamount}`
-          );
-          statsMap[uId].totalClosingAmount += entry.closeamount;
-          totals.totalClose += entry.closeamount;
-        } else if (
-          entry.closetype === "Closed Won" &&
-          (entry.closeamount == null || isNaN(entry.closeamount))
-        ) {
-          console.warn(
-            `Invalid closeamount for entry ${entry._id}:`,
-            entry.closeamount
-          );
-        }
-        if (
-          entry.estimatedValue != null &&
-          typeof entry.estimatedValue === "number" &&
-          !isNaN(entry.estimatedValue)
-        ) {
-          if (entry.status === "Interested") {
-            statsMap[uId].hotValue += entry.estimatedValue;
-            totals.totalHot += entry.estimatedValue;
-          } else if (entry.status === "Maybe") {
-            statsMap[uId].warmValue += entry.estimatedValue;
-            totals.totalWarm += entry.estimatedValue;
-          }
-        }
-      }
-    };
+      });
+
+      setValueStats(Object.values(statsMap));
+      setTotalClosingAmount(totals.totalClose);
+      setTotalHotValue(totals.totalHot);
+      setTotalWarmValue(totals.totalWarm);
+    } catch (error) {
+      console.error("Error processing value analytics:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [entries, role, userId, drawerUsers]);
+
+  useEffect(() => {
+    let isMounted = true;
+    let timeoutId;
 
     if (isOpen) {
-      fetchAssignedUsersAndCalculateValueStats();
-      setSearchTerm(""); // Reset search term when drawer opens
+      if (!isInitialized) {
+        setIsInitialized(true);
+        fetchAssignedUsersAndCalculateValueStats();
+        setSearchTerm("");
+      }
+    } else {
+      timeoutId = setTimeout(() => {
+        if (isMounted && isInitialized) {
+          setValueStats([]);
+          setSearchTerm("");
+          setIsInitialized(false);
+        }
+      }, 100);
     }
-  }, [entries, isOpen, role, userId, dateRange]);
 
-  // Filter valueStats based on search term for superadmin and admin roles
+    return () => {
+      isMounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [isOpen, isInitialized, fetchAssignedUsersAndCalculateValueStats]);
+
+  const handleClose = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
   const filteredValueStats = useMemo(() => {
-    if (role !== "superadmin" && role !== "admin") return valueStats; // No filtering for 'others'
+    if (role !== "superadmin" && role !== "admin") return valueStats;
     if (!searchTerm.trim()) return valueStats;
     return valueStats.filter((user) =>
       user.username.toLowerCase().includes(searchTerm.toLowerCase())
@@ -235,13 +198,6 @@ const ValueAnalyticsDrawer = ({
           "Hot Value": totalHotValue,
           "Warm Value": totalWarmValue,
         },
-        {
-          Section: "",
-          Username: "",
-          "Total Closing Amount": "",
-          "Hot Value": "",
-          "Warm Value": "",
-        },
         ...filteredValueStats.map((user) => ({
           Section: "User Statistics",
           Username: user.username,
@@ -254,27 +210,13 @@ const ValueAnalyticsDrawer = ({
       const worksheet = XLSX.utils.json_to_sheet(exportData);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Value Analytics");
-
-      const colWidths = Object.keys(exportData[0]).map((key) => {
-        const maxLength = Math.max(
-          key.length,
-          ...exportData.map((row) => String(row[key] || "").length)
-        );
-        return { wch: Math.min(maxLength + 2, 50) };
-      });
-      worksheet["!cols"] = colWidths;
-
-      const dateStr = dateRange?.[0]?.startDate
-        ? `${new Date(dateRange[0].startDate)
-            .toISOString()
-            .slice(0, 10)}_to_${new Date(dateRange[0].endDate)
-            .toISOString()
-            .slice(0, 10)}`
-        : new Date().toISOString().slice(0, 10);
-      XLSX.writeFile(workbook, `value_analytics_${dateStr}.xlsx`);
+      XLSX.writeFile(
+        workbook,
+        `value_analytics_${new Date().toISOString().slice(0, 10)}.xlsx`
+      );
       toast.success("Value analytics exported successfully!");
     } catch (error) {
-      console.error("Error exporting value analytics:", error);
+      console.error("Export error:", error);
       toast.error("Failed to export value analytics!");
     }
   };

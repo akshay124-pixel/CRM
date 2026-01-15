@@ -3,17 +3,26 @@ import PropTypes from "prop-types";
 import { motion } from "framer-motion";
 import { Drawer, Box, Typography, IconButton, TextField } from "@mui/material";
 import { FaTimes, FaSearch } from "react-icons/fa";
-import axios from "axios";
+import api from "../utils/api";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
 import DOMPurify from "dompurify";
 
-const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
+const AdminDrawer = ({
+  entries,
+  isOpen,
+  onClose,
+  role,
+  userId,
+  dateRange,
+  drawerUsers,
+}) => {
   const [userStats, setUserStats] = useState([]);
   const [loading, setLoading] = useState(false);
   const [debugInfo, setDebugInfo] = useState(null);
   const [cachedUsers, setCachedUsers] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Normalize ID from various formats
   const normalizeId = (idObj) => {
@@ -51,6 +60,25 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
 
   // Fetch users with caching
   const fetchUsers = useCallback(async () => {
+    // Use pre-fetched users if available
+    if (drawerUsers && drawerUsers.length > 0) {
+      let relevantUsers;
+      if (role === "superadmin") {
+        relevantUsers = drawerUsers.filter(
+          (u) => u.role === "admin" || u.role === "others"
+        );
+      } else if (role === "admin") {
+        relevantUsers = drawerUsers.filter(
+          (user) =>
+            user._id === userId ||
+            (user.assignedAdmins?.includes(userId) && user.role === "others")
+        );
+      } else {
+        relevantUsers = drawerUsers.filter((user) => user._id === userId);
+      }
+      return relevantUsers;
+    }
+
     if (cachedUsers) {
       console.log("Using cached users:", cachedUsers.length);
       return cachedUsers;
@@ -59,25 +87,17 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
     setLoading(true);
     setDebugInfo(null);
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setDebugInfo("You are not logged in. Please log in to view users.");
-        toast.error("Please log in to access user data.");
-        return [];
-      }
-
       let allUsers = [];
       const apiUrl =
         role === "superadmin"
-          ? `${process.env.REACT_APP_URL}/api/allusers`
-          : `${process.env.REACT_APP_URL}/api/users`;
+          ? "/api/allusers"
+          : "/api/users";
       let page = 1;
       let hasMore = true;
 
       while (hasMore) {
         try {
-          const response = await axios.get(apiUrl, {
-            headers: { Authorization: `Bearer ${token}` },
+          const response = await api.get(apiUrl, {
             params: { limit: 100, page },
             timeout: 10000,
           });
@@ -158,13 +178,25 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
       return;
     }
 
-    if (!filteredEntries.length) {
-      setUserStats([]);
-      setDebugInfo("No entries found for the selected date range");
-      return;
-    }
+   if (!entries || !entries.length) {
+  const zeroStats = users.map((user) => ({
+    _id: user._id,
+    username: user.username,
+    allTimeEntries: 0,
+    monthEntries: 0,
+    totalVisits: 0,
+    cold: 0,
+    warm: 0,
+    hot: 0,
+    closedWon: 0,
+    closedLost: 0,
+  }));
 
-    console.log("Filtered Entries Count:", filteredEntries.length);
+  setUserStats(zeroStats);
+  setDebugInfo(null); // message hide
+  return;
+}
+
 
     const statsMap = {};
     const processedEntryIds = new Set();
@@ -172,25 +204,20 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
     const startDate = dateRange?.[0]?.startDate
-      ? new Date(dateRange[0].startDate.setHours(0, 0, 0, 0))
+      ? new Date(new Date(dateRange[0].startDate).setHours(0, 0, 0, 0))
       : null;
     const endDate = dateRange?.[0]?.endDate
-      ? new Date(dateRange[0].endDate.setHours(23, 59, 59, 999))
+      ? new Date(new Date(dateRange[0].endDate).setHours(23, 59, 59, 999))
       : null;
 
-    filteredEntries.forEach((entry) => {
-      if (!entry._id || processedEntryIds.has(entry._id)) return;
-      processedEntryIds.add(entry._id);
-
-      const creatorId = normalizeId(entry.createdBy?._id || entry.createdBy);
-      if (!creatorId) {
-        console.warn(`No valid creatorId for entry ${entry._id}`);
-        return;
-      }
+    entries.forEach((entry) => {
+      const creatorId = normalizeId(entry._id);
+      if (!creatorId || processedEntryIds.has(creatorId)) return;
+      processedEntryIds.add(creatorId);
 
       const user = users.find((u) => u._id === creatorId);
       if (!user) {
-        console.warn(`User ${creatorId} not found for entry ${entry._id}`);
+        // Entry might belong to someone not in our current user set (e.g. filtered out)
         return;
       }
 
@@ -203,70 +230,19 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
         } else if (creatorId === userId && role === "admin") {
           displayName = `${user.username} (Admin)`;
         }
+
         statsMap[creatorId] = {
           _id: creatorId,
           username: displayName,
-          allTimeEntries: 0,
-          monthEntries: 0,
-          totalVisits: 0,
-          cold: 0,
-          warm: 0,
-          hot: 0,
-          closedWon: 0,
-          closedLost: 0,
+          allTimeEntries: entry.allTimeEntries || 0,
+          monthEntries: entry.monthEntries || 0,
+          totalVisits: entry.totalVisits || 0,
+          cold: entry.cold || 0,
+          warm: entry.warm || 0,
+          hot: entry.hot || 0,
+          closedWon: entry.closedWon || 0,
+          closedLost: entry.closedLost || 0,
         };
-      }
-
-      // Increment allTimeEntries
-      statsMap[creatorId].allTimeEntries += 1;
-
-      // Filter history items for totalVisits and monthEntries
-      const filteredHistory =
-        entry.history?.filter((historyItem) => {
-          const timestamp = new Date(historyItem.timestamp);
-          if (!startDate || !endDate) {
-            // If no date range, count history items for the current month
-            const historyMonth = timestamp.getMonth();
-            const historyYear = timestamp.getFullYear();
-            return historyMonth === currentMonth && historyYear === currentYear;
-          } else {
-            // If date range is applied, count history items within the range
-            return timestamp >= startDate && timestamp <= endDate;
-          }
-        }) || [];
-
-      // Update totalVisits based on filtered history (all history if no date range)
-      statsMap[creatorId].totalVisits +=
-        !startDate || !endDate
-          ? entry.history?.length || 0
-          : filteredHistory.length;
-
-      // Update monthEntries based on filtered history
-      statsMap[creatorId].monthEntries += filteredHistory.length;
-
-      const status = entry.status?.toLowerCase() || "";
-      const closetype = entry.closetype?.toLowerCase() || "";
-
-      switch (status) {
-        case "not interested":
-          statsMap[creatorId].cold += 1;
-          break;
-        case "maybe":
-          statsMap[creatorId].warm += 1;
-          break;
-        case "interested":
-          statsMap[creatorId].hot += 1;
-          break;
-        case "closed":
-          if (closetype === "closed won") {
-            statsMap[creatorId].closedWon += 1;
-          } else if (closetype === "closed lost") {
-            statsMap[creatorId].closedLost += 1;
-          }
-          break;
-        default:
-          console.warn(`Unknown status for entry ${entry._id}: ${status}`);
-          break;
       }
     });
 
@@ -274,19 +250,37 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
     console.log("Calculated User Stats:", result);
     setUserStats(result);
 
-    if (!result.length && filteredEntries.length) {
+    if (!result.length && entries.length) {
       setDebugInfo("No stats generated; check user IDs or entry data");
     }
-  }, [filteredEntries, fetchUsers, role, userId, dateRange]);
+  }, [entries, fetchUsers, role, userId]);
 
   useEffect(() => {
+    let isMounted = true;
+    let timeoutId;
+
     if (isOpen) {
-      calculateStats();
+      if (!isInitialized) {
+        setIsInitialized(true);
+        // Only trigger initialization if we're not already initialized
+        calculateStats();
+      }
     } else {
-      setCachedUsers(null); // Clear cache when drawer closes
-      setSearchTerm(""); // Reset search term when drawer closes
+      // Small delay before cleanup to bridge micro-toggles
+      timeoutId = setTimeout(() => {
+        if (isMounted && isInitialized) {
+          setCachedUsers(null);
+          setSearchTerm("");
+          setIsInitialized(false);
+        }
+      }, 100);
     }
-  }, [isOpen, calculateStats]);
+
+    return () => {
+      isMounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [isOpen, calculateStats, isInitialized]);
 
   // Filter userStats based on search term
   const filteredUserStats = useMemo(() => {
@@ -369,8 +363,8 @@ const AdminDrawer = ({ entries, isOpen, onClose, role, userId, dateRange }) => {
 
       const dateStr = dateRange?.[0]?.startDate
         ? `${new Date(dateRange[0].startDate)
-            .toISOString()
-            .slice(0, 10)}_to_${new Date(dateRange[0].endDate)
+          .toISOString()
+          .slice(0, 10)}_to_${new Date(dateRange[0].endDate)
             .toISOString()
             .slice(0, 10)}`
         : new Date().toISOString().slice(0, 10);

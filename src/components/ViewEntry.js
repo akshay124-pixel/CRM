@@ -2,13 +2,8 @@ import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { Modal, Button, Dropdown } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { toast } from "react-toastify";
-import {
-  FaHistory,
-  FaMapMarkerAlt,
-  FaAngleDown,
-  FaAngleUp,
-  FaEllipsisV,
-} from "react-icons/fa";
+import { FaMapMarkerAlt, FaAngleDown, FaAngleUp, FaEllipsisV } from "react-icons/fa";
+import api from "../utils/api";
 import { Box, Typography, Collapse, Chip } from "@mui/material";
 import styled from "styled-components";
 import * as XLSX from "xlsx";
@@ -340,7 +335,7 @@ const GradientButton = styled(Button)`
   &:hover {
     transform: translateY(-2px);
     background: ${(props) =>
-      props.disabled ? "#cccccc" : "linear-gradient(135deg, #6a11cb, #2575fc)"};
+    props.disabled ? "#cccccc" : "linear-gradient(135deg, #6a11cb, #2575fc)"};
   }
   &:focus {
     outline: none;
@@ -414,8 +409,8 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
   const sortedHistory = useMemo(() => {
     return Array.isArray(entry?.history)
       ? [...entry.history].sort(
-          (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
-        )
+        (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+      )
       : [];
   }, [entry?.history]);
 
@@ -469,13 +464,12 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
 
     const productsText = Array.isArray(entry.products)
       ? entry.products
-          .map(
-            (product, index) =>
-              `Product ${index + 1}: ${product.name}, Specification: ${
-                product.specification
-              }, Size: ${product.size}, Quantity: ${product.quantity}`
-          )
-          .join("\n")
+        .map(
+          (product, index) =>
+            `Product ${index + 1}: ${product.name}, Specification: ${product.specification
+            }, Size: ${product.size}, Quantity: ${product.quantity}`
+        )
+        .join("\n")
       : "N/A";
 
     const assignedToText = formatAssignedTo(entry.assignedTo);
@@ -500,15 +494,13 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
       Remarks: ${entry.remarks || "N/A"}
       Priority: ${entry.priority || "N/A"}
       Next Action: ${entry.nextAction || "N/A"}
-      Estimated Value: ${
-        entry.estimatedValue
-          ? `₹${new Intl.NumberFormat("en-IN").format(entry.estimatedValue)}`
-          : "N/A"
+      Estimated Value: ${entry.estimatedValue
+        ? `₹${new Intl.NumberFormat("en-IN").format(entry.estimatedValue)}`
+        : "N/A"
       }
-      Closing Amount: ${
-        entry.closeamount
-          ? `₹${new Intl.NumberFormat("en-IN").format(entry.closeamount)}`
-          : "N/A"
+      Closing Amount: ${entry.closeamount
+        ? `₹${new Intl.NumberFormat("en-IN").format(entry.closeamount)}`
+        : "N/A"
       }
       Updated At: ${formatDate(entry.updatedAt)}
       Created By: ${entry.createdBy?.username || "N/A"}
@@ -541,8 +533,8 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
         {
           Section: "Client Entry",
           Customer: entry.customerName || "",
-           CustomerEmail: entry.customerEmail || "",
-          
+          CustomerEmail: entry.customerEmail || "",
+
           "Mobile Number": entry.mobileNumber || "",
           "Contact Person": entry.contactperson || "",
           Address: entry.address || "",
@@ -553,11 +545,11 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
           Type: entry.type || "",
           Products: Array.isArray(entry.products)
             ? entry.products
-                .map(
-                  (p) =>
-                    `${p.name} (Spec: ${p.specification}, Size: ${p.size}, Qty: ${p.quantity})`
-                )
-                .join("; ")
+              .map(
+                (p) =>
+                  `${p.name} (Spec: ${p.specification}, Size: ${p.size}, Qty: ${p.quantity})`
+              )
+              .join("; ")
             : "",
           "Estimated Value": entry.estimatedValue
             ? `₹${new Intl.NumberFormat("en-IN").format(entry.estimatedValue)}`
@@ -589,11 +581,11 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
         Location: log.liveLocation || "N/A",
         Products: Array.isArray(log.products)
           ? log.products
-              .map(
-                (p) =>
-                  `${p.name} (Spec: ${p.specification}, Size: ${p.size}, Qty: ${p.quantity})`
-              )
-              .join("; ")
+            .map(
+              (p) =>
+                `${p.name} (Spec: ${p.specification}, Size: ${p.size}, Qty: ${p.quantity})`
+            )
+            .join("; ")
           : "N/A",
         "Assigned To": formatAssignedTo(log.assignedTo),
         "First Person Meet": log.firstPersonMeet || "N/A",
@@ -632,9 +624,8 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `client_entry_${
-        entry.customerName || "entry"
-      }_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      link.download = `client_entry_${entry.customerName || "entry"
+        }_${new Date().toISOString().slice(0, 10)}.xlsx`;
       document.body.appendChild(link);
       link.click();
 
@@ -662,45 +653,28 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
   const handleDownloadAttachment = useCallback(
     async (attachmentPath) => {
       try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          throw new Error("No authentication token found");
-        }
+        // Token check removed as api interceptor handles auth
 
         const filename = attachmentPath.split("/").pop();
         if (!filename) {
           throw new Error("Invalid attachment path");
         }
 
-        const response = await fetch(
-          `${process.env.REACT_APP_URL}/api/download/${encodeURIComponent(
-            filename
-          )}`,
+        const response = await api.get(
+          `/api/download/${encodeURIComponent(filename)}`,
           {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              Accept: "application/octet-stream",
-            },
+            responseType: "blob",
           }
         );
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(
-            `HTTP error! status: ${response.status}, message: ${errorText}`
-          );
-        }
-
-        const blob = await response.blob();
+        const blob = response.data;
         const ext = filename.includes(".")
           ? "." + filename.split(".").pop()
           : "";
-        let downloadFilename = `${
-          entry.customerName
-            ? entry.customerName.replace(/[^a-zA-Z0-9]/g, "_")
-            : "entry"
-        }_attachment${ext}`;
+        let downloadFilename = `${entry.customerName
+          ? entry.customerName.replace(/[^a-zA-Z0-9]/g, "_")
+          : "entry"
+          }_attachment${ext}`;
 
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -853,7 +827,7 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                   <Label>Customer Name</Label>
                   <Value>{entry.customerName || "N/A"}</Value>
                 </InfoItem>
-                 <InfoItem>
+                <InfoItem>
                   <Label>Customer Email</Label>
                   <Value>{entry.customerEmail || "N/A"}</Value>
                 </InfoItem>
@@ -950,13 +924,13 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                   <Value>
                     {Array.isArray(entry.products) && entry.products.length > 0
                       ? entry.products.map((product, index) => (
-                          <div key={index}>
-                            {product.name || "N/A"} (Spec:{" "}
-                            {product.specification || "N/A"}, Size:{" "}
-                            {product.size || "N/A"}, Qty:{" "}
-                            {product.quantity || "N/A"})
-                          </div>
-                        ))
+                        <div key={index}>
+                          {product.name || "N/A"} (Spec:{" "}
+                          {product.specification || "N/A"}, Size:{" "}
+                          {product.size || "N/A"}, Qty:{" "}
+                          {product.quantity || "N/A"})
+                        </div>
+                      ))
                       : "N/A"}
                   </Value>
                 </InfoItem>
@@ -969,8 +943,8 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                   <Value>
                     {entry.estimatedValue
                       ? `₹${new Intl.NumberFormat("en-IN").format(
-                          entry.estimatedValue
-                        )}`
+                        entry.estimatedValue
+                      )}`
                       : "N/A"}
                   </Value>
                 </InfoItem>
@@ -979,8 +953,8 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                   <Value>
                     {entry.closeamount
                       ? `₹${new Intl.NumberFormat("en-IN").format(
-                          entry.closeamount
-                        )}`
+                        entry.closeamount
+                      )}`
                       : "N/A"}
                   </Value>
                 </InfoItem>
@@ -1060,7 +1034,7 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                   <Label>Tagged With</Label>
                   <TagContainer>
                     {Array.isArray(entry.assignedTo) &&
-                    entry.assignedTo.length > 0 ? (
+                      entry.assignedTo.length > 0 ? (
                       entry.assignedTo.map((user, index) => (
                         <TagChip
                           key={index}
@@ -1122,10 +1096,10 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                             log.status === "Interested"
                               ? "success"
                               : log.status === "Not Interested"
-                              ? "error"
-                              : log.status === "Closed"
-                              ? "info"
-                              : "warning"
+                                ? "error"
+                                : log.status === "Closed"
+                                  ? "info"
+                                  : "warning"
                           }
                           size="small"
                         />
@@ -1221,8 +1195,8 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                                   <strong>{product.name || "N/A"}</strong>
                                   <br />
                                   <small style={{ color: '#6b7280' }}>
-                                    Spec: {product.specification || "N/A"} | 
-                                    Size: {product.size || "N/A"} | 
+                                    Spec: {product.specification || "N/A"} |
+                                    Size: {product.size || "N/A"} |
                                     Qty: {product.quantity || "N/A"}
                                   </small>
                                 </div>
@@ -1250,9 +1224,9 @@ function ViewEntry({ isOpen, onClose, entry, role }) {
                 ) : (
                   <Typography
                     variant="subtitle2"
-                    sx={{ 
-                      color: "#64748b", 
-                      fontStyle: "italic", 
+                    sx={{
+                      color: "#64748b",
+                      fontStyle: "italic",
                       padding: "2rem",
                       textAlign: "center",
                       background: "#f8fafc",

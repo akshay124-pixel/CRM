@@ -19,16 +19,15 @@ import {
   MenuItem,
 } from "@mui/material";
 import { FaClock, FaFileExcel } from "react-icons/fa";
-import axios from "axios";
+import api from "../utils/api";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 // Ye component attendance track karne ke liye hai, ab isme leave button bhi add kiya gaya hai
 const AttendanceTracker = ({ open, onClose, userId, role }) => {
-  const [auth, setAuth] = useState({
-    status: "idle",
-    error: null,
-  });
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const [authError, setAuthError] = useState(null);
   const [attendance, setAttendance] = useState([]);
   const [remarks, setRemarks] = useState("");
   const [loadingAction, setLoadingAction] = useState(null);
@@ -42,94 +41,18 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const navigate = useNavigate();
 
-  const apiUrl =
-    process.env.REACT_APP_API_URL || `${process.env.REACT_APP_URL}/api`;
 
-  // Retry utility for API calls, ye API calls ko retry karta hai agar fail ho
-  const withRetry = async (fn, retries = 3, delay = 1000) => {
-    for (let attempt = 1; attempt <= retries; attempt++) {
-      try {
-        return await fn();
-      } catch (error) {
-        if (attempt === retries || error.response?.status === 401) {
-          throw error;
-        }
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
-  };
-
-  const verifyToken = async (token) => {
-    const response = await axios.get(`${apiUrl}/verify-token`, {
-      headers: { Authorization: `Bearer ${token}` },
-      timeout: 5000,
-    });
-    return response.data.success;
-  };
-
-  const refreshToken = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      throw new Error("No token available for refresh");
-    }
-    const response = await axios.post(
-      `${apiUrl}/refresh-token`,
-      {},
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        timeout: 5000,
-      }
-    );
-    if (!response.data.success) {
-      throw new Error(response.data.message || "Failed to refresh token");
-    }
-    const newToken = response.data.token;
-    localStorage.setItem("token", newToken);
-    return newToken;
-  };
-
-  // Clear error after 5 seconds, error ko 5 sec baad clear kar deta hai
-  useEffect(() => {
-    if (auth.error) {
-      const timer = setTimeout(() => {
-        setAuth((prev) => ({ ...prev, error: null }));
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [auth.error]);
-
-  const checkAuthStatus = useCallback(async () => {
-    setAuth((prev) => ({ ...prev, status: "loading", error: null }));
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("No authentication token found. Please log in.");
-      }
-
-      let isValid = await withRetry(() => verifyToken(token));
-      if (!isValid) {
-        const newToken = await withRetry(refreshToken);
-        isValid = await withRetry(() => verifyToken(newToken));
-        if (!isValid) {
-          throw new Error("Session expired after refresh attempt.");
-        }
-      }
-      setAuth({ status: "authenticated", error: null });
-    } catch (error) {
-      const errorMessage =
-        error.message || "Authentication failed. Please log in.";
-      setAuth({ status: "unauthenticated", error: errorMessage });
-      toast.error(errorMessage, { autoClose: 5000 });
-    }
-  }, []);
 
   useEffect(() => {
-    if (open && auth.status === "idle") {
-      checkAuthStatus();
+    if (open && !isAuthenticated && !authLoading) {
+      setAuthError("Please log in to track attendance.");
+    } else {
+      setAuthError(null);
     }
-  }, [open, auth.status, checkAuthStatus]);
+  }, [open, isAuthenticated, authLoading]);
 
   const getLocation = useCallback(() => {
     setLocationStatus("fetching");
@@ -194,75 +117,34 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
 
   // Fetch users for filter, users ko fetch karta hai filter ke liye
   const fetchUsers = useCallback(async () => {
-    if (auth.status !== "authenticated") return;
+    if (!isAuthenticated) return;
 
     setLoadingUsers(true);
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setAuth({
-          status: "unauthenticated",
-          error: "No authentication token found. Please log in.",
-        });
-        toast.error("No authentication token found. Please log in.", {
-          autoClose: 5000,
-        });
-        return;
-      }
-
-      const response = await withRetry(() =>
-        axios.get(`${apiUrl}/users`, {
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 5000,
-        })
-      ).catch(async (error) => {
-        if (error.response?.status === 401) {
-          const newToken = await withRetry(refreshToken);
-          return await withRetry(() =>
-            axios.get(`${apiUrl}/users`, {
-              headers: { Authorization: `Bearer ${newToken}` },
-              timeout: 5000,
-            })
-          );
-        }
-        throw error;
+      const response = await api.get("/api/users", {
+        timeout: 5000,
       });
 
       setUsers(response.data || []);
     } catch (error) {
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        "Failed to fetch users";
-      toast.error(errorMessage, { autoClose: 5000 });
+      // Error handling is mostly done by interceptor, but we catch specific UI needs here
+      console.error("Failed to fetch users", error);
     } finally {
       setLoadingUsers(false);
     }
-  }, [auth.status]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    if (open && auth.status === "authenticated") {
+    if (open && isAuthenticated) {
       fetchUsers();
     }
-  }, [open, auth.status, fetchUsers]);
+  }, [open, isAuthenticated, fetchUsers]);
 
   const fetchAttendance = useCallback(async () => {
-    if (auth.status !== "authenticated") return;
+    if (!isAuthenticated) return;
 
     setLoadingAction("fetch");
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setAuth({
-          status: "unauthenticated",
-          error: "You are not logged in. Please log in to view attendance.",
-        });
-        toast.error("Please log in to access attendance data.", {
-          autoClose: 5000,
-        });
-        return;
-      }
-
       const params = { page: currentPage, limit };
       if (startDate && endDate) {
         const start = new Date(startDate);
@@ -284,24 +166,9 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
       }
 
       console.log("Sending attendance request with params:", params);
-      const response = await withRetry(() =>
-        axios.get(`${apiUrl}/attendance`, {
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 5000,
-          params,
-        })
-      ).catch(async (error) => {
-        if (error.response?.status === 401) {
-          const newToken = await withRetry(refreshToken);
-          return await withRetry(() =>
-            axios.get(`${apiUrl}/attendance`, {
-              headers: { Authorization: `Bearer ${newToken}` },
-              timeout: 5000,
-              params,
-            })
-          );
-        }
-        throw error;
+      const response = await api.get("/api/attendance", {
+        timeout: 5000,
+        params,
       });
 
       if (!response.data.success) {
@@ -315,38 +182,22 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
       setTotalPages(pagination.totalPages || 1);
       setTotalRecords(pagination.totalRecords || 0);
     } catch (error) {
-      // Friendly error messages
-      let friendlyMessage =
-        "Oops! Something went wrong while loading attendance.";
-
+      // Friendly error messages handled by interceptor for generic ones, specific here
       if (error.message.includes("date")) {
-        friendlyMessage = error.message; // date-specific messages already user-friendly
-      } else if (error.response?.status === 400) {
-        friendlyMessage =
-          error.response.data.message ||
-          "There was a problem with your request.";
-      } else if (error.response?.status === 401) {
-        friendlyMessage = "Your session has expired. Please log in again.";
-        setAuth({ status: "unauthenticated", error: friendlyMessage });
-      } else if (error.message === "Network Error") {
-        friendlyMessage =
-          "Network problem detected. Please check your internet connection.";
+        toast.error(error.message);
       }
-
-      setAuth((prev) => ({ ...prev, error: friendlyMessage }));
-      toast.error(friendlyMessage, { autoClose: 5000 });
     } finally {
       setLoadingAction(null);
     }
-  }, [auth.status, currentPage, limit, startDate, endDate, selectedUserId]);
+  }, [isAuthenticated, currentPage, limit, startDate, endDate, selectedUserId]);
 
   useEffect(() => {
-    if (open && auth.status === "authenticated") {
+    if (open && isAuthenticated) {
       fetchAttendance();
     }
   }, [
     open,
-    auth.status,
+    isAuthenticated,
     fetchAttendance,
     currentPage,
     startDate,
@@ -356,28 +207,16 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
 
   // Handle action function update kiya gaya hai taaki leave bhi handle kare, leave ke liye location nahi mangta
   const handleAction = async (type) => {
-    if (auth.status !== "authenticated") {
+    if (!isAuthenticated) {
       const errorMessage = "Please log in to perform this action.";
-      setAuth((prev) => ({ ...prev, error: errorMessage }));
+      setAuthError(errorMessage);
       toast.error(errorMessage, { autoClose: 5000 });
       return;
     }
 
     setLoadingAction(type);
-    setAuth((prev) => ({ ...prev, error: null }));
+    setAuthError(null);
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setAuth({
-          status: "unauthenticated",
-          error: "No authentication token found. Please log in.",
-        });
-        toast.error("No authentication token found. Please log in.", {
-          autoClose: 5000,
-        });
-        return;
-      }
-
       let payload = {
         remarks: remarks?.trim() || "",
       };
@@ -391,29 +230,15 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
         }
 
         payload[type === "check-in" ? "checkInLocation" : "checkOutLocation"] =
-          {
-            latitude,
-            longitude,
-          };
+        {
+          latitude,
+          longitude,
+        };
       }
       // Leave ke liye sirf remarks bhejte hain, location nahi
 
-      const response = await withRetry(() =>
-        axios.post(`${apiUrl}/${type}`, payload, {
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 10000,
-        })
-      ).catch(async (error) => {
-        if (error.response?.status === 401) {
-          const newToken = await withRetry(refreshToken);
-          return await withRetry(() =>
-            axios.post(`${apiUrl}/${type}`, payload, {
-              headers: { Authorization: `Bearer ${newToken}` },
-              timeout: 10000,
-            })
-          );
-        }
-        throw error;
+      const response = await api.post(`/api/${type}`, payload, {
+        timeout: 10000,
       });
 
       if (!response.data.success) {
@@ -423,10 +248,9 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
       }
 
       toast.success(
-        `${
-          type === "check-in"
-            ? "Checked in"
-            : type === "check-out"
+        `${type === "check-in"
+          ? "Checked in"
+          : type === "check-out"
             ? "Checked out"
             : "Leave marked"
         } successfully!`,
@@ -434,7 +258,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
       );
       setRemarks("");
       setLocationStatus("idle");
-      setAuth((prev) => ({ ...prev, error: null }));
+      setAuthError(null);
       await fetchAttendance();
     } catch (error) {
       let friendlyMessage = `Oops! Something went wrong while trying to ${type.replace(
@@ -452,7 +276,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
           "Network issue detected. Please check your internet connection.";
       }
 
-      setAuth((prev) => ({ ...prev, error: friendlyMessage }));
+      setAuthError(friendlyMessage);
       toast.error(friendlyMessage, { autoClose: 5000 });
     } finally {
       setLoadingAction(null);
@@ -460,7 +284,7 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
   };
 
   const handleExport = useCallback(async () => {
-    if (auth.status !== "authenticated") {
+    if (!isAuthenticated) {
       toast.error("Please log in to export attendance.", { autoClose: 5000 });
       return;
     }
@@ -484,45 +308,17 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
     }
 
     setLoadingAction("export");
-    setAuth((prev) => ({ ...prev, error: null }));
+    setAuthError(null);
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setAuth({
-          status: "unauthenticated",
-          error: "No authentication token found. Please log in.",
-        });
-        toast.error("No authentication token found. Please log in.", {
-          autoClose: 5000,
-        });
-        return;
-      }
-
       const params = { startDate, endDate };
       if (selectedUserId) {
         params.selectedUserId = selectedUserId;
       }
 
-      const response = await withRetry(() =>
-        axios.get(`${apiUrl}/export-attendance`, {
-          headers: { Authorization: `Bearer ${token}` },
-          timeout: 10000,
-          params,
-          responseType: "arraybuffer",
-        })
-      ).catch(async (error) => {
-        if (error.response?.status === 401) {
-          const newToken = await withRetry(refreshToken);
-          return await withRetry(() =>
-            axios.get(`${apiUrl}/export-attendance`, {
-              headers: { Authorization: `Bearer ${newToken}` },
-              timeout: 10000,
-              params,
-              responseType: "arraybuffer",
-            })
-          );
-        }
-        throw error;
+      const response = await api.get("/api/export-attendance", {
+        timeout: 10000,
+        params,
+        responseType: "arraybuffer", // Important for file download
       });
 
       const blob = new Blob([response.data], {
@@ -538,39 +334,61 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
       window.URL.revokeObjectURL(url);
 
       toast.success("Attendance exported successfully!", { autoClose: 3000 });
-      setAuth((prev) => ({ ...prev, error: null }));
+      setAuthError(null);
     } catch (error) {
-      const errorMessage =
-        error.response?.status === 404
-          ? "No attendance records found for the selected date range"
-          : error.response?.data?.message || "Failed to export attendance";
-      setAuth((prev) => ({ ...prev, error: errorMessage }));
-      toast.error(errorMessage, { autoClose: 5000 });
+      // generic errors handled by interceptor
+      if (error.response?.status === 404) {
+        toast.error("No attendance records found for the selected date range");
+      }
     } finally {
       setLoadingAction(null);
     }
-  }, [auth.status, startDate, endDate, selectedUserId]);
+  }, [isAuthenticated, startDate, endDate, selectedUserId]);
 
   const handleLoginRedirect = () => {
     navigate("/login");
     onClose();
   };
 
-  const handleClose = () => {
-    setAuth((prev) => ({ ...prev, error: null }));
-    setRemarks("");
-    setLocationStatus("idle");
-    setCurrentPage(1);
-    setStartDate("");
-    setEndDate("");
-    setSelectedUserId("");
-    setAttendance([]);
+  useEffect(() => {
+    let isMounted = true;
+    let timeoutId;
+
+    if (open) {
+      if (!isInitialized) {
+        setIsInitialized(true);
+        // Load attendance when drawer opens for the first time
+        fetchAttendance();
+      }
+    } else {
+      timeoutId = setTimeout(() => {
+        if (isMounted && isInitialized) {
+          setAuthError(null);
+          setRemarks("");
+          setLocationStatus("idle");
+          setCurrentPage(1);
+          setStartDate("");
+          setEndDate("");
+          setSelectedUserId("");
+          setAttendance([]);
+          setIsInitialized(false);
+        }
+      }, 100);
+    }
+
+    return () => {
+      isMounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [open, isInitialized]);
+
+  const handleClose = useCallback(() => {
     onClose();
-  };
+  }, [onClose]);
 
   const handlePageChange = (event, value) => {
     setCurrentPage(value);
-    setAuth((prev) => ({ ...prev, error: null }));
+    setAuthError(null);
   };
 
   const handleUserFilterChange = (event) => {
@@ -605,8 +423,8 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
         <TableCell>{record.remarks || "N/A"}</TableCell>
         <TableCell>
           {record.checkInLocation &&
-          !isNaN(record.checkInLocation.latitude) &&
-          !isNaN(record.checkInLocation.longitude) ? (
+            !isNaN(record.checkInLocation.latitude) &&
+            !isNaN(record.checkInLocation.longitude) ? (
             <Button
               variant="text"
               size="small"
@@ -640,8 +458,8 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
         </TableCell>
         <TableCell>
           {record.checkOutLocation &&
-          !isNaN(record.checkOutLocation.latitude) &&
-          !isNaN(record.checkOutLocation.longitude) ? (
+            !isNaN(record.checkOutLocation.latitude) &&
+            !isNaN(record.checkOutLocation.longitude) ? (
             <Button
               variant="text"
               size="small"
@@ -704,19 +522,19 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
           boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
         }}
       >
-        {auth.status === "loading" && (
+        {authLoading && (
           <Box sx={{ textAlign: "center", mb: 3 }}>
             <CircularProgress color="inherit" />
             <Typography>Checking authentication...</Typography>
           </Box>
         )}
 
-        {auth.error && auth.status !== "loading" && (
+        {authError && !authLoading && (
           <Alert
             severity="error"
             sx={{ mb: 2, color: "white", bgcolor: "rgba(255, 82, 82, 0.8)" }}
             action={
-              auth.status === "unauthenticated" ? (
+              !isAuthenticated ? (
                 <Button
                   color="inherit"
                   size="small"
@@ -737,11 +555,11 @@ const AttendanceTracker = ({ open, onClose, userId, role }) => {
               )
             }
           >
-            {auth.error}
+            {authError}
           </Alert>
         )}
 
-        {auth.status === "authenticated" && (
+        {isAuthenticated && (
           <>
             <Box
               sx={{

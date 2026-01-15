@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import axios from "axios";
+import api from "../utils/api";
 import { toast } from "react-toastify";
 
 function DeleteModal({ isOpen, onClose, onDelete, itemId, itemIds }) {
@@ -14,16 +14,9 @@ function DeleteModal({ isOpen, onClose, onDelete, itemId, itemIds }) {
 
     setIsLoading(true);
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        toast.error("You must be logged in to delete entries.");
-        return;
-      }
-
       const config = {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
       };
 
@@ -31,15 +24,15 @@ function DeleteModal({ isOpen, onClose, onDelete, itemId, itemIds }) {
         // Handle multiple deletes
         await Promise.all(
           itemIds.map((id) =>
-            axios.delete(`${process.env.REACT_APP_URL}/api/entry/${id}`, config)
+            api.delete(`/api/entry/${id}`, config)
           )
         );
         onDelete(itemIds); // Pass array of deleted IDs to parent
         toast.success(`Successfully deleted ${itemIds.length} entries!`);
       } else if (itemId) {
         // Handle single delete
-        const response = await axios.delete(
-          `${process.env.REACT_APP_URL}/api/entry/${itemId}`,
+        const response = await api.delete(
+          `/api/entry/${itemId}`,
           config
         );
         if (response.status === 200) {
@@ -50,17 +43,7 @@ function DeleteModal({ isOpen, onClose, onDelete, itemId, itemIds }) {
       onClose(); // Close the modal
     } catch (error) {
       console.error("Error deleting entry/entries:", error);
-
-      let message =
-        "Sorry, we couldn't delete the entry/entries at this time. Please try again later.";
-      if (error.response?.data?.message) {
-        message = error.response.data.message;
-      } else if (error.message === "Network Error") {
-        message =
-          "Network error detected. Please check your internet connection and try again.";
-      }
-
-      toast.error(message);
+      // Interceptor handles most errors
     } finally {
       setIsLoading(false);
       setConfirmationText("");

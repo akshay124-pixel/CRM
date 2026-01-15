@@ -13,16 +13,15 @@ import {
   Badge,
   Button as MuiButton,
 } from "@mui/material";
-import axios from "axios";
+import api, { getAccessToken } from "../utils/api";
 import io from "socket.io-client";
 import { toast } from "react-toastify";
+import { useAuth } from "../context/AuthContext";
 
 const Navbar = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    !!localStorage.getItem("token")
-  );
-  const [userName, setUserName] = useState("User");
-  const [userRole, setUserRole] = useState("");
+  const { isAuthenticated, user, logout } = useAuth();
+  const userName = user?.username || "User";
+  const userRole = user?.role || "";
   const [isDropdownOpen, setDropdownOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -33,17 +32,7 @@ const Navbar = () => {
   const navigate = useNavigate();
   const [socket, setSocket] = useState(null);
 
-  // Function to update auth state from localStorage
-  const updateAuthState = useCallback(() => {
-    const token = localStorage.getItem("token");
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-
-    console.log("Navbar: Retrieved user from localStorage:", user);
-
-    setIsAuthenticated(!!token);
-    setUserName(user.username || "User");
-    setUserRole(user.role || "");
-  }, []);
+  // auth state is now handled by AuthContext
 
   // Socket.IO connection
   useEffect(() => {
@@ -56,9 +45,8 @@ const Navbar = () => {
     })();
 
     if (isAuthenticated) {
-      const token = localStorage.getItem("token");
       const socketInstance = io(baseOrigin, {
-        auth: { token: `Bearer ${token}` },
+        auth: { token: `Bearer ${getAccessToken()}` },
         path: "/crm/socket.io",
         reconnection: true,
         reconnectionAttempts: 5,
@@ -97,7 +85,7 @@ const Navbar = () => {
         console.error("Socket connection error:", error.message);
         if (error.message.includes("Authentication error")) {
           console.warn("Attempting to reconnect with new token");
-          socketInstance.auth.token = `Bearer ${localStorage.getItem("token")}`;
+          socketInstance.auth.token = `Bearer ${getAccessToken()}`;
           socketInstance.connect();
         }
       });
@@ -119,12 +107,9 @@ const Navbar = () => {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const token = localStorage.getItem("token");
-        if (!token) return;
-        const response = await axios.get(
-          `${process.env.REACT_APP_URL}/api/notifications`,
+        const response = await api.get(
+          "/api/notifications",
           {
-            headers: { Authorization: `Bearer ${token}` },
             params: { page: notificationPage, limit: 10 },
           }
         );
@@ -136,7 +121,6 @@ const Navbar = () => {
         setHasMoreNotifications(pagination.currentPage < pagination.totalPages);
       } catch (error) {
         console.error("Error fetching notifications:", error);
-        toast.error("Failed to fetch notifications.");
       }
     };
 
@@ -145,41 +129,15 @@ const Navbar = () => {
     }
   }, [isAuthenticated, notificationPage]);
 
-  // Run on mount and listen for storage/auth changes
   useEffect(() => {
-    updateAuthState();
-
-    const handleStorageChange = () => {
-      console.log("Navbar: Storage event triggered");
-      updateAuthState();
-    };
-    window.addEventListener("storage", handleStorageChange);
-
-    const handleAuthChange = () => {
-      console.log("Navbar: Auth change event triggered");
-      updateAuthState();
-    };
-    window.addEventListener("authChange", handleAuthChange);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("authChange", handleAuthChange);
-    };
-  }, [updateAuthState]);
+    // updateAuthState is no longer needed
+  }, []);
 
   const handleMarkAsRead = async (notificationIds) => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        toast.error("You must be logged in to mark notifications as read.");
-        return;
-      }
-      await axios.post(
-        `${process.env.REACT_APP_URL}/api/notificationsread`,
-        { notificationIds },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+      await api.post(
+        "/api/notificationsread",
+        { notificationIds }
       );
       setNotifications((prev) =>
         prev.map((n) =>
@@ -190,34 +148,13 @@ const Navbar = () => {
       toast.success("Notifications marked as read!");
     } catch (error) {
       console.error("Error marking notifications as read:", error);
-      let friendlyMessage = "Failed to mark notifications as read.";
-      if (error.response) {
-        const status = error.response.status;
-        if (status === 401) {
-          friendlyMessage = "Unauthorized. Please log in again.";
-        } else if (status === 403) {
-          friendlyMessage = "You don't have permission to mark notifications.";
-        }
-      } else if (error.message === "Network Error") {
-        friendlyMessage =
-          "Network issue detected. Please check your connection.";
-      }
-      toast.error(friendlyMessage);
     }
   };
 
   const handleClearNotifications = async () => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        toast.error("You must be logged in to clear notifications.");
-        return;
-      }
-      await axios.delete(
-        `${process.env.REACT_APP_URL}/api/notificationsdelete`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+      await api.delete(
+        "/api/notificationsdelete"
       );
       // Update state directly after successful API call
       setNotifications([]);
@@ -227,19 +164,6 @@ const Navbar = () => {
       toast.success("All notifications cleared successfully!");
     } catch (error) {
       console.error("Error clearing notifications:", error);
-      let friendlyMessage = "Failed to clear notifications. Please try again.";
-      if (error.response) {
-        const status = error.response.status;
-        if (status === 401) {
-          friendlyMessage = "Unauthorized. Please log in again.";
-        } else if (status === 403) {
-          friendlyMessage = "You don't have permission to clear notifications.";
-        }
-      } else if (error.message === "Network Error") {
-        friendlyMessage =
-          "Network issue detected. Please check your connection.";
-      }
-      toast.error(friendlyMessage);
     }
   };
 
@@ -253,19 +177,11 @@ const Navbar = () => {
     setNotificationDrawerOpen((prev) => !prev);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("userId");
-    localStorage.removeItem("role");
-    setIsAuthenticated(false);
-    setUserName("User");
-    setUserRole("");
-    setNotifications([]);
-    setUnreadCount(0);
+  const handleLogout = async () => {
     if (socket) socket.disconnect();
-    window.dispatchEvent(new Event("authChange"));
-    navigate("/login");
+    await logout();
+    // Use React Router navigation instead of window.location
+    navigate("/login", { replace: true });
   };
 
   const handleOutsideClick = useCallback(

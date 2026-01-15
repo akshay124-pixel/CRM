@@ -1,108 +1,55 @@
 import React, { useState } from "react";
-import "../App.css";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
-import { Spinner } from "react-bootstrap";
 import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import styled from "styled-components";
+import { useAuth } from "../context/AuthContext";
+import { Spinner } from "react-bootstrap";
 
-function Login({ onAuthSuccess }) {
-  const [formData, setFormData] = useState({
+const Login = () => {
+  const [credentials, setCredentials] = useState({
     email: "",
     password: "",
   });
-  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  const { login, loading } = useAuth(); // Assuming useAuth exposes loading state for the action if customized, or we manage local loading
+  const [localLoading, setLocalLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleInput = (e) => {
-    const { name, value } = e.target;
-    setFormData((prevForm) => ({ ...prevForm, [name]: value }));
+  const handleChange = (e) => {
+    setCredentials({ ...credentials, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const { email, password } = credentials;
 
-    if (!formData.email || !formData.password) {
-      toast.error("Please enter both Email and Password.", {
-        position: "top-right",
-        autoClose: 3000,
-        theme: "colored",
-      });
-      return;
-    }
+    if (email && password) {
+      setLocalLoading(true);
+      const result = await login(email, password);
+      setLocalLoading(false);
 
-    setLoading(true);
-
-    try {
-      const response = await axios.post(
-        `${process.env.REACT_APP_URL}/auth/login`,
-        formData
-      );
-
-      // Debug: Log the full response
-      console.log("Login: API response:", response.data);
-
-      if (response.status === 200) {
-        const { token, user } = response.data;
-
-        // Validate user object
-        if (!user || !user.id || !user.username || !user.role) {
-          throw new Error(
-            "Unable to fetch your account details. Please try again."
-          );
-        }
-
-        // Store user object in localStorage
-        localStorage.setItem("token", token);
-        localStorage.setItem(
-          "user",
-          JSON.stringify({
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            role: user.role,
-            assignedAdmin: user.assignedAdmin,
-          })
-        );
-
-        toast.success("Login successful! Redirecting...", {
+      if (result.success) {
+        toast.success("Login successful!", {
           position: "top-right",
           autoClose: 3000,
           theme: "colored",
         });
-
-        // Trigger auth change event
-        window.dispatchEvent(new Event("authChange"));
-
-        // Call onAuthSuccess with user object
-        onAuthSuccess({ token, userId: user.id, role: user.role, user });
-
         navigate("/dashboard");
       } else {
-        toast.error("Something went wrong. Please try again.", {
+        toast.error(result.message, {
           position: "top-right",
           autoClose: 3000,
           theme: "colored",
         });
       }
-    } catch (error) {
-      console.error("Error while logging in:", error);
-      toast.error(
-        error.response?.status === 401
-          ? "Invalid email or password."
-          : error.response?.status === 404
-          ? "Account not found."
-          : error.response?.status === 500
-          ? "Server error. Please try again later."
-          : error.message || "Login failed. Please try again.",
-        {
-          position: "top-right",
-          autoClose: 3000,
-          theme: "colored",
-        }
-      );
-    } finally {
-      setLoading(false);
+    } else {
+      toast.warning("Please enter both email and password.", {
+        position: "top-right",
+        autoClose: 3000,
+        theme: "colored",
+      });
     }
   };
 
@@ -129,8 +76,8 @@ function Login({ onAuthSuccess }) {
               type="email"
               name="email"
               placeholder="Email"
-              value={formData.email}
-              onChange={handleInput}
+              value={credentials.email}
+              onChange={handleChange}
               required
               aria-label="Email Address"
             />
@@ -141,8 +88,8 @@ function Login({ onAuthSuccess }) {
                 type={showPassword ? "text" : "password"}
                 name="password"
                 placeholder="Password"
-                value={formData.password}
-                onChange={handleInput}
+                value={credentials.password}
+                onChange={handleChange}
                 required
                 aria-label="Password"
               />
@@ -172,10 +119,10 @@ function Login({ onAuthSuccess }) {
           <button
             type="submit"
             className="button1"
-            disabled={loading}
+            disabled={localLoading}
             aria-label="Login"
           >
-            {loading ? <Spinner animation="border" size="sm" /> : "Login"}
+            {localLoading ? <Spinner animation="border" size="sm" /> : "Login"}
           </button>
         </form>
 
@@ -187,6 +134,6 @@ function Login({ onAuthSuccess }) {
       </div>
     </div>
   );
-}
+};
 
 export default Login;

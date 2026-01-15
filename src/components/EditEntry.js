@@ -1,12 +1,12 @@
 import React, {
   useState,
-  useCallback,
   useEffect,
   useRef,
   useMemo,
+  useCallback,
 } from "react";
 import { Modal, Form, Spinner, Alert, Button, ProgressBar } from "react-bootstrap";
-import axios from "axios";
+import api from "../utils/api";
 import { toast } from "react-toastify";
 import { useForm, Controller } from "react-hook-form";
 import Select from "react-select";
@@ -58,12 +58,12 @@ const StyledButton = styled.button`
     props.variant === "primary"
       ? "linear-gradient(135deg, #2575fc, #6a11cb)"
       : props.variant === "info"
-      ? "linear-gradient(135deg, #2575fc, #6a11cb)"
-      : props.variant === "danger"
-      ? "#dc3545"
-      : props.variant === "success"
-      ? "#28a745"
-      : "linear-gradient(135deg, rgb(252, 152, 11), rgb(244, 193, 10))"};
+        ? "linear-gradient(135deg, #2575fc, #6a11cb)"
+        : props.variant === "danger"
+          ? "#dc3545"
+          : props.variant === "success"
+            ? "#28a745"
+            : "linear-gradient(135deg, rgb(252, 152, 11), rgb(244, 193, 10))"};
   &:hover {
     opacity: 0.9;
     transform: scale(1.05);
@@ -101,8 +101,8 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     () => ({
       customerName: "",
       mobileNumber: "",
-        customerEmail: "",
-    
+      customerEmail: "",
+
       contactperson: "",
       products: [{ name: "", specification: "", size: "", quantity: "" }],
       type: "",
@@ -154,7 +154,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
   const [manualLocation, setManualLocation] = useState(false);
   const [locationFetched, setLocationFetched] = useState(false);
   const [users, setUsers] = useState([]);
-  
+
   // Enhanced location state management
   const [locationState, setLocationState] = useState({
     status: 'idle', // 'idle', 'fetching', 'slow', 'timeout', 'success', 'error'
@@ -164,12 +164,12 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     startTime: null,
     lastKnownLocation: null
   });
-  
+
   // Track if user is actively editing update follow-up fields
   const [isEditingFollowUp, setIsEditingFollowUp] = useState(false);
   const status = watch("status");
   const selectedState = watch("state");
-  
+
   // Watch all update follow-up fields for auto-location trigger
   const assignedTo = watch("assignedTo");
   const closetype = watch("closetype");
@@ -280,25 +280,25 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     if (isOpen && entry) {
       const formData = {
         customerName: entry.customerName || "",
-          customerEmail: entry.customerEmail || "",
-        
+        customerEmail: entry.customerEmail || "",
+
 
         mobileNumber: entry.mobileNumber || "",
         contactperson: entry.contactperson || "",
         assignedTo: Array.isArray(entry.assignedTo)
           ? entry.assignedTo.map((user) => ({
-              value: user._id,
-              label: user.username,
-            }))
+            value: user._id,
+            label: user.username,
+          }))
           : [],
         products:
           Array.isArray(entry.products) && entry.products.length > 0
             ? entry.products.map((p) => ({
-                name: p.name || "",
-                specification: p.specification || "",
-                size: p.size || "",
-                quantity: p.quantity || "",
-              }))
+              name: p.name || "",
+              specification: p.specification || "",
+              size: p.size || "",
+              quantity: p.quantity || "",
+            }))
             : [{ name: "", specification: "", size: "", quantity: "" }],
         type: entry.type || "",
         address: entry.address || "",
@@ -336,7 +336,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       setManualLocation(false);
       setLocationFetched(!!entry.liveLocation);
       setView("options");
-      
+
       // Reset enhanced location state
       setLocationState({
         status: entry.liveLocation ? 'success' : 'idle',
@@ -430,11 +430,11 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       });
 
       setLocationFetched(true);
-      
-      const accuracyText = coordinates.accuracy < 100 ? 
+
+      const accuracyText = coordinates.accuracy < 100 ?
         `Location obtained with ${Math.round(coordinates.accuracy)}m accuracy` :
         'Location obtained (low accuracy)';
-      
+
       toast.success(accuracyText);
 
     } catch (error) {
@@ -442,7 +442,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       clearTimeout(timeoutTimer);
 
       console.error("Location error:", error);
-      
+
       let errorMessage = "Unable to get location";
       let errorType = 'error';
 
@@ -480,10 +480,10 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
   useEffect(() => {
     // Check if we're in update view and any field has been modified
     if (view === "update" && entry) {
-      const hasFieldChanged = 
+      const hasFieldChanged =
         status !== entry?.status ||
-        (Array.isArray(assignedTo) && Array.isArray(entry?.assignedTo) && 
-         assignedTo.length !== entry.assignedTo.length) ||
+        (Array.isArray(assignedTo) && Array.isArray(entry?.assignedTo) &&
+          assignedTo.length !== entry.assignedTo.length) ||
         closetype !== entry?.closetype ||
         closeamount !== entry?.closeamount ||
         firstPersonMeet !== entry?.firstPersonMeet ||
@@ -504,9 +504,9 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       // 1. Any field has changed
       // 2. Location is not already fetched or in progress
       // 3. Location state is idle or error (not fetching, slow, timeout, or success)
-      if (hasFieldChanged && 
-          !getValues("liveLocation") && 
-          (locationState.status === 'idle' || locationState.status === 'error')) {
+      if (hasFieldChanged &&
+        !getValues("liveLocation") &&
+        (locationState.status === 'idle' || locationState.status === 'error')) {
         // Small delay to prevent excessive API calls during rapid typing
         const timeoutId = setTimeout(() => {
           fetchLiveLocation();
@@ -518,7 +518,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       setIsEditingFollowUp(false);
     }
   }, [
-    view, entry, status, assignedTo, closetype, closeamount, 
+    view, entry, status, assignedTo, closetype, closeamount,
     firstPersonMeet, secondPersonMeet, thirdPersonMeet, fourthPersonMeet,
     nextAction, estimatedValue, firstdate, followUpDate, expectedClosingDate, remarks,
     fetchLiveLocation, getValues, locationState.status
@@ -586,10 +586,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
 
     while (attempt < maxRetries) {
       try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          throw new Error("You must be logged in to update an entry.");
-        }
+        // Token check removed as api interceptor handles auth
 
         const formDataToSend = new FormData();
         const { attachment, ...restData } = data;
@@ -635,12 +632,11 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           return;
         }
 
-        const response = await axios.put(
-          `${process.env.REACT_APP_URL}/api/editentry/${entry._id}`,
+        const response = await api.put(
+          `/api/editentry/${entry._id}`,
           formDataToSend,
           {
             headers: {
-              Authorization: `Bearer ${token}`,
               "Content-Type": "multipart/form-data",
             },
             timeout: 120000,
@@ -657,9 +653,9 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           ...initialFormData,
           assignedTo: Array.isArray(updatedEntry.assignedTo)
             ? updatedEntry.assignedTo.map((user) => ({
-                value: user._id,
-                label: user.username,
-              }))
+              value: user._id,
+              label: user.username,
+            }))
             : [],
         });
         onClose();
@@ -708,19 +704,16 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const response = await axios.get(
-          `${process.env.REACT_APP_URL}/api/tag-users`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+        // Token check removed as api interceptor handles auth
+        const response = await api.get(
+          "/api/tag-users"
         );
         setUsers(response.data || []);
       } catch (error) {
         console.error("Error fetching users for tagging:", error);
         toast.error(
           error.response?.data?.message ||
-            "Sorry, we couldn't load the list of users to tag. Please check your internet connection and try again later."
+          "Sorry, we couldn't load the list of users to tag. Please check your internet connection and try again later."
         );
         setUsers([]);
       }
@@ -1384,36 +1377,36 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         "Lansdowne",
       ],
       "West Bengal": [
-       "Alipurduar",
-    "Bankura",
-    "Birbhum",
-    "Cooch Behar",
-    "Dakshin Dinajpur",
-    "Darjeeling",
-    "Hooghly",
-    "Howrah",
-    "Jalpaiguri",
-    "Jhargram",
-    "Kalimpong",
-    "Kolkata",
-    "Malda",
-    "Murshidabad",
-    "Nadia",
-    "North 24 Parganas",
-    "Paschim Bardhaman",
-    "Purba Bardhaman",
-    "Paschim Medinipur",
-    "Purba Medinipur",
-    "Purulia",
-    "South 24 Parganas",
-    "Uttar Dinajpur",
-    "Sundarban",
-    "Ichhamati",
-    "Basirhat",
-    "Ranaghat",
-    "Bishnupur",
-    "Jangipur",
-    "Baharampur"
+        "Alipurduar",
+        "Bankura",
+        "Birbhum",
+        "Cooch Behar",
+        "Dakshin Dinajpur",
+        "Darjeeling",
+        "Hooghly",
+        "Howrah",
+        "Jalpaiguri",
+        "Jhargram",
+        "Kalimpong",
+        "Kolkata",
+        "Malda",
+        "Murshidabad",
+        "Nadia",
+        "North 24 Parganas",
+        "Paschim Bardhaman",
+        "Purba Bardhaman",
+        "Paschim Medinipur",
+        "Purba Medinipur",
+        "Purulia",
+        "South 24 Parganas",
+        "Uttar Dinajpur",
+        "Sundarban",
+        "Ichhamati",
+        "Basirhat",
+        "Ranaghat",
+        "Bishnupur",
+        "Jangipur",
+        "Baharampur"
       ],
       "Andaman and Nicobar Islands": [
         "Port Blair",
@@ -1647,21 +1640,21 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
             {errors.customerName?.message}
           </Form.Control.Feedback>
         </Form.Group>
-<Form.Group controlId="customerEmail">
-  <Form.Label>📧 Customer Email</Form.Label>
-  <Form.Control
-    type="email"
-    {...register("customerEmail")}
-    isInvalid={!!errors.customerEmail}
-    aria-label="Customer Email"
-    onChange={(e) =>
-      debouncedHandleInputChange("customerEmail", e.target.value)
-    }
-  />
-  <Form.Control.Feedback type="invalid">
-    {errors.customerEmail?.message}
-  </Form.Control.Feedback>
-</Form.Group>
+        <Form.Group controlId="customerEmail">
+          <Form.Label>📧 Customer Email</Form.Label>
+          <Form.Control
+            type="email"
+            {...register("customerEmail")}
+            isInvalid={!!errors.customerEmail}
+            aria-label="Customer Email"
+            onChange={(e) =>
+              debouncedHandleInputChange("customerEmail", e.target.value)
+            }
+          />
+          <Form.Control.Feedback type="invalid">
+            {errors.customerEmail?.message}
+          </Form.Control.Feedback>
+        </Form.Group>
 
         <Form.Group controlId="mobileNumber">
           <Form.Label>📱 Mobile Number</Form.Label>
@@ -2154,20 +2147,19 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         </Form.Group>
         <Form.Group controlId="liveLocation">
           <Form.Label>📍 Live Location *</Form.Label>
-          
+
           {/* Location Status Display */}
-          <div style={{ 
-            padding: "12px", 
-            borderRadius: "8px", 
+          <div style={{
+            padding: "12px",
+            borderRadius: "8px",
             marginBottom: "12px",
-            backgroundColor: locationState.status === 'success' ? '#d4edda' : 
-                            locationState.status === 'error' ? '#f8d7da' : 
-                            locationState.status === 'timeout' ? '#fff3cd' : '#e2e3e5',
-            border: `1px solid ${
-              locationState.status === 'success' ? '#c3e6cb' : 
-              locationState.status === 'error' ? '#f5c6cb' : 
-              locationState.status === 'timeout' ? '#ffeaa7' : '#d1d3d4'
-            }`
+            backgroundColor: locationState.status === 'success' ? '#d4edda' :
+              locationState.status === 'error' ? '#f8d7da' :
+                locationState.status === 'timeout' ? '#fff3cd' : '#e2e3e5',
+            border: `1px solid ${locationState.status === 'success' ? '#c3e6cb' :
+              locationState.status === 'error' ? '#f5c6cb' :
+                locationState.status === 'timeout' ? '#ffeaa7' : '#d1d3d4'
+              }`
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -2177,7 +2169,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
                 {locationState.status === 'timeout' && <span>⚠️</span>}
                 {locationState.status === 'error' && <span>❌</span>}
                 {locationState.status === 'idle' && <span>📍</span>}
-                
+
                 <span style={{ fontWeight: '500' }}>
                   {locationState.status === 'success' && 'Location obtained'}
                   {locationState.status === 'fetching' && 'Getting your location...'}
@@ -2187,26 +2179,26 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
                   {locationState.status === 'idle' && 'Location not set'}
                 </span>
               </div>
-              
+
               {locationState.status === 'success' && locationState.coordinates && (
                 <small style={{ color: '#6c757d' }}>
                   Accuracy: ~{Math.round(locationState.coordinates.accuracy || 0)}m
                 </small>
               )}
             </div>
-            
+
             {locationState.status === 'slow' && (
               <div style={{ marginTop: '8px', fontSize: '0.9em', color: '#856404' }}>
                 GPS is taking longer than usual. This is common on Android devices.
               </div>
             )}
-            
+
             {locationState.status === 'timeout' && (
               <div style={{ marginTop: '8px', fontSize: '0.9em', color: '#856404' }}>
                 Location request timed out. Location is required to update status - please retry to get your location.
               </div>
             )}
-            
+
             {locationState.error && (
               <div style={{ marginTop: '8px', fontSize: '0.9em', color: '#721c24' }}>
                 {locationState.error}
@@ -2227,7 +2219,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
                 📍 Get Location
               </Button>
             )}
-            
+
             {/* Retry Button */}
             {(locationState.status === 'timeout' || locationState.status === 'error') && (
               <Button
@@ -2252,9 +2244,9 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
                   {locationState.startTime && `${Math.round((Date.now() - locationState.startTime) / 1000)}s`}
                 </small>
               </div>
-              <ProgressBar 
-                animated 
-                now={locationState.status === 'fetching' ? 30 : 70} 
+              <ProgressBar
+                animated
+                now={locationState.status === 'fetching' ? 30 : 70}
                 style={{ height: '4px' }}
                 variant={locationState.status === 'slow' ? 'warning' : 'primary'}
               />

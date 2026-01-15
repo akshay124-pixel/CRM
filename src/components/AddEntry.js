@@ -1,11 +1,11 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Modal, Button, Form, ProgressBar, Table } from "react-bootstrap";
-import axios from "axios";
+import api from "../utils/api";
 import { toast } from "react-toastify";
 import styled from "styled-components";
 import Select from "react-select";
 import DatePicker from "react-datepicker";
-import { statesAndCities, productOptions } from "./Options"; 
+import { statesAndCities, productOptions } from "./Options";
 import "react-datepicker/dist/react-datepicker.css";
 import imageCompression from "browser-image-compression";
 import { validatePhoneNumber } from "../utils/phoneValidation";
@@ -190,7 +190,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
   const [selectedCity, setSelectedCity] = useState("");
   const [locationFetched, setLocationFetched] = useState(false);
   const [loading, setLoading] = useState(false);
-  
+
   // Enhanced location state management
   const [locationState, setLocationState] = useState({
     status: 'idle', // 'idle', 'fetching', 'slow', 'timeout', 'success', 'error'
@@ -216,12 +216,9 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
   useEffect(() => {
     const fetchUsersForTagging = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const response = await axios.get(
-          `${process.env.REACT_APP_URL}/api/tag-users`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+        // Token check removed as api interceptor handles auth
+        const response = await api.get(
+          "/api/tag-users"
         );
         setUsers(response.data || []);
       } catch (error) {
@@ -239,7 +236,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
       setCurrentStep(1);
       setProductInput({ name: "", specification: "", size: "", quantity: "" });
       setLocationFetched(false);
-      
+
       // Reset location state
       setLocationState({
         status: 'idle',
@@ -260,8 +257,8 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
         name === "mobileNumber"
           ? value.replace(/\D/g, "").slice(0, 10)
           : name === "estimatedValue"
-          ? value.replace(/\D/g, "")
-          : value,
+            ? value.replace(/\D/g, "")
+            : value,
     }));
   }, []);
 
@@ -391,11 +388,11 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
       }));
 
       setLocationFetched(true);
-      
-      const accuracyText = coordinates.accuracy < 100 ? 
+
+      const accuracyText = coordinates.accuracy < 100 ?
         `Location obtained with ${Math.round(coordinates.accuracy)}m accuracy` :
         'Location obtained (low accuracy)';
-      
+
       toast.success(accuracyText);
 
     } catch (error) {
@@ -403,7 +400,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
       clearTimeout(timeoutTimer);
 
       console.error("Location error:", error);
-      
+
       let errorMessage = "Unable to get location";
       let errorType = 'error';
 
@@ -448,7 +445,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
       }
     }
     if (step === 2) {
-     
+
     }
     if (step === 4) {
       if (!formData.status) {
@@ -469,7 +466,7 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
     if (validateStep(currentStep)) {
       const nextStep = currentStep + 1;
       setCurrentStep(nextStep);
-      
+
       // Auto-start location fetching when reaching the final step
       if (nextStep === 4 && locationState.status === 'idle') {
         // Small delay to let the UI render first
@@ -484,130 +481,124 @@ function AddEntry({ isOpen, onClose, onEntryAdded }) {
     setCurrentStep((prev) => prev - 1);
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  if (currentStep !== totalSteps) {
-    return;
-  }
-
-  if (!validateStep(4)) {
-    return;
-  }
-
-  setLoading(true);
-  const maxRetries = 3;
-  let attempt = 0;
-
-  while (attempt < maxRetries) {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        toast.error("You must be logged in to add an entry.");
-        setLoading(false);
-        return;
-      }
-
-      const formDataToSend = new FormData();
-      const submitData = {
-        ...formData,
-        createdAt: new Date().toISOString(),
-        estimatedValue: Number(formData.estimatedValue) || 0,
-        assignedTo: formData.assignedTo.map((option) => option.value),
-        products: formData.products.map((p) => {
-          if (p.name === "No Requirement") {
-            return {
-              ...p,
-              quantity: 0,
-              sizes: ["Not Applicable"],
-              specifications: ["No specific requirement"],
-            };
-          }
-          return p;
-        }),
-      };
-
-      Object.keys(submitData).forEach((key) => {
-        if (key === "products") {
-          formDataToSend.append("products", JSON.stringify(submitData[key]));
-        } else if (key === "assignedTo") {
-          submitData[key].forEach((item, index) => {
-            formDataToSend.append(`assignedTo[${index}]`, item);
-          });
-        } else if (key === "attachment") {
-          if (submitData[key]) {
-            formDataToSend.append("attachment", submitData[key]);
-          }
-        } else {
-          formDataToSend.append(key, submitData[key] || "");
-        }
-      });
-
-      const response = await axios.post(
-        `${process.env.REACT_APP_URL}/api/entry`,
-        formDataToSend,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
-          },
-          timeout: 120000, // Increased to 120 seconds
-        }
-      );
-
-      const newEntry = response.data.data;
-      onEntryAdded(newEntry);
-
-      setFormData({ ...initialFormData, createdAt: new Date().toISOString() });
-      setSelectedState("");
-      setSelectedCity("");
-      setCurrentStep(1);
-      setProductInput({ name: "", specification: "", size: "", quantity: "" });
-      setLocationFetched(false);
-      setLocationState({
-        status: 'idle',
-        coordinates: null,
-        error: null,
-        attempts: 0,
-        startTime: null,
-        lastKnownLocation: null
-      });
-      onClose();
-      setLoading(false);
-      return; // Success, exit retry loop
-    } catch (error) {
-      attempt++;
-      console.error(`Attempt ${attempt} failed:`, error);
-
-      if (attempt === maxRetries) {
-        let friendlyMessage = "Failed to submit entry after multiple attempts.";
-        if (error.response) {
-          const status = error.response.status;
-          const serverMessage = error.response.data?.message || "";
-          if (status === 400) {
-            friendlyMessage = "Please check the information you entered.";
-          } else if (status === 401) {
-            friendlyMessage = "Session expired. Please log in again.";
-          } else if (status === 403) {
-            friendlyMessage = "Access denied.";
-          } else if (serverMessage) {
-            friendlyMessage = serverMessage;
-          }
-        } else if (error.code === "ECONNABORTED" || error.message.includes("timeout")) {
-          friendlyMessage = "Request timed out. Please check your network and try again.";
-        } else if (error.message === "Network Error") {
-          friendlyMessage = "Network issue detected. Please check your internet connection or try Wi-Fi.";
-        }
-
-        toast.error(friendlyMessage);
-        setLoading(false);
-        return;
-      }
-      // Wait before retrying
-      await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+    if (currentStep !== totalSteps) {
+      return;
     }
-  }
-};
+
+    if (!validateStep(4)) {
+      return;
+    }
+
+    setLoading(true);
+    const maxRetries = 3;
+    let attempt = 0;
+
+    while (attempt < maxRetries) {
+      try {
+        // Token check removed as api interceptor handles auth
+
+        const formDataToSend = new FormData();
+        const submitData = {
+          ...formData,
+          createdAt: new Date().toISOString(),
+          estimatedValue: Number(formData.estimatedValue) || 0,
+          assignedTo: formData.assignedTo.map((option) => option.value),
+          products: formData.products.map((p) => {
+            if (p.name === "No Requirement") {
+              return {
+                ...p,
+                quantity: 0,
+                sizes: ["Not Applicable"],
+                specifications: ["No specific requirement"],
+              };
+            }
+            return p;
+          }),
+        };
+
+        Object.keys(submitData).forEach((key) => {
+          if (key === "products") {
+            formDataToSend.append("products", JSON.stringify(submitData[key]));
+          } else if (key === "assignedTo") {
+            submitData[key].forEach((item, index) => {
+              formDataToSend.append(`assignedTo[${index}]`, item);
+            });
+          } else if (key === "attachment") {
+            if (submitData[key]) {
+              formDataToSend.append("attachment", submitData[key]);
+            }
+          } else {
+            formDataToSend.append(key, submitData[key] || "");
+          }
+        });
+
+        const response = await api.post(
+          "/api/entry",
+          formDataToSend,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+            timeout: 120000, // Increased to 120 seconds
+          }
+        );
+
+        const newEntry = response.data.data;
+        onEntryAdded(newEntry);
+
+        setFormData({ ...initialFormData, createdAt: new Date().toISOString() });
+        setSelectedState("");
+        setSelectedCity("");
+        setCurrentStep(1);
+        setProductInput({ name: "", specification: "", size: "", quantity: "" });
+        setLocationFetched(false);
+        setLocationState({
+          status: 'idle',
+          coordinates: null,
+          error: null,
+          attempts: 0,
+          startTime: null,
+          lastKnownLocation: null
+        });
+        onClose();
+        setLoading(false);
+        return; // Success, exit retry loop
+      } catch (error) {
+        attempt++;
+        console.error(`Attempt ${attempt} failed:`, error);
+
+        if (attempt === maxRetries) {
+          let friendlyMessage = "Failed to submit entry after multiple attempts.";
+          if (error.response) {
+            const status = error.response.status;
+            const serverMessage = error.response.data?.message || "";
+            if (status === 400) {
+              friendlyMessage = "Please check the information you entered.";
+            } else if (status === 401) {
+              friendlyMessage = "Session expired. Please log in again.";
+            } else if (status === 403) {
+              friendlyMessage = "Access denied.";
+            } else if (serverMessage) {
+              friendlyMessage = serverMessage;
+            }
+          } else if (error.code === "ECONNABORTED" || error.message.includes("timeout")) {
+            friendlyMessage = "Request timed out. Please check your network and try again.";
+          } else if (error.message === "Network Error") {
+            friendlyMessage = "Network issue detected. Please check your internet connection or try Wi-Fi.";
+          }
+
+          toast.error(friendlyMessage);
+          setLoading(false);
+          return;
+        }
+        // Wait before retrying
+        await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+      }
+    }
+  };
 
   const handleStateChange = (e) => {
     const state = e.target.value;
@@ -629,52 +620,52 @@ const handleSubmit = async (e) => {
     }));
   };
 
-const handleAttachmentChange = async (e) => {
-  const file = e.target.files[0];
-  if (!file) {
-    console.log("No file selected.");
-    toast.error("No file selected. Please try again.");
-    return;
-  }
-
-  console.log("Selected file:", file.name, file.size, file.type);
-
-  let processedFile = file;
-  if (file.type.startsWith("image/")) {
-    try {
-      const options = {
-        maxSizeMB: 1, 
-        maxWidthOrHeight: 1024, 
-        useWebWorker: true,
-        
-        fileType: file.type,
-      };
-      const compressedBlob = await imageCompression(file, options);
-    
-      processedFile = new File([compressedBlob], file.name, {
-        type: compressedBlob.type || file.type,
-        lastModified: Date.now(),
-      });
-      console.log("Compressed file size:", processedFile.size, "Name:", processedFile.name, "Type:", processedFile.type);
-    } catch (error) {
-      console.error("Image compression error:", error);
-      toast.error("Failed to compress image. Please try a smaller file.");
+  const handleAttachmentChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) {
+      console.log("No file selected.");
+      toast.error("No file selected. Please try again.");
       return;
     }
-  }
 
-  if (processedFile.size > 5 * 1024 * 1024) {
-    console.log("File size exceeds 5MB:", processedFile.size);
-    toast.error("File too large! Max 5MB.");
-    return;
-  }
+    console.log("Selected file:", file.name, file.size, file.type);
 
-  setFormData((prev) => ({
-    ...prev,
-    attachment: processedFile,
-  }));
-  toast.success(`File selected: ${processedFile.name}`);
-};
+    let processedFile = file;
+    if (file.type.startsWith("image/")) {
+      try {
+        const options = {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1024,
+          useWebWorker: true,
+
+          fileType: file.type,
+        };
+        const compressedBlob = await imageCompression(file, options);
+
+        processedFile = new File([compressedBlob], file.name, {
+          type: compressedBlob.type || file.type,
+          lastModified: Date.now(),
+        });
+        console.log("Compressed file size:", processedFile.size, "Name:", processedFile.name, "Type:", processedFile.type);
+      } catch (error) {
+        console.error("Image compression error:", error);
+        toast.error("Failed to compress image. Please try a smaller file.");
+        return;
+      }
+    }
+
+    if (processedFile.size > 5 * 1024 * 1024) {
+      console.log("File size exceeds 5MB:", processedFile.size);
+      toast.error("File too large! Max 5MB.");
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      attachment: processedFile,
+    }));
+    toast.success(`File selected: ${processedFile.name}`);
+  };
 
   const triggerCameraInput = () => {
     if (cameraInputRef.current) {
@@ -714,17 +705,17 @@ const handleAttachmentChange = async (e) => {
               />
             </Form.Group>
             <Form.Group controlId="formCustomerEmail" className="mb-3">
-  <Form.Label>Customer Email *</Form.Label>
-  <Form.Control
-    type="email"
-    name="customerEmail"
-    value={formData.customerEmail}
-    onChange={handleInput}
-    placeholder="Enter customer email"
-    disabled={loading}
-    required
-  />
-</Form.Group>
+              <Form.Label>Customer Email *</Form.Label>
+              <Form.Control
+                type="email"
+                name="customerEmail"
+                value={formData.customerEmail}
+                onChange={handleInput}
+                placeholder="Enter customer email"
+                disabled={loading}
+                required
+              />
+            </Form.Group>
 
 
             <Form.Group controlId="mobileNumber" className="mb-3">
@@ -1048,20 +1039,19 @@ const handleAttachmentChange = async (e) => {
 
             <Form.Group controlId="formLiveLocation" className="mb-3">
               <Form.Label>Live Location *</Form.Label>
-              
+
               {/* Location Status Display */}
-              <div style={{ 
-                padding: "12px", 
-                borderRadius: "8px", 
+              <div style={{
+                padding: "12px",
+                borderRadius: "8px",
                 marginBottom: "12px",
-                backgroundColor: locationState.status === 'success' ? '#d4edda' : 
-                                locationState.status === 'error' ? '#f8d7da' : 
-                                locationState.status === 'timeout' ? '#fff3cd' : '#e2e3e5',
-                border: `1px solid ${
-                  locationState.status === 'success' ? '#c3e6cb' : 
-                  locationState.status === 'error' ? '#f5c6cb' : 
-                  locationState.status === 'timeout' ? '#ffeaa7' : '#d1d3d4'
-                }`
+                backgroundColor: locationState.status === 'success' ? '#d4edda' :
+                  locationState.status === 'error' ? '#f8d7da' :
+                    locationState.status === 'timeout' ? '#fff3cd' : '#e2e3e5',
+                border: `1px solid ${locationState.status === 'success' ? '#c3e6cb' :
+                  locationState.status === 'error' ? '#f5c6cb' :
+                    locationState.status === 'timeout' ? '#ffeaa7' : '#d1d3d4'
+                  }`
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1071,7 +1061,7 @@ const handleAttachmentChange = async (e) => {
                     {locationState.status === 'timeout' && <span>⚠️</span>}
                     {locationState.status === 'error' && <span>❌</span>}
                     {locationState.status === 'idle' && <span>📍</span>}
-                    
+
                     <span style={{ fontWeight: '500' }}>
                       {locationState.status === 'success' && 'Location obtained'}
                       {locationState.status === 'fetching' && 'Getting your location...'}
@@ -1081,26 +1071,26 @@ const handleAttachmentChange = async (e) => {
                       {locationState.status === 'idle' && 'Location not set'}
                     </span>
                   </div>
-                  
+
                   {locationState.status === 'success' && locationState.coordinates && (
                     <small style={{ color: '#6c757d' }}>
                       Accuracy: ~{Math.round(locationState.coordinates.accuracy || 0)}m
                     </small>
                   )}
                 </div>
-                
+
                 {locationState.status === 'slow' && (
                   <div style={{ marginTop: '8px', fontSize: '0.9em', color: '#856404' }}>
                     GPS is taking longer than usual. This is common on Android devices.
                   </div>
                 )}
-                
+
                 {locationState.status === 'timeout' && (
                   <div style={{ marginTop: '8px', fontSize: '0.9em', color: '#856404' }}>
                     Location request timed out. Location is required to submit - please retry to get your location.
                   </div>
                 )}
-                
+
                 {locationState.error && (
                   <div style={{ marginTop: '8px', fontSize: '0.9em', color: '#721c24' }}>
                     {locationState.error}
@@ -1121,7 +1111,7 @@ const handleAttachmentChange = async (e) => {
                     📍 Get Location
                   </Button>
                 )}
-                
+
                 {/* Retry Button */}
                 {(locationState.status === 'timeout' || locationState.status === 'error') && (
                   <Button
@@ -1146,9 +1136,9 @@ const handleAttachmentChange = async (e) => {
                       {locationState.startTime && `${Math.round((Date.now() - locationState.startTime) / 1000)}s`}
                     </small>
                   </div>
-                  <ProgressBar 
-                    animated 
-                    now={locationState.status === 'fetching' ? 30 : 70} 
+                  <ProgressBar
+                    animated
+                    now={locationState.status === 'fetching' ? 30 : 70}
                     style={{ height: '4px' }}
                     variant={locationState.status === 'slow' ? 'warning' : 'primary'}
                   />
@@ -1161,7 +1151,7 @@ const handleAttachmentChange = async (e) => {
                 name="liveLocation"
                 value={formData.liveLocation}
               />
-              
+
               {/* Help Text */}
               <Form.Text className="text-muted">
                 {locationState.status === 'idle' && "Location is required to submit this entry. Please fetch your location."}
@@ -1354,12 +1344,12 @@ const handleAttachmentChange = async (e) => {
                   transition: "all 0.3s ease",
                 }}
                 onMouseOver={(e) =>
-                  (e.target.style.background =
-                    "linear-gradient(to right, #5a0bb8, #1a5ad7)")
+                (e.target.style.background =
+                  "linear-gradient(to right, #5a0bb8, #1a5ad7)")
                 }
                 onMouseOut={(e) =>
-                  (e.target.style.background =
-                    "linear-gradient(to right, #6a11cb, #2575fc)")
+                (e.target.style.background =
+                  "linear-gradient(to right, #6a11cb, #2575fc)")
                 }
               >
                 Next

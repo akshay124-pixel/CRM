@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../utils/api";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
 import {
   Box,
   Typography,
   Paper,
-  Table, 
+  Table,
   TableBody,
   TableCell,
   TableContainer,
@@ -24,31 +24,20 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("No authentication token found. Please log in.");
-      }
-
       const [usersResponse, userResponse] = await Promise.all([
-        axios
-          .get(`${process.env.REACT_APP_URL}/api/fetch-team`, {
-            headers: { Authorization: `Bearer ${token}` },
-          })
+        api
+          .get("/api/fetch-team")
           .catch((err) => {
             throw new Error(
-              `Failed to fetch team: ${
-                err.response?.data?.message || err.message
+              `Failed to fetch team: ${err.response?.data?.message || err.message
               }`
             );
           }),
-        axios
-          .get(`${process.env.REACT_APP_URL}/api/current-user`, {
-            headers: { Authorization: `Bearer ${token}` },
-          })
+        api
+          .get("/api/current-user")
           .catch((err) => {
             throw new Error(
-              `Failed to fetch current user: ${
-                err.response?.data?.message || err.message
+              `Failed to fetch current user: ${err.response?.data?.message || err.message
               }`
             );
           }),
@@ -82,14 +71,9 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
 
   const handleAssign = async (userIdToAssign) => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("No authentication token found");
-      }
-      const response = await axios.post(
-        `${process.env.REACT_APP_URL}/api/assign-user`,
-        { userId: userIdToAssign },
-        { headers: { Authorization: `Bearer ${token}` } }
+      const response = await api.post(
+        "/api/assign-user",
+        { userId: userIdToAssign }
       );
       toast.success(response.data.message);
       await fetchUsers();
@@ -104,14 +88,9 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
 
   const handleUnassign = async (userIdToUnassign) => {
     try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("No authentication token found");
-      }
-      const response = await axios.post(
-        `${process.env.REACT_APP_URL}/api/unassign-user`,
-        { userId: userIdToUnassign },
-        { headers: { Authorization: `Bearer ${token}` } }
+      const response = await api.post(
+        "/api/unassign-user",
+        { userId: userIdToUnassign }
       );
       toast.success(response.data.message);
       await fetchUsers();
@@ -260,8 +239,8 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
                 {userRole === "others" && isAssigned
                   ? "You are assigned to an admin"
                   : userRole === "others"
-                  ? "No assigned admins available"
-                  : "No users available to assign"}
+                    ? "No assigned admins available"
+                    : "No users available to assign"}
               </Typography>
             </Box>
           ) : (
@@ -384,41 +363,25 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
                         </TableCell>
                         {(userRole === "admin" ||
                           userRole === "superadmin") && (
-                          <TableCell
-                            sx={{
-                              borderBottom:
-                                "1px solid rgba(255, 255, 255, 0.1)",
-                              textAlign: "center",
-                              py: 1.5,
-                            }}
-                          >
-                            {isSuperAdmin ? (
-                              <Typography
-                                sx={{
-                                  color: "white",
-                                  fontSize: "0.9rem",
-                                  fontStyle: "italic",
-                                }}
-                              >
-                                Superadmin (No Actions)
-                              </Typography>
-                            ) : isAssignedToCurrent ? (
-                              <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => handleUnassign(user._id)}
-                                style={{
-                                  ...buttonStyles.base,
-                                  ...buttonStyles.unassign,
-                                }}
-                                aria-label={`Unassign ${user.username}`}
-                              >
-                                Unassign
-                              </motion.button>
-                            ) : isAssignedToOthers ? (
-                              userRole === "superadmin" ||
-                              (!isAssignedBySuperAdmin &&
-                                userRole === "admin") ? (
+                            <TableCell
+                              sx={{
+                                borderBottom:
+                                  "1px solid rgba(255, 255, 255, 0.1)",
+                                textAlign: "center",
+                                py: 1.5,
+                              }}
+                            >
+                              {isSuperAdmin ? (
+                                <Typography
+                                  sx={{
+                                    color: "white",
+                                    fontSize: "0.9rem",
+                                    fontStyle: "italic",
+                                  }}
+                                >
+                                  Superadmin (No Actions)
+                                </Typography>
+                              ) : isAssignedToCurrent ? (
                                 <motion.button
                                   whileHover={{ scale: 1.05 }}
                                   whileTap={{ scale: 0.95 }}
@@ -431,34 +394,50 @@ function TeamBuilder({ isOpen, onClose, userRole, userId }) {
                                 >
                                   Unassign
                                 </motion.button>
+                              ) : isAssignedToOthers ? (
+                                userRole === "superadmin" ||
+                                  (!isAssignedBySuperAdmin &&
+                                    userRole === "admin") ? (
+                                  <motion.button
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => handleUnassign(user._id)}
+                                    style={{
+                                      ...buttonStyles.base,
+                                      ...buttonStyles.unassign,
+                                    }}
+                                    aria-label={`Unassign ${user.username}`}
+                                  >
+                                    Unassign
+                                  </motion.button>
+                                ) : (
+                                  <motion.button
+                                    style={{
+                                      ...buttonStyles.base,
+                                      ...buttonStyles.assigned,
+                                    }}
+                                    disabled
+                                    aria-label={`${user.username} is assigned`}
+                                  >
+                                    Assigned
+                                  </motion.button>
+                                )
                               ) : (
                                 <motion.button
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => handleAssign(user._id)}
                                   style={{
                                     ...buttonStyles.base,
-                                    ...buttonStyles.assigned,
+                                    ...buttonStyles.assign,
                                   }}
-                                  disabled
-                                  aria-label={`${user.username} is assigned`}
+                                  aria-label={`Assign ${user.username} to me`}
                                 >
-                                  Assigned
+                                  Assign to Me
                                 </motion.button>
-                              )
-                            ) : (
-                              <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => handleAssign(user._id)}
-                                style={{
-                                  ...buttonStyles.base,
-                                  ...buttonStyles.assign,
-                                }}
-                                aria-label={`Assign ${user.username} to me`}
-                              >
-                                Assign to Me
-                              </motion.button>
-                            )}
-                          </TableCell>
-                        )}
+                              )}
+                            </TableCell>
+                          )}
                       </TableRow>
                     );
                   })}

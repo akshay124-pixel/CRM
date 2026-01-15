@@ -1,4 +1,3 @@
-import React, { useState, useEffect } from "react";
 import "./App.css";
 import {
   BrowserRouter as Router,
@@ -8,213 +7,159 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
+import { useEffect } from "react";
 import DashBoard from "./components/DashBoard";
 import ChangePassword from "./Auth/ChangePassword";
 import Login from "./Auth/Login";
 import SignUp from "./Auth/SignUp";
 import Navbar from "./components/Navbar";
-import axios from "axios";
-import { ToastContainer, toast } from "react-toastify";
+import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "bootstrap/dist/css/bootstrap.min.css";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 
-const ConditionalNavbar = ({ isAuthenticated, onLogout }) => {
+// Loading Overlay - Prevents blank screens during auth transitions
+const LoadingOverlay = () => (
+  <div
+    style={{
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(255, 255, 255, 0.95)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 9999,
+      transition: "opacity 0.2s ease-in-out",
+    }}
+  >
+    <div style={{ textAlign: "center" }}>
+      <div
+        style={{
+          width: "50px",
+          height: "50px",
+          border: "4px solid #f3f3f3",
+          borderTop: "4px solid #2575fc",
+          borderRadius: "50%",
+          animation: "spin 1s linear infinite",
+        }}
+      />
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
+    </div>
+  </div>
+);
+
+// Persistent Navbar - Always mounted, visibility controlled by CSS
+const PersistentNavbar = () => {
+  const { isAuthenticated } = useAuth();
   const location = useLocation();
+  
   const isAuthPage =
     location.pathname === "/login" ||
     location.pathname === "/signup" ||
     location.pathname === "/change-password";
 
-  return !isAuthPage && isAuthenticated ? <Navbar onLogout={onLogout} /> : null;
+  const shouldShow = !isAuthPage && isAuthenticated;
+
+  return (
+    <div
+      style={{
+        display: shouldShow ? "block" : "none",
+        transition: "opacity 0.2s ease-in-out",
+        opacity: shouldShow ? 1 : 0,
+      }}
+    >
+      <Navbar />
+    </div>
+  );
 };
 
-const PrivateRoute = ({ element, isAuthenticated }) => {
+// Private Route - Smooth redirect without component destruction
+const PrivateRoute = ({ element }) => {
+  const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
-  const token = localStorage.getItem("token");
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const hasValidAuth = !!(token && user.email);
+  const navigate = useNavigate();
 
-  console.log("PrivateRoute: Checking access", {
-    path: location.pathname,
-    hasToken: !!token,
-    hasUserEmail: !!user.email,
-    isAuthenticated: isAuthenticated,
-    hasValidAuth: hasValidAuth,
-  });
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      navigate("/login", { replace: true, state: { from: location } });
+    }
+  }, [loading, isAuthenticated, navigate, location]);
 
-  // For all protected routes, check if we have valid authentication
-  if (hasValidAuth) {
-    console.log("PrivateRoute: Allowing access to", location.pathname);
-    return element;
-  } else {
-    console.log("PrivateRoute: No valid auth, redirecting to login");
-    return <Navigate to="/login" replace />;
+  if (loading) {
+    return <LoadingOverlay />;
   }
+
+  return isAuthenticated ? element : null;
+};
+
+// Public Route - Smooth redirect without component destruction
+const PublicRoute = ({ element }) => {
+  const { isAuthenticated, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [loading, isAuthenticated, navigate]);
+
+  if (loading) {
+    return <LoadingOverlay />;
+  }
+
+  return !isAuthenticated ? element : null;
 };
 
 const AppContent = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    !!localStorage.getItem("token")
-  );
-  const navigate = useNavigate();
-
-  const handleAuthSuccess = ({ token, user }) => {
-    console.log(
-      "handleAuthSuccess: User authenticated, setting token and user"
-    );
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
-    setIsAuthenticated(true);
-    window.dispatchEvent(new Event("authChange"));
-    navigate("/dashboard");
-  };
-
-  const handleLogout = () => {
-    console.log(
-      "handleLogout: Clearing localStorage and redirecting to /login"
-    );
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setIsAuthenticated(false);
-    navigate("/login");
-  };
-
-  useEffect(() => {
-    const validateToken = async () => {
-      const token = localStorage.getItem("token");
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const role = user?.role;
-
-      console.log("validateToken: Checking token and role", {
-        hasToken: !!token,
-        hasUser: !!user.email,
-        role: role,
-        currentPath: window.location.pathname,
-      });
-
-      // If we have token and user data, set authenticated immediately
-      if (token && user.email) {
-        console.log(
-          "validateToken: Token and user data found, setting authenticated"
-        );
-        setIsAuthenticated(true);
-
-        // Only validate with server for protected routes (not auth pages)
-        if (
-          !["/login", "/signup", "/change-password"].includes(
-            window.location.pathname
-          )
-        ) {
-          try {
-            const response = await axios.get(
-              `${process.env.REACT_APP_URL}/auth/verify-token`,
-              {
-                headers: { Authorization: `Bearer ${token}` },
-              }
-            );
-            console.log("validateToken: Server validation successful");
-          } catch (error) {
-            console.error("validateToken: Server validation failed:", error);
-            // Only clear data and redirect for non-auth pages
-            if (
-              !["/login", "/signup", "/change-password"].includes(
-                window.location.pathname
-              )
-            ) {
-              toast.error("Session expired. Please log in again.", {
-                position: "top-right",
-                autoClose: 3000,
-                theme: "colored",
-              });
-              localStorage.removeItem("token");
-              localStorage.removeItem("user");
-              setIsAuthenticated(false);
-              navigate("/login");
-            }
-          }
-        }
-        return;
-      }
-
-      // No token or user data
-      console.log("validateToken: No token or user data found");
-      setIsAuthenticated(false);
-
-      // Only redirect if not on auth pages
-      if (!["/login", "/signup"].includes(window.location.pathname)) {
-        navigate("/login");
-      }
-    };
-
-    validateToken();
-
-    // Listen for authChange events
-    const handleAuthChange = () => {
-      const token = localStorage.getItem("token");
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const isAuth = !!(token && user.email);
-      setIsAuthenticated(isAuth);
-      console.log("authChange: Updated isAuthenticated to", isAuth);
-    };
-
-    window.addEventListener("authChange", handleAuthChange);
-    return () => window.removeEventListener("authChange", handleAuthChange);
-  }, [navigate]);
-
   return (
-    <>
+    <div className="App">
+      {/* Persistent App Shell - Never unmounts */}
+      <PersistentNavbar />
       <ToastContainer />
-      <ConditionalNavbar
-        isAuthenticated={isAuthenticated}
-        onLogout={handleLogout}
-      />
+      
+      {/* Routes - Components transition smoothly */}
       <Routes>
+        <Route path="/" element={<Navigate to="/login" replace />} />
+
         <Route
           path="/login"
-          element={<Login onAuthSuccess={handleAuthSuccess} />}
+          element={<PublicRoute element={<Login />} />}
         />
         <Route
           path="/signup"
-          element={<SignUp onAuthSuccess={handleAuthSuccess} />}
+          element={<PublicRoute element={<SignUp />} />}
+        />
+
+        <Route
+          path="/dashboard"
+          element={<PrivateRoute element={<DashBoard />} />}
         />
         <Route
           path="/change-password"
-          element={
-            <PrivateRoute
-              element={<ChangePassword />}
-              isAuthenticated={isAuthenticated}
-            />
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <PrivateRoute
-              element={<DashBoard />}
-              isAuthenticated={isAuthenticated}
-            />
-          }
-        />
-        <Route
-          path="/"
-          element={
-            isAuthenticated ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
+          element={<PrivateRoute element={<ChangePassword />} />}
         />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
-    </>
+    </div>
   );
 };
 
 function App() {
   return (
     <Router>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </Router>
   );
 }
