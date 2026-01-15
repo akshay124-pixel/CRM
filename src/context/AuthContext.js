@@ -5,6 +5,8 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
     const [loadingTimeout, setLoadingTimeout] = useState(false);
 
     const initialized = React.useRef(false);
