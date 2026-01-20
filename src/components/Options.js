@@ -271,6 +271,7 @@ export const statesAndCities = {
   ],
   "Madhya Pradesh": [
     "Bhopal",
+    "Shajapur",
     "Indore",
     "Gwalior",
     "Jabalpur",
