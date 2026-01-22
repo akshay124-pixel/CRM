@@ -7,7 +7,6 @@ import { DateRangePicker } from "react-date-range";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 import TeamAnalyticsDrawer from "./TeamAnalyticsDrawer.js";
-import { jwtDecode } from "jwt-decode";
 import { validatePhoneNumber } from "../utils/phoneValidation";
 import { useNavigate } from "react-router-dom";
 import {
@@ -82,7 +81,7 @@ const useClickDebounce = (delay = 300) => {
         setIsDebouncingState(false);
       }, delay);
     },
-    [delay]
+    [delay],
   );
 
   return { clickDebounce, isDebouncing: isDebouncingState };
@@ -153,12 +152,12 @@ const CallTrackingDashboard = ({ stats, onFilterChange, selectedCategory }) => {
                     backgroundColor: stat.title.includes("Closed Won")
                       ? "#e3f2fd"
                       : stat.title.includes("Closed Lost")
-                      ? "#ffebee"
-                      : stat.title.includes("Hot")
-                      ? "#ffcdd2"
-                      : stat.title.includes("Warm")
-                      ? "#fff3e0"
-                      : "#e8f5e9",
+                        ? "#ffebee"
+                        : stat.title.includes("Hot")
+                          ? "#ffcdd2"
+                          : stat.title.includes("Warm")
+                            ? "#fff3e0"
+                            : "#e8f5e9",
                     boxShadow: 3,
                     border:
                       selectedCategory === stat.border
@@ -194,12 +193,12 @@ const CallTrackingDashboard = ({ stats, onFilterChange, selectedCategory }) => {
                         stat.title.includes("Closed Won")
                           ? "primary"
                           : stat.title.includes("Closed Lost")
-                          ? "error"
-                          : stat.title.includes("Hot")
-                          ? "secondary"
-                          : stat.title.includes("Warm")
-                          ? "warning"
-                          : "success"
+                            ? "error"
+                            : stat.title.includes("Hot")
+                              ? "secondary"
+                              : stat.title.includes("Warm")
+                                ? "warning"
+                                : "success"
                       }
                       sx={{ mt: 1 }}
                     />
@@ -282,7 +281,7 @@ function DashBoard() {
         });
       });
     },
-    [clickDebounce]
+    [clickDebounce],
   );
 
   const handleDrawerClose = useCallback(
@@ -300,7 +299,7 @@ function DashBoard() {
         });
       });
     },
-    [clickDebounce]
+    [clickDebounce],
   );
 
   const handleDateClick = (event) => {
@@ -408,7 +407,7 @@ function DashBoard() {
       if (Array.isArray(response.data)) {
         const uniqueUsernames = [
           ...new Set(
-            response.data.map((user) => user.username).filter((name) => name)
+            response.data.map((user) => user.username).filter((name) => name),
           ),
         ];
         setUsernames(uniqueUsernames.sort((a, b) => a.localeCompare(b)));
@@ -422,10 +421,11 @@ function DashBoard() {
     try {
       const params = { type: "analytics" };
 
-      // if (selectedUsername) params.username = selectedUsername;
-      // if (selectedState) params.state = selectedState;
-      // if (selectedCity) params.city = selectedCity;
-      // if (dashboardFilter && dashboardFilter !== "total") params.status = dashboardFilter;
+      if (selectedUsername) params.username = selectedUsername;
+      if (selectedState) params.state = selectedState;
+      if (selectedCity) params.city = selectedCity;
+      if (dashboardFilter && dashboardFilter !== "total")
+        params.status = dashboardFilter;
       // Pass date filters if they exist (to match dashboard filters)
       if (dateRange[0].startDate && dateRange[0].endDate) {
         const start = new Date(dateRange[0].startDate);
@@ -451,7 +451,13 @@ function DashBoard() {
       console.error("Fetch analytics entries error:", error);
       throw error;
     }
-  }, [dashboardFilter, dateRange]);
+  }, [
+    dashboardFilter,
+    dateRange,
+    selectedUsername,
+    selectedState,
+    selectedCity,
+  ]);
 
   const fetchEntries = useCallback(async () => {
     setLoading(true);
@@ -601,7 +607,7 @@ function DashBoard() {
         const productsText = Array.isArray(entry.products)
           ? entry.products
               .map((p) =>
-                `${p.name} ${p.specification} ${p.size} ${p.quantity}`.toLowerCase()
+                `${p.name} ${p.specification} ${p.size} ${p.quantity}`.toLowerCase(),
               )
               .join(" ")
           : "";
@@ -610,8 +616,8 @@ function DashBoard() {
           ...(Array.isArray(entry.assignedTo)
             ? entry.assignedTo.map((u) => u.username)
             : entry.assignedTo?.username
-            ? [entry.assignedTo.username]
-            : []),
+              ? [entry.assignedTo.username]
+              : []),
         ]
           .filter(Boolean)
           .map((v) => String(v).toLowerCase())
@@ -627,8 +633,8 @@ function DashBoard() {
           ...(Array.isArray(entry.assignedTo)
             ? entry.assignedTo.map((u) => u.username)
             : entry.assignedTo?.username
-            ? [entry.assignedTo.username]
-            : []),
+              ? [entry.assignedTo.username]
+              : []),
         ].filter(Boolean);
         if (!usernames.includes(selectedUsername)) return false;
       }
@@ -646,7 +652,7 @@ function DashBoard() {
       selectedCity,
       dashboardFilter,
       dateRange,
-    ]
+    ],
   );
 
   const categorizeStatus = (entry) => {
@@ -750,11 +756,11 @@ function DashBoard() {
       const assignedIds = Array.isArray(entry.assignedTo)
         ? entry.assignedTo.map((u) => u._id?.toString?.() || u._id)
         : entry.assignedTo?._id
-        ? [entry.assignedTo._id]
-        : [];
+          ? [entry.assignedTo._id]
+          : [];
       return createdById === uid || assignedIds.includes(uid);
     },
-    [role, userId]
+    [role, userId],
   );
 
   const getId = useCallback((e) => {
@@ -827,7 +833,7 @@ function DashBoard() {
       wasRecent,
       recordOp,
       getId,
-    ]
+    ],
   );
 
   // Optimized handleEntryUpdated - instant local state update without refetch
@@ -864,13 +870,13 @@ function DashBoard() {
                   username: user.username || "",
                 }))
               : updatedEntry.assignedTo
-              ? [
-                  {
-                    _id: updatedEntry.assignedTo._id,
-                    username: updatedEntry.assignedTo.username || "",
-                  },
-                ]
-              : [],
+                ? [
+                    {
+                      _id: updatedEntry.assignedTo._id,
+                      username: updatedEntry.assignedTo.username || "",
+                    },
+                  ]
+                : [],
           };
 
           const filtered = prev.filter((e) => getId(e) !== getId(updatedEntry));
@@ -900,7 +906,7 @@ function DashBoard() {
       setIsEditModalOpen(false);
       toast.success("Entry updated successfully!");
     },
-    [usernames, fetchAnalyticsEntries, applyStatsDelta, matchesContext]
+    [usernames, fetchAnalyticsEntries, applyStatsDelta, matchesContext],
   );
 
   useEffect(() => {
@@ -1045,7 +1051,7 @@ function DashBoard() {
     (deletedIds) => {
       // Optimistic update - remove entries from local state immediately
       const deletedCount = deletedIds.length;
-      
+
       setEntries((prev) => {
         let next = prev;
         for (const id of deletedIds) {
@@ -1058,15 +1064,15 @@ function DashBoard() {
         }
         return next;
       });
-      
+
       // Update pagination counts
       setPagination((prev) => {
         const newTotal = Math.max(0, prev.total - deletedCount);
         const newTotalPages = Math.ceil(newTotal / prev.limit) || 1;
-        
+
         // Keep current page unless it's now beyond total pages
         const newPage = prev.page > newTotalPages ? newTotalPages : prev.page;
-        
+
         return {
           ...prev,
           total: newTotal,
@@ -1074,22 +1080,22 @@ function DashBoard() {
           page: newPage,
         };
       });
-      
+
       // Clear selected entries
       setSelectedEntries((prev) =>
-        prev.filter((id) => !deletedIds.includes(id))
+        prev.filter((id) => !deletedIds.includes(id)),
       );
 
       // Update analytics in background
       fetchAnalyticsEntries();
 
       setIsDeleteModalOpen(false);
-      
+
       // Socket.io handles real-time updates for other users
       // The deleted entry is removed from local state immediately
       // No page refresh or jump occurs
     },
-    [fetchAnalyticsEntries, applyStatsDelta, recordOp, getId]
+    [fetchAnalyticsEntries, applyStatsDelta, recordOp, getId],
   );
 
   // Calculate stats exactly as AdminDrawer does to ensure consistency
@@ -1152,7 +1158,7 @@ function DashBoard() {
         setSearchTerm(val);
         setPagination((prev) => ({ ...prev, page: 1 }));
       }, 500),
-    []
+    [],
   );
 
   useEffect(() => {
@@ -1255,7 +1261,7 @@ function DashBoard() {
           for (const item of items) {
             // 1) Preferred format: Name (Spec: SPEC, SIZE, Qty: N)
             let m = item.match(
-              /^(.+?)\s*\(\s*Spec:\s*(.+?)\s*,\s*(.+?)\s*,\s*Qty:\s*(\d+)\s*\)$/i
+              /^(.+?)\s*\(\s*Spec:\s*(.+?)\s*,\s*(.+?)\s*,\s*Qty:\s*(\d+)\s*\)$/i,
             );
             if (m) {
               const [, name, spec, size, qty] = m;
@@ -1270,7 +1276,7 @@ function DashBoard() {
 
             // 2) Legacy format without 'Spec:' label: Name (SPEC, SIZE, Qty: N)
             m = item.match(
-              /^(.+?)\s*\(\s*(.+?)\s*,\s*(.+?)\s*,\s*Qty:\s*(\d+)\s*\)$/i
+              /^(.+?)\s*\(\s*(.+?)\s*,\s*(.+?)\s*,\s*Qty:\s*(\d+)\s*\)$/i,
             );
             if (m) {
               const [, name, spec, size, qty] = m;
@@ -1354,7 +1360,7 @@ function DashBoard() {
             if (!isNaN(date.getTime())) {
               // Adjust to UTC midnight to avoid time shifts
               return new Date(
-                Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+                Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
               ).toISOString();
             }
             return null;
@@ -1402,7 +1408,7 @@ function DashBoard() {
           if (entry.mobileNumber) {
             const phoneValidation = validatePhoneNumber(
               entry.mobileNumber,
-              user.username
+              user.username,
             );
             if (!phoneValidation.isValid) {
               invalidEntries.push({
@@ -1449,7 +1455,7 @@ function DashBoard() {
           toast.error(`Upload failed: ${error.response.data.message}`);
         } else if (error.message === "Network Error") {
           toast.error(
-            "Network issue detected. Please check your internet connection and try again."
+            "Network issue detected. Please check your internet connection and try again.",
           );
         } else {
           toast.error(`Upload failed: ${error.message}`);
@@ -1459,7 +1465,7 @@ function DashBoard() {
     reader.onerror = () => {
       console.error("File read error");
       toast.error(
-        "Error reading the file. Please try again with a valid file."
+        "Error reading the file. Please try again with a valid file.",
       );
     };
 
@@ -1558,7 +1564,7 @@ function DashBoard() {
       setSelectedEntries((prev) =>
         prev.includes(id)
           ? prev.filter((entryId) => entryId !== id)
-          : [...prev, id]
+          : [...prev, id],
       );
     }
   };
@@ -1572,7 +1578,7 @@ function DashBoard() {
 
   const handleCopySelected = () => {
     const selectedData = entries.filter((entry) =>
-      selectedEntries.includes(entry._id)
+      selectedEntries.includes(entry._id),
     );
     const textToCopy = selectedData
       .map((entry) =>
@@ -1583,7 +1589,7 @@ function DashBoard() {
           entry.products
             ?.map(
               (p) =>
-                `${p.name} (${p.specification}, ${p.size}, Qty: ${p.quantity})`
+                `${p.name} (${p.specification}, ${p.size}, Qty: ${p.quantity})`,
             )
             .join("; "),
           entry.type,
@@ -1595,7 +1601,7 @@ function DashBoard() {
           new Date(entry.createdAt).toLocaleDateString(),
           entry.closetype || "",
           entry.assignedTo?.username || "",
-        ].join("\t")
+        ].join("\t"),
       )
       .join("\n");
     navigator.clipboard
@@ -1631,8 +1637,8 @@ function DashBoard() {
           backgroundColor: isSelected
             ? "rgba(37, 117, 252, 0.1)"
             : isAssigned
-            ? "rgba(200, 230, 255, 0.3)"
-            : "#fff",
+              ? "rgba(200, 230, 255, 0.3)"
+              : "#fff",
           border: isSelected ? "2px solid #2575fc" : "none",
         }}
         className={`virtual-row ${isSelected ? "selected" : ""}`}
@@ -1786,8 +1792,8 @@ function DashBoard() {
             backgroundColor: isSelected
               ? "rgba(37, 117, 252, 0.1)"
               : isAssigned
-              ? "rgba(200, 230, 255, 0.3)" // Light blue for assigned entries
-              : "#fff",
+                ? "rgba(200, 230, 255, 0.3)" // Light blue for assigned entries
+                : "#fff",
             border: isSelected ? "2px solid #2575fc" : "1px solid #ddd",
             cursor: "pointer",
             transition: "all 0.3s ease",
@@ -2169,16 +2175,16 @@ function DashBoard() {
                         label: "Yesterday",
                         range: () => ({
                           startDate: new Date(
-                            new Date().setDate(new Date().getDate() - 1)
+                            new Date().setDate(new Date().getDate() - 1),
                           ),
                           endDate: new Date(
-                            new Date().setDate(new Date().getDate() - 1)
+                            new Date().setDate(new Date().getDate() - 1),
                           ),
                           key: "selection",
                         }),
                         isSelected: (range) => {
                           const yesterday = new Date(
-                            new Date().setDate(new Date().getDate() - 1)
+                            new Date().setDate(new Date().getDate() - 1),
                           );
                           return (
                             range.startDate.toDateString() ===
@@ -2192,14 +2198,14 @@ function DashBoard() {
                         label: "Last 7 Days",
                         range: () => ({
                           startDate: new Date(
-                            new Date().setDate(new Date().getDate() - 6)
+                            new Date().setDate(new Date().getDate() - 6),
                           ),
                           endDate: new Date(),
                           key: "selection",
                         }),
                         isSelected: (range) => {
                           const start = new Date(
-                            new Date().setDate(new Date().getDate() - 6)
+                            new Date().setDate(new Date().getDate() - 6),
                           );
                           const end = new Date();
                           return (
@@ -2213,14 +2219,14 @@ function DashBoard() {
                         label: "Last 30 Days",
                         range: () => ({
                           startDate: new Date(
-                            new Date().setDate(new Date().getDate() - 29)
+                            new Date().setDate(new Date().getDate() - 29),
                           ),
                           endDate: new Date(),
                           key: "selection",
                         }),
                         isSelected: (range) => {
                           const start = new Date(
-                            new Date().setDate(new Date().getDate() - 29)
+                            new Date().setDate(new Date().getDate() - 29),
                           );
                           const end = new Date();
                           return (
