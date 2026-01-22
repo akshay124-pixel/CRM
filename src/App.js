@@ -8,7 +8,6 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { useEffect, useRef } from "react";
-import React from "react";
 import DashBoard from "./components/DashBoard";
 import ChangePassword from "./Auth/ChangePassword";
 import Login from "./Auth/Login";
@@ -23,63 +22,50 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 const LoadingOverlay = ({ showTimeout, onRetry }) => (
   <div
     style={{
-      position: "fixed",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: "rgba(255, 255, 255, 0.95)",
+      height: "100vh",
       display: "flex",
-      alignItems: "center",
       justifyContent: "center",
-      zIndex: 9999,
-      transition: "opacity 0.2s ease-in-out",
+      alignItems: "center",
+      fontSize: "1rem",
+      color: "#666",
+      fontWeight: "bold",
+      textAlign: "center",
+      padding: "20px",
+      minWidth: "1190px",
+      flexDirection: "column",
+      gap: "15px",
     }}
   >
-    <div style={{ textAlign: "center" }}>
-      <div
-        style={{
-          width: "50px",
-          height: "50px",
-          border: "4px solid #f3f3f3",
-          borderTop: "4px solid #2575fc",
-          borderRadius: "50%",
-          animation: "spin 1s linear infinite",
-          margin: "0 auto 20px",
-        }}
-      />
-      {showTimeout && (
-        <div style={{ marginTop: "20px" }}>
-          <p style={{ color: "#666", marginBottom: "10px" }}>
-            Taking longer than usual...
-          </p>
-          {onRetry && (
-            <button
-              onClick={onRetry}
-              style={{
-                padding: "8px 16px",
-                background: "#2575fc",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-              }}
-            >
-              Retry
-            </button>
-          )}
-        </div>
-      )}
-      <style>
-        {`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}
-      </style>
+    <div className="loading-wave">
+      <div className="loading-bar"></div>
+      <div className="loading-bar"></div>
+      <div className="loading-bar"></div>
+      <div className="loading-bar"></div>
     </div>
+
+    {showTimeout && (
+      <div style={{ marginTop: "15px" }}>
+        <p style={{ color: "#666", marginBottom: "10px" }}>
+          Taking longer than usual...
+        </p>
+        {onRetry && (
+          <button
+            onClick={onRetry}
+            style={{
+              padding: "8px 16px",
+              background: "#2575fc",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+            }}
+          >
+            Retry
+          </button>
+        )}
+      </div>
+    )}
   </div>
 );
 
@@ -201,5 +187,44 @@ function App() {
     </Router>
   );
 }
+<style>
+  {`
+ .loading-wave {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+  }
 
+  .loading-bar {
+    width: 8px;
+    height: 40px;
+    background-color: #2575fc;
+    animation: wave 1.2s infinite ease-in-out;
+  }
+
+  .loading-bar:nth-child(2) {
+    animation-delay: -0.1s;
+  }
+
+  .loading-bar:nth-child(3) {
+    animation-delay: -0.2s;
+  }
+
+  .loading-bar:nth-child(4) {
+    animation-delay: -0.3s;
+  }
+
+  @keyframes wave {
+    0%, 100% {
+      transform: scaleY(0.4);
+      background-color: #2575fc;
+    }
+    50% {
+      transform: scaleY(1);
+      background-color: #6a11cb;
+    }
+  }
+ `}
+</style>
 export default App;
