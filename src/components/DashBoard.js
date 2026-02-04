@@ -253,6 +253,15 @@ function DashBoard() {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [doubleClickInitiated, setDoubleClickInitiated] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+
+
+  // Reset dashboard filter when username is selected
+  useEffect(() => {
+    if (selectedUsername) {
+      setDashboardFilter("total");
+    }
+  }, [selectedUsername]);
+
   const open = Boolean(anchorEl);
   const id = open ? "date-range-popover" : undefined;
   const recentOpsRef = useRef(new Map());
@@ -502,14 +511,6 @@ function DashBoard() {
           ...response.data.pagination,
         }));
         setBackendStats(response.data.stats);
-
-        // Populate usernames for dropdown from the current page (or separate API?)
-        // The original code populated from ALL entries.
-        // If we only have 10 entries, dropdown will be incomplete.
-        // Ideally, we should fetch users separately.
-        // But for now, let's keep it as is or rely on what we have.
-        // If role is superadmin/admin, we might need to fetch all users differently.
-        // The backend logic for 'fetchEntries' populates createdBy/assignedTo.
       } else {
         // Fallback
         const data = Array.isArray(response.data) ? response.data : [];
@@ -606,10 +607,10 @@ function DashBoard() {
           .map((v) => String(v).toLowerCase());
         const productsText = Array.isArray(entry.products)
           ? entry.products
-              .map((p) =>
-                `${p.name} ${p.specification} ${p.size} ${p.quantity}`.toLowerCase(),
-              )
-              .join(" ")
+            .map((p) =>
+              `${p.name} ${p.specification} ${p.size} ${p.quantity}`.toLowerCase(),
+            )
+            .join(" ")
           : "";
         const userText = [
           entry.createdBy?.username,
@@ -860,22 +861,20 @@ function DashBoard() {
         let next;
 
         if (isVisible) {
-          // Update logic: Replace existing or Add if newly visible
-          // Ensure nested objects are properly structure for display if needed
           const processedEntry = {
             ...updatedEntry,
             assignedTo: Array.isArray(updatedEntry.assignedTo)
               ? updatedEntry.assignedTo.map((user) => ({
-                  _id: user._id,
-                  username: user.username || "",
-                }))
+                _id: user._id,
+                username: user.username || "",
+              }))
               : updatedEntry.assignedTo
                 ? [
-                    {
-                      _id: updatedEntry.assignedTo._id,
-                      username: updatedEntry.assignedTo.username || "",
-                    },
-                  ]
+                  {
+                    _id: updatedEntry.assignedTo._id,
+                    username: updatedEntry.assignedTo.username || "",
+                  },
+                ]
                 : [],
           };
 
@@ -960,9 +959,6 @@ function DashBoard() {
           return next;
         });
 
-        // Consistent handling: apply stats delta regardless of existing check in list
-        // (List check is for rendering, stats logic here should assume new event)
-        // However, if we want to be super safe about not counting if it truly was in list:
         if (!existed) {
           applyStatsDelta(null, entry);
           setPagination((prev) => ({ ...prev, total: prev.total + 1 }));
@@ -1039,11 +1035,11 @@ function DashBoard() {
           }));
         }
       });
-    } catch (err) {}
+    } catch (err) { }
     return () => {
       try {
         socket && socket.disconnect();
-      } catch {}
+      } catch { }
     };
   }, [matchesContext, matchesRoleAccess, applyStatsDelta]);
 
@@ -1090,10 +1086,6 @@ function DashBoard() {
       fetchAnalyticsEntries();
 
       setIsDeleteModalOpen(false);
-
-      // Socket.io handles real-time updates for other users
-      // The deleted entry is removed from local state immediately
-      // No page refresh or jump occurs
     },
     [fetchAnalyticsEntries, applyStatsDelta, recordOp, getId],
   );
@@ -1500,9 +1492,6 @@ function DashBoard() {
       return allUsers;
     } catch (error) {
       console.error("Error fetching users for analytics:", error);
-      // Return empty or throw? If we throw, the drawer won't open, which matches "Drawer opens ONLY ONCE after data is fully loaded"
-      // But we should probably allow opening with partial data or show error.
-      // For now, allow throwing to be caught by handleAnalyticsOpen
       throw error;
     }
   };
@@ -2154,89 +2143,89 @@ function DashBoard() {
                 isMobile
                   ? []
                   : [
-                      {
-                        label: "Today",
-                        range: () => ({
-                          startDate: new Date(),
-                          endDate: new Date(),
-                          key: "selection",
-                        }),
-                        isSelected: (range) => {
-                          const today = new Date();
-                          return (
-                            range.startDate.toDateString() ===
-                              today.toDateString() &&
-                            range.endDate.toDateString() ===
-                              today.toDateString()
-                          );
-                        },
+                    {
+                      label: "Today",
+                      range: () => ({
+                        startDate: new Date(),
+                        endDate: new Date(),
+                        key: "selection",
+                      }),
+                      isSelected: (range) => {
+                        const today = new Date();
+                        return (
+                          range.startDate.toDateString() ===
+                          today.toDateString() &&
+                          range.endDate.toDateString() ===
+                          today.toDateString()
+                        );
                       },
-                      {
-                        label: "Yesterday",
-                        range: () => ({
-                          startDate: new Date(
-                            new Date().setDate(new Date().getDate() - 1),
-                          ),
-                          endDate: new Date(
-                            new Date().setDate(new Date().getDate() - 1),
-                          ),
-                          key: "selection",
-                        }),
-                        isSelected: (range) => {
-                          const yesterday = new Date(
-                            new Date().setDate(new Date().getDate() - 1),
-                          );
-                          return (
-                            range.startDate.toDateString() ===
-                              yesterday.toDateString() &&
-                            range.endDate.toDateString() ===
-                              yesterday.toDateString()
-                          );
-                        },
+                    },
+                    {
+                      label: "Yesterday",
+                      range: () => ({
+                        startDate: new Date(
+                          new Date().setDate(new Date().getDate() - 1),
+                        ),
+                        endDate: new Date(
+                          new Date().setDate(new Date().getDate() - 1),
+                        ),
+                        key: "selection",
+                      }),
+                      isSelected: (range) => {
+                        const yesterday = new Date(
+                          new Date().setDate(new Date().getDate() - 1),
+                        );
+                        return (
+                          range.startDate.toDateString() ===
+                          yesterday.toDateString() &&
+                          range.endDate.toDateString() ===
+                          yesterday.toDateString()
+                        );
                       },
-                      {
-                        label: "Last 7 Days",
-                        range: () => ({
-                          startDate: new Date(
-                            new Date().setDate(new Date().getDate() - 6),
-                          ),
-                          endDate: new Date(),
-                          key: "selection",
-                        }),
-                        isSelected: (range) => {
-                          const start = new Date(
-                            new Date().setDate(new Date().getDate() - 6),
-                          );
-                          const end = new Date();
-                          return (
-                            range.startDate.toDateString() ===
-                              start.toDateString() &&
-                            range.endDate.toDateString() === end.toDateString()
-                          );
-                        },
+                    },
+                    {
+                      label: "Last 7 Days",
+                      range: () => ({
+                        startDate: new Date(
+                          new Date().setDate(new Date().getDate() - 6),
+                        ),
+                        endDate: new Date(),
+                        key: "selection",
+                      }),
+                      isSelected: (range) => {
+                        const start = new Date(
+                          new Date().setDate(new Date().getDate() - 6),
+                        );
+                        const end = new Date();
+                        return (
+                          range.startDate.toDateString() ===
+                          start.toDateString() &&
+                          range.endDate.toDateString() === end.toDateString()
+                        );
                       },
-                      {
-                        label: "Last 30 Days",
-                        range: () => ({
-                          startDate: new Date(
-                            new Date().setDate(new Date().getDate() - 29),
-                          ),
-                          endDate: new Date(),
-                          key: "selection",
-                        }),
-                        isSelected: (range) => {
-                          const start = new Date(
-                            new Date().setDate(new Date().getDate() - 29),
-                          );
-                          const end = new Date();
-                          return (
-                            range.startDate.toDateString() ===
-                              start.toDateString() &&
-                            range.endDate.toDateString() === end.toDateString()
-                          );
-                        },
+                    },
+                    {
+                      label: "Last 30 Days",
+                      range: () => ({
+                        startDate: new Date(
+                          new Date().setDate(new Date().getDate() - 29),
+                        ),
+                        endDate: new Date(),
+                        key: "selection",
+                      }),
+                      isSelected: (range) => {
+                        const start = new Date(
+                          new Date().setDate(new Date().getDate() - 29),
+                        );
+                        const end = new Date();
+                        return (
+                          range.startDate.toDateString() ===
+                          start.toDateString() &&
+                          range.endDate.toDateString() === end.toDateString()
+                        );
                       },
-                    ]
+                    },
+                  ]
               }
               inputRanges={isMobile ? [] : undefined}
               weekStartsOn={1}
@@ -2732,18 +2721,16 @@ function DashBoard() {
           role={role}
         />{" "}
         <AttendanceTracker
-          key={`drawer-attendance-${
-            drawerState.isOpen && drawerState.type === "attendance"
-          }`}
+          key={`drawer-attendance-${drawerState.isOpen && drawerState.type === "attendance"
+            }`}
           open={drawerState.isOpen && drawerState.type === "attendance"}
           onClose={handleDrawerClose}
           userId={userId}
           role={role}
         />{" "}
         <AdminDrawer
-          key={`drawer-admin-${
-            drawerState.isOpen && drawerState.type === "admin"
-          }`}
+          key={`drawer-admin-${drawerState.isOpen && drawerState.type === "admin"
+            }`}
           entries={analyticsEntries}
           isOpen={drawerState.isOpen && drawerState.type === "admin"}
           onClose={handleDrawerClose}
@@ -2753,9 +2740,8 @@ function DashBoard() {
           drawerUsers={drawerUsers}
         />
         <ValueAnalyticsDrawer
-          key={`drawer-value-${
-            drawerState.isOpen && drawerState.type === "value"
-          }`}
+          key={`drawer-value-${drawerState.isOpen && drawerState.type === "value"
+            }`}
           entries={analyticsEntries}
           isOpen={drawerState.isOpen && drawerState.type === "value"}
           onClose={handleDrawerClose}
@@ -2776,9 +2762,8 @@ function DashBoard() {
 
             {role === "superadmin" && (
               <TeamAnalyticsDrawer
-                key={`drawer-team-${
-                  drawerState.isOpen && drawerState.type === "team"
-                }`}
+                key={`drawer-team-${drawerState.isOpen && drawerState.type === "team"
+                  }`}
                 entries={analyticsEntries}
                 isOpen={drawerState.isOpen && drawerState.type === "team"}
                 onClose={handleDrawerClose}
