@@ -1061,13 +1061,16 @@ function DashBoard() {
         return next;
       });
 
-      // Update pagination counts
+      // Update pagination counts with smart recalculation
+      let newPageValue = pagination.page;
+
       setPagination((prev) => {
         const newTotal = Math.max(0, prev.total - deletedCount);
         const newTotalPages = Math.ceil(newTotal / prev.limit) || 1;
 
         // Keep current page unless it's now beyond total pages
         const newPage = prev.page > newTotalPages ? newTotalPages : prev.page;
+        newPageValue = newPage; // Capture for side-effect check
 
         return {
           ...prev,
@@ -1082,12 +1085,27 @@ function DashBoard() {
         prev.filter((id) => !deletedIds.includes(id)),
       );
 
+      // CRITICAL FIX:
+      // If page changed (e.g. was on pg 5, now pg 4), existing useEffect triggers fetch.
+      // If page did NOT change (e.g. deleted 5 items from pg 1), useEffect won't fire.
+      // We must manually trigger fetch to replenish the grid.
+      if (newPageValue === pagination.page) {
+        fetchEntries();
+      }
+
       // Update analytics in background
       fetchAnalyticsEntries();
 
       setIsDeleteModalOpen(false);
     },
-    [fetchAnalyticsEntries, applyStatsDelta, recordOp, getId],
+    [
+      fetchAnalyticsEntries,
+      applyStatsDelta,
+      recordOp,
+      getId,
+      pagination,
+      fetchEntries
+    ],
   );
 
   // Calculate stats exactly as AdminDrawer does to ensure consistency
@@ -1328,26 +1346,42 @@ function DashBoard() {
           const parseDate = (dateStr) => {
             if (!dateStr) return null;
 
-            // Handle DD/MM/YYYY explicitly (Excel common format)
-            const parts = String(dateStr).trim().split("/");
+            // 1. Handle Excel Serial Numbers (e.g. 45000 for 2023)
+            // Logic: Excel base date is Dec 30 1899 (mostly).
+            if (typeof dateStr === 'number') {
+              // Check if it's likely an Excel serial (25569 = 1970-01-01, 60000 = ~2064)
+              // Timestamp for 2000 is 946684800000.
+              // So if number < 1,000,000, it's definitely not a recent ms timestamp.
+              if (dateStr > 25569 && dateStr < 1000000) {
+                const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+                const date = new Date(excelEpoch.getTime() + dateStr * 86400000);
+                return date.toISOString();
+              }
+            }
+
+            const cleanStr = String(dateStr).trim().replace(/-/g, "/"); // Normalize - to /
+
+            // Handle DD/MM/YYYY
+            const parts = cleanStr.split("/");
             if (parts.length === 3) {
               const day = parseInt(parts[0], 10);
               const month = parseInt(parts[1], 10) - 1; // JS months: 0-11
               const year = parseInt(parts[2], 10);
-              if (
-                !isNaN(day) &&
-                !isNaN(month) &&
-                !isNaN(year) &&
-                month >= 0 &&
-                month < 12
-              ) {
-                // Fix: Use Date.UTC to avoid local timezone shift
-                const date = new Date(Date.UTC(year, month, day));
-                return date.toISOString(); // Now correctly "2025-06-13T00:00:00.000Z"
+
+              if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+                // Valid year range check (e.g. 1900-2100)
+                if (year >= 1900 && year <= 2100 && month >= 0 && month < 12) {
+                  // Fix: Use Date.UTC to avoid local timezone shift
+                  const date = new Date(Date.UTC(year, month, day));
+                  // Strict rollover check
+                  if (date.getUTCFullYear() === year && date.getUTCMonth() === month && date.getUTCDate() === day) {
+                    return date.toISOString();
+                  }
+                }
               }
             }
 
-            // Fallback for other formats (e.g., YYYY-MM-DD) - also use UTC if possible
+            // Fallback for ISO or other formats
             const date = new Date(dateStr);
             if (!isNaN(date.getTime())) {
               // Adjust to UTC midnight to avoid time shifts
