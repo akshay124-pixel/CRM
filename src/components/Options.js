@@ -70,6 +70,8 @@ export const statesAndCities = {
     "Begusrai",
     "Lakhisrai",
     "Munger",
+    "Supaul",
+    "Saharsa",
     "Jamui",
     "Banka",
     "Bhagalpur",

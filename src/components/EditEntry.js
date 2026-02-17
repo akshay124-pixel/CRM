@@ -5,7 +5,14 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
-import { Modal, Form, Spinner, Alert, Button, ProgressBar } from "react-bootstrap";
+import {
+  Modal,
+  Form,
+  Spinner,
+  Alert,
+  Button,
+  ProgressBar,
+} from "react-bootstrap";
 import api from "../utils/api";
 import { toast } from "react-toastify";
 import { useForm, Controller } from "react-hook-form";
@@ -129,7 +136,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       createdAt: "",
       attachment: null,
     }),
-    []
+    [],
   );
 
   const {
@@ -157,12 +164,12 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
 
   // Enhanced location state management
   const [locationState, setLocationState] = useState({
-    status: 'idle', // 'idle', 'fetching', 'slow', 'timeout', 'success', 'error'
+    status: "idle", // 'idle', 'fetching', 'slow', 'timeout', 'success', 'error'
     coordinates: null,
     error: null,
     attempts: 0,
     startTime: null,
-    lastKnownLocation: null
+    lastKnownLocation: null,
   });
 
   // Track if user is actively editing update follow-up fields
@@ -220,7 +227,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           "Name:",
           processedFile.name,
           "Type:",
-          processedFile.type
+          processedFile.type,
         );
       } catch (error) {
         console.error("Image compression error:", error);
@@ -250,7 +257,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     } else {
       console.error("Camera input ref not found");
       toast.error(
-        "Sorry, the camera option isn't available right now. Please try uploading from your device instead."
+        "Sorry, the camera option isn't available right now. Please try uploading from your device instead.",
       );
     }
   };
@@ -262,7 +269,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     } else {
       console.error("File input ref not found");
       toast.error(
-        "Sorry, the file upload option isn't available right now. Please try again later."
+        "Sorry, the file upload option isn't available right now. Please try again later.",
       );
     }
   };
@@ -282,23 +289,22 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         customerName: entry.customerName || "",
         customerEmail: entry.customerEmail || "",
 
-
         mobileNumber: entry.mobileNumber || "",
         contactperson: entry.contactperson || "",
         assignedTo: Array.isArray(entry.assignedTo)
           ? entry.assignedTo.map((user) => ({
-            value: user._id,
-            label: user.username,
-          }))
+              value: user._id,
+              label: user.username,
+            }))
           : [],
         products:
           Array.isArray(entry.products) && entry.products.length > 0
             ? entry.products.map((p) => ({
-              name: p.name || "",
-              specification: p.specification || "",
-              size: p.size || "",
-              quantity: p.quantity || "",
-            }))
+                name: p.name || "",
+                specification: p.specification || "",
+                size: p.size || "",
+                quantity: p.quantity || "",
+              }))
             : [{ name: "", specification: "", size: "", quantity: "" }],
         type: entry.type || "",
         address: entry.address || "",
@@ -339,12 +345,12 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
 
       // Reset enhanced location state
       setLocationState({
-        status: entry.liveLocation ? 'success' : 'idle',
+        status: entry.liveLocation ? "success" : "idle",
         coordinates: null,
         error: null,
         attempts: 0,
         startTime: null,
-        lastKnownLocation: null
+        lastKnownLocation: null,
       });
       setIsEditingFollowUp(false);
     }
@@ -352,129 +358,139 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
 
   const selectedCloseType = watch("closetype");
   // Enhanced location fetching with timeout, retry, and progressive feedback
-  const fetchLiveLocation = useCallback(async (isRetry = false) => {
-    if (!isRetry) {
-      setLocationState(prev => ({
-        ...prev,
-        status: 'fetching',
-        startTime: Date.now(),
-        attempts: prev.attempts + 1,
-        error: null
-      }));
-    }
+  const fetchLiveLocation = useCallback(
+    async (isRetry = false) => {
+      if (!isRetry) {
+        setLocationState((prev) => ({
+          ...prev,
+          status: "fetching",
+          startTime: Date.now(),
+          attempts: prev.attempts + 1,
+          error: null,
+        }));
+      }
 
-    // Check if geolocation is supported
-    if (!navigator.geolocation) {
-      setLocationState(prev => ({
-        ...prev,
-        status: 'error',
-        error: 'Geolocation is not supported by this device'
-      }));
-      toast.error("Location services not supported on this device");
-      return;
-    }
+      // Check if geolocation is supported
+      if (!navigator.geolocation) {
+        setLocationState((prev) => ({
+          ...prev,
+          status: "error",
+          error: "Geolocation is not supported by this device",
+        }));
+        toast.error("Location services not supported on this device");
+        return;
+      }
 
-    // Set up progressive feedback timers
-    const slowTimer = setTimeout(() => {
-      setLocationState(prev => prev.status === 'fetching' ? {
-        ...prev,
-        status: 'slow'
-      } : prev);
-    }, 8000); // Show "taking longer" after 8 seconds
+      // Set up progressive feedback timers
+      const slowTimer = setTimeout(() => {
+        setLocationState((prev) =>
+          prev.status === "fetching"
+            ? {
+                ...prev,
+                status: "slow",
+              }
+            : prev,
+        );
+      }, 8000); // Show "taking longer" after 8 seconds
 
-    const timeoutTimer = setTimeout(() => {
-      setLocationState(prev => prev.status === 'fetching' || prev.status === 'slow' ? {
-        ...prev,
-        status: 'timeout'
-      } : prev);
-    }, 30000); // Timeout after 30 seconds
+      const timeoutTimer = setTimeout(() => {
+        setLocationState((prev) =>
+          prev.status === "fetching" || prev.status === "slow"
+            ? {
+                ...prev,
+                status: "timeout",
+              }
+            : prev,
+        );
+      }, 30000); // Timeout after 30 seconds
 
-    try {
-      const position = await new Promise((resolve, reject) => {
-        const options = {
-          enableHighAccuracy: true,
-          timeout: 25000, // 25 second timeout
-          maximumAge: 300000 // Accept 5-minute old cached location
+      try {
+        const position = await new Promise((resolve, reject) => {
+          const options = {
+            enableHighAccuracy: true,
+            timeout: 25000, // 25 second timeout
+            maximumAge: 300000, // Accept 5-minute old cached location
+          };
+
+          navigator.geolocation.getCurrentPosition(resolve, reject, options);
+        });
+
+        // Clear timers on success
+        clearTimeout(slowTimer);
+        clearTimeout(timeoutTimer);
+
+        const coordinates = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
         };
 
-        navigator.geolocation.getCurrentPosition(
-          resolve,
-          reject,
-          options
-        );
-      });
+        const locationString = `${coordinates.latitude}, ${coordinates.longitude}`;
 
-      // Clear timers on success
-      clearTimeout(slowTimer);
-      clearTimeout(timeoutTimer);
+        // Update state
+        setLocationState((prev) => ({
+          ...prev,
+          status: "success",
+          coordinates,
+          error: null,
+        }));
 
-      const coordinates = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-        accuracy: position.coords.accuracy
-      };
+        setValue("liveLocation", locationString, {
+          shouldValidate: true,
+          shouldDirty: true,
+        });
 
-      const locationString = `${coordinates.latitude}, ${coordinates.longitude}`;
+        setLocationFetched(true);
 
-      // Update state
-      setLocationState(prev => ({
-        ...prev,
-        status: 'success',
-        coordinates,
-        error: null
-      }));
+        const accuracyText =
+          coordinates.accuracy < 100
+            ? `Location obtained with ${Math.round(coordinates.accuracy)}m accuracy`
+            : "Location obtained (low accuracy)";
 
-      setValue("liveLocation", locationString, {
-        shouldValidate: true,
-        shouldDirty: true,
-      });
+        toast.success(accuracyText);
+      } catch (error) {
+        clearTimeout(slowTimer);
+        clearTimeout(timeoutTimer);
 
-      setLocationFetched(true);
+        console.error("Location error:", error);
 
-      const accuracyText = coordinates.accuracy < 100 ?
-        `Location obtained with ${Math.round(coordinates.accuracy)}m accuracy` :
-        'Location obtained (low accuracy)';
+        let errorMessage = "Unable to get location";
+        let errorType = "error";
 
-      toast.success(accuracyText);
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage =
+              "Location access denied. Please enable location permissions.";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage =
+              "Location information unavailable. Check your GPS settings.";
+            break;
+          case error.TIMEOUT:
+            errorMessage =
+              "Location request timed out. GPS might be taking longer than usual.";
+            errorType = "timeout";
+            break;
+          default:
+            errorMessage = "Failed to get location. Please try again.";
+        }
 
-    } catch (error) {
-      clearTimeout(slowTimer);
-      clearTimeout(timeoutTimer);
+        setLocationState((prev) => ({
+          ...prev,
+          status: errorType,
+          error: errorMessage,
+        }));
 
-      console.error("Location error:", error);
+        setLocationFetched(false);
 
-      let errorMessage = "Unable to get location";
-      let errorType = 'error';
-
-      switch (error.code) {
-        case error.PERMISSION_DENIED:
-          errorMessage = "Location access denied. Please enable location permissions.";
-          break;
-        case error.POSITION_UNAVAILABLE:
-          errorMessage = "Location information unavailable. Check your GPS settings.";
-          break;
-        case error.TIMEOUT:
-          errorMessage = "Location request timed out. GPS might be taking longer than usual.";
-          errorType = 'timeout';
-          break;
-        default:
-          errorMessage = "Failed to get location. Please try again.";
+        // Don't show toast for timeout - let UI handle it
+        if (error.code !== error.TIMEOUT) {
+          toast.error(errorMessage);
+        }
       }
-
-      setLocationState(prev => ({
-        ...prev,
-        status: errorType,
-        error: errorMessage
-      }));
-
-      setLocationFetched(false);
-
-      // Don't show toast for timeout - let UI handle it
-      if (error.code !== error.TIMEOUT) {
-        toast.error(errorMessage);
-      }
-    }
-  }, [setValue]);
+    },
+    [setValue],
+  );
 
   // Auto-trigger location fetch when any update follow-up field changes
   useEffect(() => {
@@ -482,7 +498,8 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     if (view === "update" && entry) {
       const hasFieldChanged =
         status !== entry?.status ||
-        (Array.isArray(assignedTo) && Array.isArray(entry?.assignedTo) &&
+        (Array.isArray(assignedTo) &&
+          Array.isArray(entry?.assignedTo) &&
           assignedTo.length !== entry.assignedTo.length) ||
         closetype !== entry?.closetype ||
         closeamount !== entry?.closeamount ||
@@ -492,9 +509,18 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         fourthPersonMeet !== entry?.fourthPersonMeet ||
         nextAction !== entry?.nextAction ||
         estimatedValue !== entry?.estimatedValue ||
-        firstdate !== (entry?.firstdate ? new Date(entry.firstdate).toISOString().split("T")[0] : "") ||
-        followUpDate !== (entry?.followUpDate ? new Date(entry.followUpDate).toISOString().split("T")[0] : "") ||
-        expectedClosingDate !== (entry?.expectedClosingDate ? new Date(entry.expectedClosingDate).toISOString().split("T")[0] : "") ||
+        firstdate !==
+          (entry?.firstdate
+            ? new Date(entry.firstdate).toISOString().split("T")[0]
+            : "") ||
+        followUpDate !==
+          (entry?.followUpDate
+            ? new Date(entry.followUpDate).toISOString().split("T")[0]
+            : "") ||
+        expectedClosingDate !==
+          (entry?.expectedClosingDate
+            ? new Date(entry.expectedClosingDate).toISOString().split("T")[0]
+            : "") ||
         remarks !== entry?.remarks;
 
       // Update editing state
@@ -504,9 +530,11 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       // 1. Any field has changed
       // 2. Location is not already fetched or in progress
       // 3. Location state is idle or error (not fetching, slow, timeout, or success)
-      if (hasFieldChanged &&
+      if (
+        hasFieldChanged &&
         !getValues("liveLocation") &&
-        (locationState.status === 'idle' || locationState.status === 'error')) {
+        (locationState.status === "idle" || locationState.status === "error")
+      ) {
         // Small delay to prevent excessive API calls during rapid typing
         const timeoutId = setTimeout(() => {
           fetchLiveLocation();
@@ -518,17 +546,32 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       setIsEditingFollowUp(false);
     }
   }, [
-    view, entry, status, assignedTo, closetype, closeamount,
-    firstPersonMeet, secondPersonMeet, thirdPersonMeet, fourthPersonMeet,
-    nextAction, estimatedValue, firstdate, followUpDate, expectedClosingDate, remarks,
-    fetchLiveLocation, getValues, locationState.status
+    view,
+    entry,
+    status,
+    assignedTo,
+    closetype,
+    closeamount,
+    firstPersonMeet,
+    secondPersonMeet,
+    thirdPersonMeet,
+    fourthPersonMeet,
+    nextAction,
+    estimatedValue,
+    firstdate,
+    followUpDate,
+    expectedClosingDate,
+    remarks,
+    fetchLiveLocation,
+    getValues,
+    locationState.status,
   ]);
 
   const debouncedHandleInputChange = useCallback(
     debounce((name, value) => {
       setValue(name, value, { shouldValidate: true, shouldDirty: true });
     }, 300),
-    [setValue]
+    [setValue],
   );
 
   const addProduct = () => {
@@ -539,7 +582,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         ...currentProducts,
         { name: "", specification: "", size: "", quantity: "" },
       ],
-      { shouldValidate: true, shouldDirty: true }
+      { shouldValidate: true, shouldDirty: true },
     );
   };
 
@@ -551,7 +594,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
       newProducts.length > 0
         ? newProducts
         : [{ name: "", specification: "", size: "", quantity: "" }],
-      { shouldValidate: true, shouldDirty: true }
+      { shouldValidate: true, shouldDirty: true },
     );
   };
 
@@ -561,7 +604,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         value: user._id,
         label: user.username,
       })),
-    [users]
+    [users],
   );
 
   const onSubmit = async (data) => {
@@ -572,7 +615,10 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     // CHANGE: Prevent user from entering their own mobile number
     if (data.mobileNumber) {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const phoneValidation = validatePhoneNumber(data.mobileNumber, user.username);
+      const phoneValidation = validatePhoneNumber(
+        data.mobileNumber,
+        user.username,
+      );
       if (!phoneValidation.isValid) {
         toast.error(phoneValidation.message);
         setShowConfirm(false);
@@ -593,7 +639,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         const payload = {
           ...restData,
           products: data.products.filter(
-            (p) => p.name && p.specification && p.size && p.quantity
+            (p) => p.name && p.specification && p.size && p.quantity,
           ),
           assignedTo: data.assignedTo.map((user) => user.value),
         };
@@ -604,7 +650,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
               Object.keys(item).forEach((subKey) => {
                 formDataToSend.append(
                   `products[${index}][${subKey}]`,
-                  item[subKey]
+                  item[subKey],
                 );
               });
             });
@@ -626,7 +672,9 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
 
         if (payload.status !== entry?.status && !payload.liveLocation) {
           // Location is now mandatory when updating status
-          toast.error("Live location is required when updating status! Please fetch your location before submitting.");
+          toast.error(
+            "Live location is required when updating status! Please fetch your location before submitting.",
+          );
           setLoading(false);
           setShowConfirm(false);
           return;
@@ -640,7 +688,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
               "Content-Type": "multipart/form-data",
             },
             timeout: 120000,
-          }
+          },
         );
 
         const updatedEntry = response.data.data || response.data;
@@ -653,9 +701,9 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           ...initialFormData,
           assignedTo: Array.isArray(updatedEntry.assignedTo)
             ? updatedEntry.assignedTo.map((user) => ({
-              value: user._id,
-              label: user.username,
-            }))
+                value: user._id,
+                label: user.username,
+              }))
             : [],
         });
         onClose();
@@ -705,15 +753,13 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
     const fetchUsers = async () => {
       try {
         // Token check removed as api interceptor handles auth
-        const response = await api.get(
-          "/api/tag-users"
-        );
+        const response = await api.get("/api/tag-users");
         setUsers(response.data || []);
       } catch (error) {
         console.error("Error fetching users for tagging:", error);
         toast.error(
           error.response?.data?.message ||
-          "Sorry, we couldn't load the list of users to tag. Please check your internet connection and try again later."
+            "Sorry, we couldn't load the list of users to tag. Please check your internet connection and try again later.",
         );
         setUsers([]);
       }
@@ -821,25 +867,45 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         "Kamrup",
       ],
       Bihar: [
-        "Patna",
-        "Mirzapur",
-        "Aurangabad",
-        "Jehanabad",
-        "Mithapur",
-        "Gaya",
-        "Bhagalpur",
-        "Muzaffarpur",
-        "Darbhanga",
-        "Purnia",
-        "Ara",
-        "Begusarai",
-        "Katihar",
-        "Munger",
         "Chapra",
-        "Sasaram",
-        "Hajipur",
-        "Bihar Sharif",
+        "Siwan",
+        "Gopalganj",
+        "Bettiah",
+        "Motihari",
         "Sitamarhi",
+        "Sheohar",
+        "Darbhanga",
+        "Madhubani",
+        "Samastipur",
+        "Vaishali",
+        "Muzaffarpur",
+        "Madhepura",
+        "Khagaria",
+        "Begusrai",
+        "Lakhisrai",
+        "Munger",
+        "Supaul",
+        "Saharsa",
+        "Jamui",
+        "Banka",
+        "Bhagalpur",
+        "Katihar",
+        "Purnia",
+        "Araria",
+        "Kishanganj",
+        "Patna",
+        "Bhojpur/Arah",
+        "Buxar",
+        "Rohtas/Sasaram",
+        "Kaimur",
+        "Aurangabad",
+        "Arwal",
+        "Jehanabad",
+        "Nawada",
+        "Sheikhpura",
+        "Gaya",
+        "Barh",
+        "Nalanda",
       ],
       Chhattisgarh: [
         "Raipur",
@@ -1406,7 +1472,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         "Ranaghat",
         "Bishnupur",
         "Jangipur",
-        "Baharampur"
+        "Baharampur",
       ],
       "Andaman and Nicobar Islands": [
         "Port Blair",
@@ -1572,7 +1638,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         "Nettapakkam",
       ],
     }),
-    []
+    [],
   );
   const renderOptions = () => (
     <div
@@ -1670,18 +1736,22 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
                 isInvalid={!!errors.mobileNumber}
                 aria-label="Mobile Number"
                 onChange={(e) => {
-                  const numericValue = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  const numericValue = e.target.value
+                    .replace(/\D/g, "")
+                    .slice(0, 10);
                   field.onChange(numericValue);
                 }}
                 value={field.value || ""}
               />
             )}
           />
-          {watch("mobileNumber") && watch("mobileNumber").length > 0 && watch("mobileNumber").length < 10 && (
-            <Form.Text style={{ color: "red" }}>
-              Mobile number must be exactly 10 digits
-            </Form.Text>
-          )}
+          {watch("mobileNumber") &&
+            watch("mobileNumber").length > 0 &&
+            watch("mobileNumber").length < 10 && (
+              <Form.Text style={{ color: "red" }}>
+                Mobile number must be exactly 10 digits
+              </Form.Text>
+            )}
           {watch("mobileNumber") && watch("mobileNumber").length === 10 && (
             <Form.Text style={{ color: "green" }}>
               ✓ Valid mobile number
@@ -2149,84 +2219,138 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           <Form.Label>📍 Live Location *</Form.Label>
 
           {/* Location Status Display */}
-          <div style={{
-            padding: "12px",
-            borderRadius: "8px",
-            marginBottom: "12px",
-            backgroundColor: locationState.status === 'success' ? '#d4edda' :
-              locationState.status === 'error' ? '#f8d7da' :
-                locationState.status === 'timeout' ? '#fff3cd' : '#e2e3e5',
-            border: `1px solid ${locationState.status === 'success' ? '#c3e6cb' :
-              locationState.status === 'error' ? '#f5c6cb' :
-                locationState.status === 'timeout' ? '#ffeaa7' : '#d1d3d4'
-              }`
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {locationState.status === 'success' && <span>📍</span>}
-                {locationState.status === 'fetching' && <span>🔄</span>}
-                {locationState.status === 'slow' && <span>⏳</span>}
-                {locationState.status === 'timeout' && <span>⚠️</span>}
-                {locationState.status === 'error' && <span>❌</span>}
-                {locationState.status === 'idle' && <span>📍</span>}
+          <div
+            style={{
+              padding: "12px",
+              borderRadius: "8px",
+              marginBottom: "12px",
+              backgroundColor:
+                locationState.status === "success"
+                  ? "#d4edda"
+                  : locationState.status === "error"
+                    ? "#f8d7da"
+                    : locationState.status === "timeout"
+                      ? "#fff3cd"
+                      : "#e2e3e5",
+              border: `1px solid ${
+                locationState.status === "success"
+                  ? "#c3e6cb"
+                  : locationState.status === "error"
+                    ? "#f5c6cb"
+                    : locationState.status === "timeout"
+                      ? "#ffeaa7"
+                      : "#d1d3d4"
+              }`,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "8px" }}
+              >
+                {locationState.status === "success" && <span>📍</span>}
+                {locationState.status === "fetching" && <span>🔄</span>}
+                {locationState.status === "slow" && <span>⏳</span>}
+                {locationState.status === "timeout" && <span>⚠️</span>}
+                {locationState.status === "error" && <span>❌</span>}
+                {locationState.status === "idle" && <span>📍</span>}
 
-                <span style={{ fontWeight: '500' }}>
-                  {locationState.status === 'success' && 'Location obtained'}
-                  {locationState.status === 'fetching' && 'Getting your location...'}
-                  {locationState.status === 'slow' && 'Taking longer than usual...'}
-                  {locationState.status === 'timeout' && 'Location request timed out'}
-                  {locationState.status === 'error' && 'Location unavailable'}
-                  {locationState.status === 'idle' && 'Location not set'}
+                <span style={{ fontWeight: "500" }}>
+                  {locationState.status === "success" && "Location obtained"}
+                  {locationState.status === "fetching" &&
+                    "Getting your location..."}
+                  {locationState.status === "slow" &&
+                    "Taking longer than usual..."}
+                  {locationState.status === "timeout" &&
+                    "Location request timed out"}
+                  {locationState.status === "error" && "Location unavailable"}
+                  {locationState.status === "idle" && "Location not set"}
                 </span>
               </div>
 
-              {locationState.status === 'success' && locationState.coordinates && (
-                <small style={{ color: '#6c757d' }}>
-                  Accuracy: ~{Math.round(locationState.coordinates.accuracy || 0)}m
-                </small>
-              )}
+              {locationState.status === "success" &&
+                locationState.coordinates && (
+                  <small style={{ color: "#6c757d" }}>
+                    Accuracy: ~
+                    {Math.round(locationState.coordinates.accuracy || 0)}m
+                  </small>
+                )}
             </div>
 
-            {locationState.status === 'slow' && (
-              <div style={{ marginTop: '8px', fontSize: '0.9em', color: '#856404' }}>
-                GPS is taking longer than usual. This is common on Android devices.
+            {locationState.status === "slow" && (
+              <div
+                style={{
+                  marginTop: "8px",
+                  fontSize: "0.9em",
+                  color: "#856404",
+                }}
+              >
+                GPS is taking longer than usual. This is common on Android
+                devices.
               </div>
             )}
 
-            {locationState.status === 'timeout' && (
-              <div style={{ marginTop: '8px', fontSize: '0.9em', color: '#856404' }}>
-                Location request timed out. Location is required to update status - please retry to get your location.
+            {locationState.status === "timeout" && (
+              <div
+                style={{
+                  marginTop: "8px",
+                  fontSize: "0.9em",
+                  color: "#856404",
+                }}
+              >
+                Location request timed out. Location is required to update
+                status - please retry to get your location.
               </div>
             )}
 
             {locationState.error && (
-              <div style={{ marginTop: '8px', fontSize: '0.9em', color: '#721c24' }}>
+              <div
+                style={{
+                  marginTop: "8px",
+                  fontSize: "0.9em",
+                  color: "#721c24",
+                }}
+              >
                 {locationState.error}
               </div>
             )}
           </div>
 
           {/* Action Buttons */}
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+          <div
+            style={{
+              display: "flex",
+              gap: "8px",
+              flexWrap: "wrap",
+              marginBottom: "12px",
+            }}
+          >
             {/* Primary Get Location Button */}
-            {(locationState.status === 'idle' || locationState.status === 'error') && (
+            {(locationState.status === "idle" ||
+              locationState.status === "error") && (
               <Button
                 variant="primary"
                 onClick={() => fetchLiveLocation()}
                 disabled={loading}
-                style={{ flex: '1', minWidth: '140px' }}
+                style={{ flex: "1", minWidth: "140px" }}
               >
                 📍 Get Location
               </Button>
             )}
 
             {/* Retry Button */}
-            {(locationState.status === 'timeout' || locationState.status === 'error') && (
+            {(locationState.status === "timeout" ||
+              locationState.status === "error") && (
               <Button
                 variant="outline-primary"
                 onClick={() => fetchLiveLocation(true)}
                 disabled={loading}
-                style={{ flex: '1', minWidth: '100px' }}
+                style={{ flex: "1", minWidth: "100px" }}
               >
                 🔄 Retry
               </Button>
@@ -2234,31 +2358,51 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
           </div>
 
           {/* Progress Indicator for Active Location Fetch */}
-          {(locationState.status === 'fetching' || locationState.status === 'slow') && (
-            <div style={{ marginBottom: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                <small style={{ color: '#6c757d' }}>
-                  {locationState.status === 'fetching' ? 'Searching for GPS signal...' : 'Still searching...'}
+          {(locationState.status === "fetching" ||
+            locationState.status === "slow") && (
+            <div style={{ marginBottom: "12px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "4px",
+                }}
+              >
+                <small style={{ color: "#6c757d" }}>
+                  {locationState.status === "fetching"
+                    ? "Searching for GPS signal..."
+                    : "Still searching..."}
                 </small>
-                <small style={{ color: '#6c757d' }}>
-                  {locationState.startTime && `${Math.round((Date.now() - locationState.startTime) / 1000)}s`}
+                <small style={{ color: "#6c757d" }}>
+                  {locationState.startTime &&
+                    `${Math.round((Date.now() - locationState.startTime) / 1000)}s`}
                 </small>
               </div>
               <ProgressBar
                 animated
-                now={locationState.status === 'fetching' ? 30 : 70}
-                style={{ height: '4px' }}
-                variant={locationState.status === 'slow' ? 'warning' : 'primary'}
+                now={locationState.status === "fetching" ? 30 : 70}
+                style={{ height: "4px" }}
+                variant={
+                  locationState.status === "slow" ? "warning" : "primary"
+                }
               />
             </div>
           )}
 
           {/* Help Text */}
           <Form.Text className="text-muted">
-            {locationState.status === 'idle' && !isEditingFollowUp && "Location will be automatically fetched when you start editing fields."}
-            {locationState.status === 'idle' && isEditingFollowUp && "Auto-fetching location due to field changes..."}
-            {locationState.status === 'success' && "✓ Location saved successfully"}
-            {(locationState.status === 'error' || locationState.status === 'timeout') && "Location is required. Please retry to get your location."}
+            {locationState.status === "idle" &&
+              !isEditingFollowUp &&
+              "Location will be automatically fetched when you start editing fields."}
+            {locationState.status === "idle" &&
+              isEditingFollowUp &&
+              "Auto-fetching location due to field changes..."}
+            {locationState.status === "success" &&
+              "✓ Location saved successfully"}
+            {(locationState.status === "error" ||
+              locationState.status === "timeout") &&
+              "Location is required. Please retry to get your location."}
           </Form.Text>
         </Form.Group>
 
@@ -2435,7 +2579,10 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
         </Form.Group>
         <Form.Group controlId="remarks">
           <Form.Label>
-            ✏️ Remarks {status !== entry?.status && <span style={{ color: 'red' }}>*</span>}
+            ✏️ Remarks{" "}
+            {status !== entry?.status && (
+              <span style={{ color: "red" }}>*</span>
+            )}
           </Form.Label>
           <Form.Control
             as="textarea"
@@ -2459,7 +2606,7 @@ function EditEntry({ isOpen, onClose, onEntryUpdated, entry }) {
               e.target.value = pastedText;
               if (pastedText.length >= 500) {
                 toast.warn(
-                  "The pasted text was too long, so we shortened it to 500 characters."
+                  "The pasted text was too long, so we shortened it to 500 characters.",
                 );
               }
               setValue("remarks", pastedText, { shouldValidate: true });
