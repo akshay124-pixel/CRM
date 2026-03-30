@@ -2364,20 +2364,23 @@ function DashBoard() {
               <FaClock size={16} />
               Attendance
             </motion.button>
-            <motion.label
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              style={actionButtonStyle}
-            >
-              <FaUpload size={16} />
-              Bulk Upload
-              <input
-                type="file"
-                onChange={handleFileUpload}
-                accept=".xlsx, .xls"
-                style={{ display: "none" }}
-              />
-            </motion.label>
+            
+              {(role === "superadmin") && (
+              <motion.label
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                style={actionButtonStyle}
+              >
+                <FaUpload size={16} />
+                Bulk Upload
+                <input
+                  type="file"
+                  onChange={handleFileUpload}
+                  accept=".xlsx, .xls"
+                  style={{ display: "none" }}
+                />
+              </motion.label>
+            )}
             <motion.button
               onClick={() => setIsAddModalOpen(true)}
               whileHover={{ scale: 1.05 }}
