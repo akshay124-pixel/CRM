@@ -2365,7 +2365,7 @@ function DashBoard() {
               Attendance
             </motion.button>
             
-              {(role === "superadmin") && (
+              {/* {(role === "superadmin") && ( */}
               <motion.label
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -2380,7 +2380,7 @@ function DashBoard() {
                   style={{ display: "none" }}
                 />
               </motion.label>
-            )}
+            {/* )} */}
             <motion.button
               onClick={() => setIsAddModalOpen(true)}
               whileHover={{ scale: 1.05 }}
